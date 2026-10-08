@@ -27,11 +27,16 @@ export async function generateMetadata({
   return {
     title: `${post.title} | ${site.title}`,
     description: post.summary ?? site.description,
+    // 共有したときのカード。サムネイルが無い記事はサイト共通の画像を使う
     openGraph: {
-      title: post.title,
-      description: post.summary,
       type: 'article',
-      images: post.thumbnail ? [post.thumbnail] : undefined,
+      url: `/blog/${post.slug}`,
+      siteName: site.title,
+      title: post.title,
+      description: post.summary ?? site.description,
+      locale: 'ja_JP',
+      publishedTime: post.date,
+      images: [post.thumbnail ?? '/og.png'],
     },
   };
 }

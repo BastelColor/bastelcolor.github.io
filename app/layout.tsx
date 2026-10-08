@@ -45,8 +45,20 @@ const zenMaru = Zen_Maru_Gothic({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(site.url),
   title: site.title,
   description: site.description,
+  // SNS で URL を共有したときのカード（画像は public/og.png）
+  openGraph: {
+    type: 'website',
+    url: '/',
+    siteName: site.title,
+    title: site.title,
+    description: site.description,
+    locale: 'ja_JP',
+    images: [{ url: '/og.png', width: 1200, height: 630, alt: site.title }],
+  },
+  twitter: { card: 'summary_large_image' },
   // タブのアイコン（public/ に置いた画像）
   icons: {
     icon: [
