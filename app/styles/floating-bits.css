@@ -57,6 +57,12 @@
   opacity: 0.9;
 }
 
+/* トップ: 空になじむよう、色も縁取りもうすめにする */
+.floating-bits.is-home .floating-bit-body {
+  fill: color-mix(in srgb, var(--tone) 55%, #fff);
+  stroke: color-mix(in srgb, var(--edge) 50%, transparent);
+}
+
 /* 部屋の中: 白い小物を部屋の色でうすく縁取る。中身の邪魔をしないよう控えめに */
 .floating-bits.is-room .floating-bit {
   opacity: 0.9;

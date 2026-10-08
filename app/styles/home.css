@@ -18,21 +18,45 @@
   padding: clamp(40px, 10vh, 112px) var(--side) clamp(28px, 6vh, 64px);
 }
 
-/* 画面下の雲の海（白い円を横に並べて描く） */
-.home::before {
+/* 画面下の雲の海（白い円を横に並べて描く）。
+   奥（::before）と手前（::after）の2段で、手前ほど速くゆっくり横へ流れる。
+   円1つぶん（背景の繰り返しの幅）だけ動いて元に戻るので、つなぎ目は見えない */
+.home::before,
+.home::after {
   content: '';
   position: absolute;
   z-index: 0;
   left: 0;
-  right: 0;
   bottom: 0;
   height: 34vh;
-  background:
-    radial-gradient(circle at 50% 100%, #fff 64%, transparent 65%) 0 100% /
-      240px 150px repeat-x,
-    radial-gradient(circle at 50% 100%, #eef6fc 64%, transparent 65%) 120px 100%
-      / 300px 210px repeat-x;
   pointer-events: none;
+  animation: cloud-sea-drift linear infinite;
+}
+
+.home::before {
+  --tile: 300px;
+  width: calc(100% + var(--tile));
+  background: radial-gradient(
+      circle at 50% 100%,
+      #eef6fc 64%,
+      transparent 65%
+    )
+    120px 100% / var(--tile) 210px repeat-x;
+  animation-duration: 90s;
+}
+
+.home::after {
+  --tile: 240px;
+  width: calc(100% + var(--tile));
+  background: radial-gradient(circle at 50% 100%, #fff 64%, transparent 65%) 0
+    100% / var(--tile) 150px repeat-x;
+  animation-duration: 48s;
+}
+
+@keyframes cloud-sea-drift {
+  to {
+    transform: translateX(calc(var(--tile) * -1));
+  }
 }
 
 .home > * {
