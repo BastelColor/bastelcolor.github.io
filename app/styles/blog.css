@@ -1,0 +1,185 @@
+/* ============================================================
+   記事（app/(site)/blog/[slug]/page.tsx、components/blog/post-layer.tsx）
+   ブログの部屋の上に、押した記事の位置から紙が膨らむように重ねる
+   ============================================================ */
+
+.post-layer {
+  position: absolute;
+  z-index: 40;
+  inset: 0;
+  overflow: clip;
+  /* 部屋の黄色の上で、読みやすい紙の色 */
+  background: #fffcf3;
+  clip-path: circle(0px at var(--origin-x) var(--origin-y));
+  /* 時間を変えるときは post-layer.tsx の SHRINK_MS も合わせる */
+  transition: clip-path 0.7s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.post-layer.is-expanded {
+  clip-path: circle(150vmax at var(--origin-x) var(--origin-y));
+}
+
+.post-layer-inner {
+  height: 100%;
+  overflow-y: auto;
+  padding: clamp(20px, 4vh, 40px) var(--side) clamp(40px, 8vh, 80px);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.post-layer.is-expanded .post-layer-inner {
+  opacity: 1;
+  transition-delay: 0.3s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .post-layer,
+  .post-layer-inner {
+    transition: none;
+  }
+}
+
+.post-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.post-head .puni,
+.post-foot .puni {
+  margin-left: -18px;
+}
+
+.post {
+  max-width: 44em;
+  margin: clamp(24px, 5vh, 48px) auto 0;
+}
+
+.post-thumbnail {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 24px;
+  object-fit: cover;
+}
+
+.post-meta {
+  display: flex;
+  gap: 1em;
+  margin: 24px 0 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.post h1 {
+  margin: 8px 0 0;
+  font-size: clamp(28px, 3.6vw, 44px);
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.post-foot {
+  display: flex;
+  justify-content: center;
+  margin-top: clamp(40px, 8vh, 80px);
+}
+
+/* ---- 本文（Markdown から変換した HTML） ---- */
+
+.post-body {
+  margin-top: clamp(28px, 5vh, 48px);
+  font-size: 16px;
+  line-height: 2;
+}
+
+.post-body > * {
+  margin: 0;
+}
+
+.post-body > * + * {
+  margin-top: 1.2em;
+}
+
+.post-body h2 {
+  margin-top: 2.4em;
+  padding-bottom: 0.3em;
+  border-bottom: 3px solid color-mix(in srgb, var(--edge) 35%, transparent);
+  font-size: 1.6em;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.post-body h3 {
+  margin-top: 2em;
+  font-size: 1.25em;
+  font-weight: 900;
+  line-height: 1.5;
+}
+
+.post-body h2 + *,
+.post-body h3 + * {
+  margin-top: 0.8em;
+}
+
+.post-body ul,
+.post-body ol {
+  padding-left: 1.6em;
+}
+
+.post-body li + li {
+  margin-top: 0.3em;
+}
+
+.post-body img {
+  display: block;
+  max-width: 100%;
+  max-height: 80svh;
+  margin-inline: auto;
+  border-radius: 16px;
+}
+
+.post-body blockquote {
+  padding: 0.2em 0 0.2em 1.2em;
+  border-left: 4px solid var(--tone);
+  color: var(--ink-soft);
+}
+
+.post-body :not(pre) > code {
+  padding: 0.15em 0.4em;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.7);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 0.9em;
+}
+
+.post-body pre {
+  overflow-x: auto;
+  padding: 1em 1.2em;
+  border-radius: 16px;
+  background: #2f4558;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #f4f8fb;
+}
+
+.post-body pre code {
+  font-family: var(--font-geist-mono), monospace;
+}
+
+.post-body table {
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.post-body th,
+.post-body td {
+  padding: 0.5em 1em;
+  border-bottom: 2px solid color-mix(in srgb, var(--edge) 30%, transparent);
+  text-align: left;
+}
+
+.post-body hr {
+  border: 0;
+  border-top: 3px dashed color-mix(in srgb, var(--edge) 40%, transparent);
+}

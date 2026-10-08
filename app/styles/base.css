@@ -1,0 +1,118 @@
+/* ============================================================
+   デザイントークンと要素の基本スタイル
+
+   サイト全体のルール
+   - 雲形（components/cloud-shape.tsx）は押せるものだけに使う。
+     部屋の中には枠・カード・影を付けず、文字の大小と余白だけで組む
+   - 色: 4つの部屋がそれぞれ1色を持つ。名前「Yzmo」の4文字も同じ順・同じ色。
+     その色の濃い版（--edge）を縁取りに使い、飴のような輪郭にする
+   - キャラクター: 作者の VRM から描画した画像（public/characters/）。
+     服の色と雲の色が合う子を、その雲のうしろに置く
+   - 文字: 名前・雲・部屋の名前は Cherry Bomb One、ほかは Zen Maru Gothic
+   - 動き: 雲がふわふわ浮く／ホバーで「ぷにっ」＋キャラがひょこっ／
+     押した雲から部屋が膨らむ
+   ============================================================ */
+
+:root {
+  --ink: #2f4558;
+  --ink-soft: #6a7d8c;
+  --sky: #c9e2f5;
+  /* 画面の左右の余白 */
+  --side: clamp(20px, 7vw, 112px);
+
+  /* shadcn/ui（components/ui）が参照する配色 */
+  --background: var(--sky);
+  --foreground: var(--ink);
+  --card: #fff;
+  --card-foreground: var(--ink);
+  --popover: #fff;
+  --popover-foreground: var(--ink);
+  --primary: #5293d6;
+  --primary-foreground: #fff;
+  --secondary: #eef6fc;
+  --secondary-foreground: var(--ink);
+  --muted: #eef6fc;
+  --muted-foreground: var(--ink-soft);
+  --accent: #ffe08a;
+  --accent-foreground: var(--ink);
+  --destructive: #e2709a;
+  --border: #b9d3e6;
+  --input: #b9d3e6;
+  --ring: #5293d6;
+  --radius: 1.5rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  /* next/font のフォント変数は body に付くので、それを使う変数も body で定義する
+     （:root で定義すると参照先が無く、無効になる） */
+  --display:
+    var(--font-cherry-bomb), var(--font-zen-maru), var(--font-geist-sans),
+    sans-serif;
+  --body: var(--font-zen-maru), var(--font-geist-sans), sans-serif;
+
+  margin: 0;
+  background: var(--sky);
+  color: var(--ink);
+  font-family: var(--body);
+  font-weight: 500;
+}
+
+button,
+a {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+}
+
+/* ---- 4色（雲・名前・部屋で共通） ---- */
+
+.pink {
+  --tone: #ffb7d2;
+  --edge: #e2709a;
+}
+
+.mint {
+  --tone: #a5e6cf;
+  --edge: #3fae8c;
+}
+
+.blue {
+  --tone: #acd3fa;
+  --edge: #5293d6;
+}
+
+.yellow {
+  --tone: #ffe08a;
+  --edge: #d6a224;
+}
+
+.white {
+  --tone: #ffffff;
+  --edge: #8aa3b8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,107 @@
+/* ============================================================
+   部屋: 押した雲の位置から膨らんで画面を満たす（components/site-app.tsx）
+   中身は rooms/*.css
+   ============================================================ */
+
+.room {
+  --tint: #ffe6f0;
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  background: var(--tint);
+  /* 右下のキャラがはみ出しても、部屋がスクロールしないようにする */
+  overflow: clip;
+  clip-path: circle(0px at var(--origin-x) var(--origin-y));
+  /* 時間を変えるときは site-app.tsx の SHRINK_MS も合わせる */
+  transition: clip-path 0.7s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.room.is-expanded {
+  clip-path: circle(150vmax at var(--origin-x) var(--origin-y));
+}
+
+.room.mint {
+  --tint: #dcf4ea;
+}
+
+.room.blue {
+  --tint: #dfecfa;
+}
+
+.room.yellow {
+  --tint: #fff1c7;
+}
+
+.room-inner {
+  height: 100%;
+  overflow-y: auto;
+  padding: clamp(20px, 4vh, 40px) var(--side) clamp(48px, 10vh, 96px);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.room.is-expanded .room-inner {
+  opacity: 1;
+  transition-delay: 0.3s;
+}
+
+.room-head {
+  margin-bottom: clamp(32px, 7vh, 72px);
+}
+
+.room-head .puni {
+  margin-left: -18px;
+}
+
+.room-head h2 {
+  margin: clamp(16px, 4vh, 40px) 0 0;
+  font-family: var(--display);
+  font-size: clamp(48px, 6.5vw, 96px);
+  font-weight: 400;
+  line-height: 1.1;
+  color: #fff;
+  -webkit-text-stroke: 0.14em var(--edge);
+  paint-order: stroke fill;
+  text-shadow: 0 0.06em 0 var(--edge);
+}
+
+.room-head p {
+  margin: 12px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+/* 部屋の右下から、その部屋の子がのぞく */
+.room-mascot {
+  position: absolute;
+  right: clamp(-40px, -2vw, 0px);
+  bottom: -6%;
+  width: calc(clamp(180px, 24vw, 360px) * var(--mascot-width, 1));
+  pointer-events: none;
+  mask-image: linear-gradient(to right, transparent 0, #000 14%);
+  opacity: 0;
+  translate: 0 30%;
+  transition:
+    opacity 0.3s ease,
+    translate 0.5s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.room.is-expanded .room-mascot {
+  opacity: 1;
+  translate: 0 0;
+  transition-delay: 0.45s;
+}
+
+@media (max-width: 760px) {
+  .room-mascot {
+    width: 140px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .room,
+  .room-inner {
+    transition: none;
+  }
+}

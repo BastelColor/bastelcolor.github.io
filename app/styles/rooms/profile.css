@@ -1,0 +1,52 @@
+/* プロフィールの部屋（components/rooms/profile-room.tsx） */
+
+.profile {
+  max-width: 40em;
+}
+
+.profile-lead {
+  margin: 0;
+  font-size: clamp(22px, 2.4vw, 34px);
+  font-weight: 900;
+  line-height: 1.6;
+}
+
+.profile-lead span {
+  display: block;
+}
+
+.profile-body {
+  max-width: 34em;
+  margin: 28px 0 0;
+  font-size: 16px;
+  line-height: 2.1;
+  color: var(--ink-soft);
+}
+
+.profile-facts {
+  display: grid;
+  grid-template-columns: 9em 1fr;
+  gap: 14px 20px;
+  margin: 48px 0 0;
+}
+
+.profile-facts dt {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.profile-facts dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 1.4em;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .profile-facts {
+    grid-template-columns: 1fr;
+  }
+}

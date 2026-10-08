@@ -1,0 +1,259 @@
+/* ============================================================
+   ぷに雲ボタン（components/puni-button.tsx）
+
+   .puni                ふわふわ浮く
+     .puni-x / .puni-y  横と縦を少しずらして伸び縮みする（ぷにっ）
+       .puni-mascot     雲のうしろのキャラクター
+       .cloud-shape     雲（components/cloud-shape.tsx）
+       .puni-label      飴のような縁取り文字
+   ============================================================ */
+
+.puni {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  animation: puni-float 4.2s ease-in-out calc(var(--i, 0) * -1.1s) infinite;
+
+  /* 雲の色（cloud-shape.tsx が参照する）
+     --cloud-top / bottom : 本体のグラデーション
+     --cloud-shade        : 下側の縁に落ちる影（ふくらみの陰影）
+     --cloud-ground       : 接地影 */
+  --cloud-top: var(--tone);
+  --cloud-bottom: color-mix(in srgb, var(--tone) 30%, #fff);
+  --cloud-shade: color-mix(in srgb, var(--edge) 55%, transparent);
+  --cloud-ground: rgba(47, 69, 88, 0.18);
+}
+
+.puni.white {
+  --cloud-bottom: #f1f6fa;
+}
+
+.puni.small {
+  width: 136px;
+  animation: none;
+}
+
+.puni:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 4px;
+  border-radius: 30%;
+}
+
+.puni-x,
+.puni-y {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+/* ---- 雲 ---- */
+
+.cloud-shape {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.cloud-shape-shadow {
+  fill: var(--cloud-ground);
+}
+
+/* 雲の輪郭を、その色の濃い版で太めに */
+.cloud-shape-body {
+  stroke: var(--edge);
+  stroke-width: 4.5;
+  stroke-linejoin: round;
+}
+
+.cloud-shape-gloss {
+  fill: #fff;
+  opacity: 0.95;
+}
+
+/* ---- ラベル ---- */
+
+.puni-label {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding-bottom: 6%;
+  font-size: clamp(20px, 2.3vw, 36px);
+  font-family: var(--display);
+  color: #fff;
+  -webkit-text-stroke: 0.2em var(--edge);
+  paint-order: stroke fill;
+  text-shadow: 0 0.08em 0 var(--edge);
+}
+
+.puni.small .puni-label {
+  font-size: 19px;
+}
+
+/* 白い雲は白い文字だと沈むので、墨色の文字に白い縁取り */
+.puni.white .puni-label {
+  color: var(--ink);
+  -webkit-text-stroke: 0.16em #fff;
+  text-shadow: none;
+}
+
+/* ---- 雲のうしろのキャラクター。下半分は雲に隠れる ----
+   .puni-mascot は撮影の基準の正方形。画像は左上をそろえて置き、
+   右と下に広げて撮った子（--mascot-width > 1）はそのぶん外へはみ出す */
+
+.puni-mascot {
+  position: absolute;
+  display: block;
+  z-index: -1;
+  left: 50%;
+  bottom: 54%;
+  width: 78%;
+  aspect-ratio: 1;
+  translate: -50% 0;
+  pointer-events: none;
+  /* 白い子（Timi）でも空に溶けないよう、細い輪郭をつける */
+  filter: drop-shadow(0 0 1.5px rgba(47, 69, 88, 0.45))
+    drop-shadow(0 2px 0 rgba(47, 69, 88, 0.12));
+  transition: translate 0.35s cubic-bezier(0.3, 1.8, 0.5, 1);
+}
+
+.puni:hover .puni-mascot,
+.puni:focus-visible .puni-mascot {
+  translate: -50% -14%;
+}
+
+/* ふつうの顔の上に笑顔を重ねておき、ホバーで笑顔だけを表示する
+   （ふつうの顔は消さないので、切り替えの途中でも透けない） */
+.puni-mascot img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: calc(100% * var(--mascot-width, 1));
+  /* 撮影範囲の端で切れた髪などが目立たないよう、左右をぼかす */
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    #000 6%,
+    #000 94%,
+    transparent 100%
+  );
+  transition: opacity 0.12s ease;
+}
+
+.puni-mascot .is-happy {
+  opacity: 0;
+}
+
+.puni:is(:hover, :focus-visible, .is-pressed) .puni-mascot .is-happy {
+  opacity: 1;
+}
+
+/* ---- ぷにっ ---- */
+
+.puni:hover .puni-x {
+  animation: puni-poyon-x 0.58s ease-in-out both;
+}
+
+.puni:hover .puni-y {
+  animation: puni-poyon-y 0.58s ease-in-out 0.044s both;
+}
+
+.puni:active .puni-x,
+.puni.is-pressed .puni-x {
+  animation: puni-press-x 0.3s ease-in-out both;
+}
+
+.puni:active .puni-y,
+.puni.is-pressed .puni-y {
+  animation: puni-press-y 0.3s ease-in-out 0.028s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .puni,
+  .puni-x,
+  .puni-y {
+    animation: none !important;
+  }
+}
+
+/* ---- keyframes ---- */
+
+@keyframes puni-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -8px;
+  }
+}
+
+@keyframes puni-poyon-x {
+  0% {
+    transform: scaleX(1);
+  }
+  34% {
+    transform: scaleX(1.24);
+  }
+  70% {
+    transform: scaleX(1.055);
+  }
+  100% {
+    transform: scaleX(1.12);
+  }
+}
+
+@keyframes puni-poyon-y {
+  0% {
+    transform: scaleY(1);
+  }
+  34% {
+    transform: scaleY(0.86);
+  }
+  70% {
+    transform: scaleY(1.17);
+  }
+  100% {
+    transform: scaleY(1.12);
+  }
+}
+
+@keyframes puni-press-x {
+  0% {
+    transform: scaleX(1.12);
+  }
+  38% {
+    transform: scaleX(0.78);
+  }
+  72% {
+    transform: scaleX(0.98);
+  }
+  100% {
+    transform: scaleX(0.9);
+  }
+}
+
+@keyframes puni-press-y {
+  0% {
+    transform: scaleY(1.12);
+  }
+  42% {
+    transform: scaleY(0.82);
+  }
+  74% {
+    transform: scaleY(0.99);
+  }
+  100% {
+    transform: scaleY(0.9);
+  }
+}

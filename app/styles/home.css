@@ -1,0 +1,108 @@
+/* ============================================================
+   トップ: 名前・役職・4つの雲（components/site-app.tsx）
+   ============================================================ */
+
+.site {
+  position: fixed;
+  inset: 0;
+  /* hidden だと、はみ出したキャラ画像のぶんだけ、フォーカス移動などで
+     画面ごとスクロールしてずれることがある。clip はスクロールさせない */
+  overflow: clip;
+}
+
+.home {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(40px, 10vh, 112px) var(--side) clamp(28px, 6vh, 64px);
+}
+
+/* 画面下の雲の海（白い円を横に並べて描く） */
+.home::before {
+  content: '';
+  position: absolute;
+  z-index: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34vh;
+  background:
+    radial-gradient(circle at 50% 100%, #fff 64%, transparent 65%) 0 100% /
+      240px 150px repeat-x,
+    radial-gradient(circle at 50% 100%, #eef6fc 64%, transparent 65%) 120px 100%
+      / 300px 210px repeat-x;
+  pointer-events: none;
+}
+
+.home > * {
+  position: relative;
+  z-index: 1;
+}
+
+.home-name {
+  margin: 0;
+  font-weight: 400;
+}
+
+.home-name-letters {
+  display: flex;
+  font-family: var(--display);
+  font-size: clamp(88px, 12vw, 184px);
+  line-height: 1;
+}
+
+/* 1文字ずつ少し傾けて、はずむように並べる */
+.home-name-letters > span {
+  color: var(--tone);
+  -webkit-text-stroke: 0.09em var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0 0.05em 0 var(--ink);
+}
+
+.home-name-letters > span:nth-child(1) {
+  rotate: -6deg;
+}
+
+.home-name-letters > span:nth-child(2) {
+  rotate: 4deg;
+  translate: 0 0.06em;
+}
+
+.home-name-letters > span:nth-child(3) {
+  rotate: -3deg;
+}
+
+.home-name-letters > span:nth-child(4) {
+  rotate: 7deg;
+  translate: 0 0.04em;
+}
+
+.home-name-sub {
+  display: block;
+  margin-top: 0.4em;
+  font-size: clamp(18px, 1.7vw, 26px);
+  font-weight: 900;
+  letter-spacing: 0.5em;
+}
+
+.home-roles {
+  margin: 12px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.home-menu {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(8px, 2vw, 32px);
+  max-width: 1280px;
+  margin-top: auto;
+}
+
+@media (max-width: 760px) {
+  .home-menu {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
