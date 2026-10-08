@@ -297,6 +297,18 @@ https://youtu.be/dQw4w9WgXcQ                 →  youtubeId: 'dQw4w9WgXcQ'
 - 白っぽいモデルがくすんで見えるときは `brightness` を 1.2〜1.4 くらいにします。
 - スマホなど指で操作する画面では、モデルの向きは動かせません（触れても回らず、画面がスクロールします）。マウスのある画面では、ドラッグでまわせます。
 
+### lilToon の見た目のまま表示する
+
+VRChat 用に lilToon で作ったアバターは、ふつうに VRM に書き出すと MToon に置きかわって見た目が変わります。Unity の **Mochiya Avatar Tools** で書き出すと、lilToon の設定が入った VRM になり、サイトでも lilToon の見た目のまま表示できます（ファーレがこの方法です）。
+
+1. Unity のプロジェクトに Mochiya Avatar Tools を入れる（UniVRM 0.131.2 以降が必要。VCCAvatar_2022 には入れ済み）
+2. アバターをシーンに置き、**Mochiya > Avatar Tools** で書き出す。作者名は **Export settings** で Bastelcolor に直しておく
+3. 書き出した VRM を `models/` に置き、`content/avatars.ts` のそのアバターに `liltoon: true` を足す
+
+- `liltoon: true` のアバターを選んだときだけ、lilToon を表示するための部品（約310KB）を読み込みます。ほかのアバターやページは重くなりません。
+- 同じメッシュを使うオブジェクトが2つあると、書き出しで「An item with the same key has already been added」というエラーになります。非表示のものも含めて、片方をアバターの外に出してから書き出してください。
+- 揺れもの（PhysBones）は VRM の揺れものに置きかわり、つかむ・伸ばす・角度の制限は再現されません。
+
 ### アイコン画像
 
 - 192×192 の正方形で、顔が真ん中に来る画像にします（丸く切り抜いて表示されます）。
