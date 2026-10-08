@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { PuniButton } from '@/components/puni-button';
 import { findPage } from '@/content/pages';
-import { getPostOrigin } from '@/lib/post-origin';
+import { getPostOrigin, wasOpenedFromList } from '@/lib/post-origin';
 import { cn } from '@/lib/utils';
 
 /** 膨らみ終わる・縮み終わるまで（blog.css の .post-layer の transition と合わせる） */
@@ -22,6 +22,7 @@ type Phase = 'opening' | 'open' | 'closing';
  * 記事を、ブログの部屋の上に重ねて出す層。
  * トップから部屋を開くときと同じく、押した記事の位置から膨らみ、
  * もどるときは同じ位置へ縮んでから、ブログの部屋（/）へ移る。
+ * ブラウザの「戻る」で記事を離れたときは、縮まずにそのままブログの部屋にもどる。
  */
 export function PostLayer({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -48,9 +49,10 @@ export function PostLayer({ children }: { children: ReactNode }) {
     const reduceMotion = window.matchMedia(
       '(prefers-reduced-motion: reduce)',
     ).matches;
-    // 縮み終わりは時間で判断する（タブが裏にあると transitionend が来ないことがあるため）
+    // 縮み終わりは時間で判断する（タブが裏にあると transitionend が来ないことがあるため）。
+    // 一覧から来たときは履歴をもどる（新しく積むと、ブラウザの「戻る」で記事にもどってしまう）
     timer.current = window.setTimeout(
-      () => router.push('/'),
+      () => (wasOpenedFromList() ? router.back() : router.push('/')),
       reduceMotion ? 0 : SHRINK_MS,
     );
   };

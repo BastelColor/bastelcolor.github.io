@@ -9,8 +9,11 @@ type Point = { x: number; y: number };
 const VALID_MS = 3000;
 
 let pending: { point: Point; at: number } | null = null;
+/** 一度でもブログの一覧から記事を開いたか（ページを読み込み直すと false にもどる） */
+let openedFromList = false;
 
 export function rememberPostOrigin(element: Element) {
+  openedFromList = true;
   const rect = element.getBoundingClientRect();
   pending = {
     point: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
@@ -25,4 +28,13 @@ export function rememberPostOrigin(element: Element) {
 export function getPostOrigin(): Point | null {
   if (!pending || Date.now() - pending.at > VALID_MS) return null;
   return pending.point;
+}
+
+/**
+ * 記事をブログの一覧から開いたか。
+ * そうなら、記事の「もどる」はブラウザの「戻る」と同じく履歴をもどればよい
+ * （記事のページを直接開いたときは、もどる先の履歴がこのサイトに無い）
+ */
+export function wasOpenedFromList() {
+  return openedFromList;
 }

@@ -18,6 +18,7 @@ import { WorksRoom } from '@/components/rooms/works-room';
 import { findPage, pages } from '@/content/pages';
 import { site } from '@/content/site';
 import type { PageId } from '@/content/types';
+import { pushLayers, readLayers } from '@/lib/history-layers';
 import type { Post } from '@/lib/post-meta';
 import { cn } from '@/lib/utils';
 
@@ -66,11 +67,24 @@ export function SiteApp({ posts, children }: SiteAppProps) {
   const timer = useRef<number | undefined>(undefined);
   const returnFocusTo = useRef<PageId | null>(null);
 
-  const open = (id: PageId, button: HTMLButtonElement) => {
+  /**
+   * 部屋を開く。ブラウザの「進む」で開き直すときは、もう履歴があるので積まない
+   * （lib/history-layers.ts）
+   */
+  const open = (
+    id: PageId,
+    button: HTMLButtonElement | undefined,
+    { push = true } = {},
+  ) => {
     if (room) return;
-    const rect = button.getBoundingClientRect();
-    setOrigin({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    const rect = button?.getBoundingClientRect();
+    setOrigin(
+      rect
+        ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+        : { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+    );
     setRoom(id);
+    if (push) pushLayers({ room: id });
     timer.current = window.setTimeout(() => setIsExpanded(true), PRESS_MS);
   };
 
@@ -95,6 +109,15 @@ export function SiteApp({ posts, children }: SiteAppProps) {
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
+  /**
+   * サイトの「もどる」ボタンや Esc で部屋を閉じる。部屋を開いたときに積んだ履歴があれば
+   * ブラウザの「戻る」と同じく履歴をもどし、閉じるのは下の popstate で行う
+   */
+  const requestClose = () => {
+    if (room && readLayers().room === room) window.history.back();
+    else close();
+  };
+
   // 記事からもどったら、さっき開いた記事の一覧の項目へフォーカスを戻す
   const lastPostPath = useRef<string | null>(null);
   useEffect(() => {
@@ -116,14 +139,28 @@ export function SiteApp({ posts, children }: SiteAppProps) {
     returnFocusTo.current = null;
   }, [room]);
 
-  // Esc のリスナーから常に最新の close を呼べるようにしておく
+  // リスナーから常に最新の関数・状態を使えるようにしておく
   // （記事を開いているあいだの Esc は、記事の側で閉じる）
-  const closeRef = useRef(close);
-  const isPostPageRef = useRef(isPostPage);
+  const latest = useRef({ open, close, requestClose, room, isPostPage });
   useEffect(() => {
-    closeRef.current = close;
-    isPostPageRef.current = isPostPage;
+    latest.current = { open, close, requestClose, room, isPostPage };
   });
+
+  // ブラウザの「戻る」「進む」で、部屋を閉じたり開き直したりする
+  useEffect(() => {
+    const onPopState = () => {
+      // 記事のページへの行き来は、ページの移動として扱われる
+      if (window.location.pathname.startsWith('/blog/')) return;
+      const { room: wanted } = readLayers();
+      const current = latest.current;
+      if (!wanted && current.room) current.close();
+      else if (wanted && !current.room) {
+        current.open(wanted, buttons.current.get(wanted), { push: false });
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   // 部屋が開いたら「もどる」へフォーカスし、Esc でも戻れるようにする
   useEffect(() => {
@@ -133,8 +170,8 @@ export function SiteApp({ posts, children }: SiteAppProps) {
       if (event.key !== 'Escape') return;
       // 部屋の中でダイアログ（作品の詳細など）を開いているときは、それだけを閉じる
       if (document.querySelector('dialog[open]')) return;
-      if (isPostPageRef.current) return;
-      closeRef.current();
+      if (latest.current.isPostPage) return;
+      latest.current.requestClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -199,7 +236,7 @@ export function SiteApp({ posts, children }: SiteAppProps) {
                 ref={backButton}
                 tone="white"
                 size="small"
-                onPress={close}
+                onPress={requestClose}
                 label="もどる"
               />
               <h2>{page.menuLabel}</h2>
