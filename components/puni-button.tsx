@@ -47,7 +47,14 @@ export function PuniButton({
               style={{ '--mascot-width': mascot.width ?? 1 } as CSSProperties}
             >
               <img src={mascot.normal} alt="" />
-              <img className="is-happy" src={mascot.happy} alt="" />
+              {/* 笑顔はホバーしたときだけ使うので、ふつうの顔より後回しに読み込む */}
+              <img
+                className="is-happy"
+                src={mascot.happy}
+                alt=""
+                fetchPriority="low"
+                decoding="async"
+              />
             </span>
           )}
           <CloudShape />

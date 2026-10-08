@@ -1,10 +1,5 @@
 import type { Metadata } from 'next';
-import {
-  Cherry_Bomb_One,
-  Geist,
-  Geist_Mono,
-  Zen_Maru_Gothic,
-} from 'next/font/google';
+import { Cherry_Bomb_One, Zen_Maru_Gothic } from 'next/font/google';
 import { site } from '@/content/site';
 import { cn } from '@/lib/utils';
 import './globals.css';
@@ -21,16 +16,6 @@ import './styles/rooms/log.css';
 import './styles/vrm-viewer.css';
 import './styles/blog.css';
 import './styles/not-found.css';
-
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
 
 // 見出し・メニューボタン用
 const cherryBomb = Cherry_Bomb_One({
@@ -78,14 +63,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <body
-        className={cn(
-          geistSans.variable,
-          geistMono.variable,
-          cherryBomb.variable,
-          zenMaru.variable,
-        )}
-      >
+      <body className={cn(cherryBomb.variable, zenMaru.variable)}>
         {children}
       </body>
     </html>

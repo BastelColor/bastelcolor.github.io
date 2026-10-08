@@ -37,9 +37,8 @@ body {
   /* next/font のフォント変数は body に付くので、それを使う変数も body で定義する
      （:root で定義すると参照先が無く、無効になる） */
   --display:
-    var(--font-cherry-bomb), var(--font-zen-maru), var(--font-geist-sans),
-    sans-serif;
-  --body: var(--font-zen-maru), var(--font-geist-sans), sans-serif;
+    var(--font-cherry-bomb), var(--font-zen-maru), sans-serif;
+  --body: var(--font-zen-maru), sans-serif;
 
   margin: 0;
   background: var(--sky);

@@ -156,7 +156,8 @@
   padding: 0.15em 0.4em;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.7);
-  font-family: var(--font-geist-mono), monospace;
+  /* 等幅の文字は端末に入っているものを使う（記事のためだけにフォントを読み込まない） */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.9em;
 }
 
@@ -171,7 +172,7 @@
 }
 
 .post-body pre code {
-  font-family: var(--font-geist-mono), monospace;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .post-body table {
