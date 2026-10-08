@@ -126,7 +126,6 @@
   transition: translate 0.35s cubic-bezier(0.3, 1.8, 0.5, 1);
 }
 
-.puni:hover .puni-mascot,
 .puni:focus-visible .puni-mascot {
   translate: -50% -14%;
 }
@@ -154,18 +153,30 @@
   opacity: 0;
 }
 
-.puni:is(:hover, :focus-visible, .is-pressed) .puni-mascot .is-happy {
+.puni:is(:focus-visible, .is-pressed) .puni-mascot .is-happy {
   opacity: 1;
 }
 
 /* ---- ぷにっ ---- */
 
-.puni:hover .puni-x {
-  animation: puni-poyon-x 0.58s ease-in-out both;
-}
+/* :hover はマウスのある画面だけ。スマホでは指で押したあとも
+   :hover が残り、下線や浮いた見た目が戻らなくなるため */
+@media (hover: hover) {
+  .puni:hover .puni-mascot {
+    translate: -50% -14%;
+  }
 
-.puni:hover .puni-y {
-  animation: puni-poyon-y 0.58s ease-in-out 0.044s both;
+  .puni:hover .puni-mascot .is-happy {
+    opacity: 1;
+  }
+
+  .puni:hover .puni-x {
+    animation: puni-poyon-x 0.58s ease-in-out both;
+  }
+
+  .puni:hover .puni-y {
+    animation: puni-poyon-y 0.58s ease-in-out 0.044s both;
+  }
 }
 
 .puni:active .puni-x,

@@ -1,0 +1,115 @@
+/* ============================================================
+   ページがみつかりません（app/not-found.tsx）
+   トップと同じ空の上に、名前と同じ飴色の文字がふわふわ浮かぶ
+   ============================================================ */
+
+/* このページもサイト共通の部分（components/site-app.tsx）の中に表示されるので、
+   トップの名前や雲は隠しておく */
+.site:has(> .not-found) > :not(.not-found) {
+  display: none;
+}
+
+.not-found {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px var(--side) 40px;
+  overflow: clip;
+  text-align: center;
+}
+
+/* 画面下の雲の海（トップの .home::before と同じ） */
+.not-found::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 30vh;
+  background:
+    radial-gradient(circle at 50% 100%, #fff 64%, transparent 65%) 0 100% /
+      240px 150px repeat-x,
+    radial-gradient(circle at 50% 100%, #eef6fc 64%, transparent 65%) 120px 100%
+      / 300px 210px repeat-x;
+  pointer-events: none;
+}
+
+.not-found-code {
+  font-family: var(--display);
+  font-size: clamp(20px, 2.4vw, 28px);
+  letter-spacing: 0.3em;
+  color: var(--ink-soft);
+}
+
+.not-found-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.not-found-sub {
+  font-size: clamp(16px, 1.6vw, 22px);
+  font-weight: 900;
+  letter-spacing: 0.4em;
+}
+
+.not-found-letters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 0.3em;
+  font-family: var(--display);
+  font-size: clamp(44px, 9vw, 120px);
+  line-height: 1.2;
+}
+
+/* 1文字ずつ、少しずつずらして浮き沈みさせる */
+.not-found-letters > span {
+  display: inline-block;
+  color: var(--tone);
+  -webkit-text-stroke: 0.09em var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0 0.05em 0 var(--ink);
+  animation: not-found-float 3.2s ease-in-out calc(var(--i) * -0.4s) infinite;
+}
+
+.not-found-letters > span:nth-child(odd) {
+  --tilt: -6deg;
+}
+
+.not-found-letters > span:nth-child(even) {
+  --tilt: 5deg;
+}
+
+.not-found-note {
+  max-width: 28em;
+  margin-top: clamp(20px, 4vh, 36px);
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.8;
+  color: var(--ink-soft);
+}
+
+/* 雲のボタン。うしろから顔を出す子のぶん、上をあけておく */
+.not-found-back {
+  width: clamp(180px, 22vw, 240px);
+  margin-top: clamp(64px, 12vh, 110px);
+}
+
+@keyframes not-found-float {
+  0%,
+  100% {
+    translate: 0 0;
+    rotate: var(--tilt);
+  }
+  50% {
+    translate: 0 -0.14em;
+    rotate: calc(var(--tilt) * -0.6);
+  }
+}

@@ -66,10 +66,18 @@
     background-color 0.15s ease;
 }
 
-.avatar-room-choice:hover {
-  translate: 0 -2px;
-  --thickness: 6px;
-  background-color: rgba(255, 255, 255, 0.75);
+/* :hover はマウスのある画面だけ。スマホでは指で押したあとも
+   :hover が残り、下線や浮いた見た目が戻らなくなるため */
+@media (hover: hover) {
+  .avatar-room-choice:hover {
+    translate: 0 -2px;
+    --thickness: 6px;
+    background-color: rgba(255, 255, 255, 0.75);
+  }
+
+  .avatar-room-choice:hover .avatar-room-icon .is-happy {
+    opacity: 1;
+  }
 }
 
 .avatar-room-choice:active,
@@ -111,7 +119,7 @@
   opacity: 0;
 }
 
-.avatar-room-choice:is(:hover, :focus-visible, [aria-pressed='true'])
+.avatar-room-choice:is(:focus-visible, [aria-pressed='true'])
   .avatar-room-icon
   .is-happy {
   opacity: 1;
@@ -135,6 +143,13 @@
   margin: 28px 0 10px;
   font-size: 13px;
   color: var(--ink-soft);
+}
+
+/* 指で操作する画面ではカメラを動かせないので（vrm-stage.ts）、案内も出さない */
+@media (pointer: coarse) {
+  .avatar-room-hint {
+    display: none;
+  }
 }
 
 .avatar-room-credit {

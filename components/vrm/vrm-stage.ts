@@ -119,9 +119,13 @@ export async function createVrmStage({
   controls.autoRotate = autoRotate;
   controls.enableZoom = zoom;
   controls.autoRotateSpeed = AUTO_ROTATE_SPEED;
-  // OrbitControls はタッチ操作をすべて受け取るため、スマホでモデルの上を
-  // なぞると画面がスクロールできなくなる。縦はスクロール、横はモデルの回転にする
-  canvas.style.touchAction = 'pan-y';
+  // スマホなど指で操作する画面では、カメラを動かせないようにする
+  // （スクロールしようとして触れただけでモデルが回ってしまい、落ち着かないため）。
+  // モデルの上をなぞっても、ふつうに画面がスクロールする
+  if (window.matchMedia('(pointer: coarse)').matches) {
+    controls.enabled = false;
+    canvas.style.touchAction = 'auto';
+  }
 
   const resize = () => {
     const width = Math.max(1, container.clientWidth);

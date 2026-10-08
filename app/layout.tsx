@@ -19,6 +19,7 @@ import './styles/rooms/avatar.css';
 import './styles/rooms/log.css';
 import './styles/vrm-viewer.css';
 import './styles/blog.css';
+import './styles/not-found.css';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',

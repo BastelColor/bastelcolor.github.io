@@ -32,11 +32,15 @@
     background-color 0.15s ease;
 }
 
-.works-genres button:hover {
-  translate: 0 -2px;
-  --thickness: 6px;
-  background-color: rgba(255, 255, 255, 0.75);
-  color: var(--ink);
+/* :hover はマウスのある画面だけ。スマホでは指で押したあとも
+   :hover が残り、下線や浮いた見た目が戻らなくなるため */
+@media (hover: hover) {
+  .works-genres button:hover {
+    translate: 0 -2px;
+    --thickness: 6px;
+    background-color: rgba(255, 255, 255, 0.75);
+    color: var(--ink);
+  }
 }
 
 .works-genres button:active,
@@ -103,7 +107,6 @@
   paint-order: stroke fill;
 }
 
-.works-item:hover .work-thumbnail,
 .works-item:focus-visible .work-thumbnail {
   translate: 0 -6px;
 }
@@ -125,10 +128,16 @@
   line-height: 1.4;
 }
 
-.works-item:hover .works-item-title {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 5px;
+@media (hover: hover) {
+  .works-item:hover .work-thumbnail {
+    translate: 0 -6px;
+  }
+
+  .works-item:hover .works-item-title {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 5px;
+  }
 }
 
 .works-item-category {
@@ -329,9 +338,11 @@
     box-shadow 0.15s ease;
 }
 
-.work-detail-links a:hover {
-  translate: 0 -2px;
-  --thickness: 6px;
+@media (hover: hover) {
+  .work-detail-links a:hover {
+    translate: 0 -2px;
+    --thickness: 6px;
+  }
 }
 
 .work-detail-links a:active {

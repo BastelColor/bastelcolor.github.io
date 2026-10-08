@@ -36,6 +36,12 @@
   touch-action: none;
 }
 
+@media (pointer: coarse) {
+  .vrm-viewer canvas {
+    cursor: auto;
+  }
+}
+
 .vrm-viewer canvas:active {
   cursor: grabbing;
 }
@@ -106,11 +112,18 @@
   white-space: nowrap;
 }
 
-.vrm-controls button:hover,
 .vrm-controls button[aria-pressed='true'] {
   background: #fff;
   color: #4f79a3;
   box-shadow: 0 4px 11px rgba(76, 112, 151, 0.11);
+}
+
+@media (hover: hover) {
+  .vrm-controls button:hover {
+    background: #fff;
+    color: #4f79a3;
+    box-shadow: 0 4px 11px rgba(76, 112, 151, 0.11);
+  }
 }
 
 .vrm-guide {
