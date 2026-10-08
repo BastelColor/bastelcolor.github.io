@@ -11,6 +11,7 @@ import './globals.css';
 // サイト固有のスタイル（画面の構成順）
 import './styles/base.css';
 import './styles/home.css';
+import './styles/floating-bits.css';
 import './styles/puni-button.css';
 import './styles/room.css';
 import './styles/rooms/profile.css';

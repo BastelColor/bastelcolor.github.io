@@ -9,6 +9,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
+import { FloatingBits } from '@/components/floating-bits';
 import { PuniButton } from '@/components/puni-button';
 import { AvatarRoom } from '@/components/rooms/avatar-room';
 import { LogRoom } from '@/components/rooms/log-room';
@@ -144,6 +145,7 @@ export function SiteApp({ posts, children }: SiteAppProps) {
 
   return (
     <div className="site">
+      <FloatingBits variant="home" />
       <main className="home" inert={room !== null}>
         {/* 「Yzmo」の4文字は、4つの部屋（雲）と同じ順・同じ色 */}
         <h1 className="home-name" aria-label={site.title}>
@@ -190,6 +192,7 @@ export function SiteApp({ posts, children }: SiteAppProps) {
           aria-label={page.menuLabel}
           inert={isPostPage}
         >
+          <FloatingBits variant="room" />
           <div className="room-inner">
             <header className="room-head">
               <PuniButton

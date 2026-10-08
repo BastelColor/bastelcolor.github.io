@@ -136,6 +136,21 @@ X や Discord などに URL を貼ったときに出る画像は `public/og.png`
 
 ---
 
+### 背景でふわふわ浮かぶ小物
+
+トップと部屋の背景に浮かんでいる星・しずく・ハート・まるは、`components/floating-bits.tsx` の `HOME_BITS`（トップ）と `ROOM_BITS`（部屋）で決めています。
+
+| 項目 | 内容 |
+|---|---|
+| `shape` | 形（`'star'` / `'drop'` / `'heart'` / `'dot'`） |
+| `x`, `y` | 画面の左上からの位置（%） |
+| `size` | 大きさ（px）。広い画面では自動で少し大きくなります |
+| `tone` | 色（トップだけ。`pink` / `mint` / `blue` / `yellow`）。部屋の中では部屋の色になります |
+| `duration`, `delay` | 浮き沈み1回の秒数と、始まるタイミングのずれ（マイナスの秒数） |
+| `wideOnly` | `true` にすると、スマホなど細い画面では出しません |
+
+---
+
 ## 5. プロフィール
 
 **ファイル:** `content/profile.ts`

@@ -1,0 +1,89 @@
+/* ============================================================
+   背景でふわふわ浮き沈みする小物（components/floating-bits.tsx）
+   トップでは4色、部屋の中では部屋の色で、うすく
+   ============================================================ */
+
+.floating-bits {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* トップ: 下の雲の海（.home::before）と名前・雲より奥 */
+.floating-bits.is-home {
+  z-index: 0;
+}
+
+/* 部屋: 部屋の色の上、中身より奥 */
+.floating-bits.is-room {
+  z-index: -1;
+}
+
+.floating-bit {
+  /* 画面の幅に合わせて大きく（幅 900px までは --size の px、広い画面で最大 1.8倍）。
+     0.1111vw = 幅 900px の画面での 1px */
+  --bit-size: clamp(
+    calc(var(--size) * 1px),
+    calc(var(--size) * 0.1111vw),
+    calc(var(--size) * 1.8px)
+  );
+  position: absolute;
+  width: var(--bit-size);
+  height: var(--bit-size);
+  translate: -50% -50%;
+  animation: floating-bit 6s ease-in-out infinite;
+  animation-duration: var(--duration);
+  animation-delay: var(--delay);
+}
+
+.floating-bit svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* 雲のボタンと同じ、色の濃い版で縁取った飴のような見た目 */
+.floating-bit-body {
+  fill: var(--tone);
+  stroke: var(--edge);
+  stroke-width: 3.5;
+  stroke-linejoin: round;
+}
+
+.floating-bit-gloss {
+  fill: #fff;
+  opacity: 0.9;
+}
+
+/* 部屋の中: 白い小物を部屋の色でうすく縁取る。中身の邪魔をしないよう控えめに */
+.floating-bits.is-room .floating-bit {
+  opacity: 0.9;
+}
+
+.floating-bits.is-room .floating-bit-body {
+  fill: #fff;
+  stroke: color-mix(in srgb, var(--edge) 60%, transparent);
+}
+
+.floating-bits.is-room .floating-bit-gloss {
+  fill: color-mix(in srgb, var(--tone) 60%, #fff);
+}
+
+/* 細い画面では、名前や中身と重なりやすいものを出さない */
+@media (max-width: 760px) {
+  .floating-bit.is-wide-only {
+    display: none;
+  }
+}
+
+@keyframes floating-bit {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--tilt));
+  }
+  50% {
+    transform: translateY(-10px) rotate(calc(var(--tilt) * -1));
+  }
+}
