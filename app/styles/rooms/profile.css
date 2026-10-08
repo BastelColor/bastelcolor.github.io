@@ -25,9 +25,19 @@
 
 .profile-facts {
   display: grid;
-  grid-template-columns: 9em 1fr;
-  gap: 14px 20px;
+  gap: 14px;
   margin: 48px 0 0;
+}
+
+/* 1項目 = 見出し＋中身。うすい白の角丸の上にまとめる（枠線や影は付けない） */
+.profile-fact {
+  display: grid;
+  grid-template-columns: 9em 1fr;
+  gap: 10px 20px;
+  align-items: baseline;
+  padding: 18px 24px 20px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .profile-facts dt {
@@ -70,14 +80,16 @@
   white-space: nowrap;
   padding: 1px 10px 2px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.6);
+  background: color-mix(in srgb, var(--tone) 45%, #fff);
   font-size: 12px;
   text-align: center;
   color: var(--ink-soft);
 }
 
 @media (max-width: 760px) {
-  .profile-facts {
+  .profile-fact {
     grid-template-columns: 1fr;
+    padding: 16px 18px 18px;
+    border-radius: 20px;
   }
 }

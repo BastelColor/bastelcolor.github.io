@@ -10,20 +10,23 @@ export function ProfileRoom() {
       </p>
       <p className="profile-body">{profile.body}</p>
 
+      {/* 項目ごとに、うすい角丸の背景でまとまりを見せる */}
       <dl className="profile-facts">
-        <dt>つかっているもの</dt>
-        <dd>
-          <ul className="profile-skills">
-            {profile.skills.map((group) => (
-              <li key={group.level}>
-                <span className="profile-skill-level">{group.level}</span>
-                {group.items.join('、')}
-              </li>
-            ))}
-          </ul>
-        </dd>
+        <div className="profile-fact">
+          <dt>つかっているもの</dt>
+          <dd>
+            <ul className="profile-skills">
+              {profile.skills.map((group) => (
+                <li key={group.level}>
+                  <span className="profile-skill-level">{group.level}</span>
+                  {group.items.join('、')}
+                </li>
+              ))}
+            </ul>
+          </dd>
+        </div>
         {profile.certifications.length > 0 && (
-          <>
+          <div className="profile-fact">
             <dt>資格</dt>
             <dd>
               <ul className="profile-certifications">
@@ -32,16 +35,23 @@ export function ProfileRoom() {
                 ))}
               </ul>
             </dd>
-          </>
+          </div>
         )}
-        <dt>ほかの場所</dt>
-        <dd>
-          {profile.links.map((link) => (
-            <a key={link.url} href={link.url} target="_blank" rel="noreferrer">
-              {link.label}
-            </a>
-          ))}
-        </dd>
+        <div className="profile-fact">
+          <dt>ほかの場所</dt>
+          <dd>
+            {profile.links.map((link) => (
+              <a
+                key={link.url}
+                href={link.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {link.label}
+              </a>
+            ))}
+          </dd>
+        </div>
       </dl>
     </div>
   );
