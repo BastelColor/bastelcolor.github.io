@@ -16,6 +16,7 @@
     "postbuild": "node scripts/write-sitemap.mjs"
   },
   "dependencies": {
+    "@mochiya/three-liltoon": "^0.1.4",
     "@pixiv/three-vrm": "^3.5.5",
     "@pixiv/three-vrm-animation": "^3.5.5",
     "marked": "^18.1.0",

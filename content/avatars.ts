@@ -38,4 +38,16 @@ export const avatars: Avatar[] = [
     },
     brightness: 1.3,
   },
+  {
+    // 制作途中のお試し。Unity の Mochiya Avatar Tools で書き出した、lilToon の設定入りの VRM
+    id: 'falle',
+    name: 'ファーレ',
+    nameEn: 'Falle',
+    modelUrl: '/models/falle.vrm',
+    icon: {
+      normal: '/characters/falle-icon.webp',
+      happy: '/characters/falle-icon-happy.webp',
+    },
+    liltoon: true,
+  },
 ];

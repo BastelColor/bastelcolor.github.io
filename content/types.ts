@@ -107,4 +107,9 @@ export type Avatar = {
   };
   /** 3D ビューアの照明の明るさ（倍率、既定 1）。白っぽいモデルが暗く見えるときに上げる */
   brightness?: number;
+  /**
+   * lilToon の見た目で表示する。Unity の Mochiya Avatar Tools で書き出した VRM のときだけ true
+   * （ふつうの VRM は MToon で表示する）
+   */
+  liltoon?: boolean;
 };

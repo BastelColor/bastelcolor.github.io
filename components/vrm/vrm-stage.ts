@@ -32,6 +32,12 @@ type CreateVrmStageOptions = {
   motionId?: MotionId;
   /** 照明の明るさの倍率（既定: 1） */
   brightness?: number;
+  /**
+   * lilToon の見た目で表示するか。Unity の Mochiya Avatar Tools で書き出した
+   * （lilToon の設定が入った）VRM のときだけ true にする。そのときだけ lilToon の
+   * 描画部品（@mochiya/three-liltoon、大きめ）を読み込む
+   */
+  liltoon?: boolean;
   /** 最初から自動回転させるか（既定: true） */
   autoRotate?: boolean;
   /** ホイールでの拡大縮小を許可するか。ページ内に埋め込むときはスクロールを奪わないよう false に（既定: true） */
@@ -84,6 +90,7 @@ export async function createVrmStage({
   modelUrl,
   motionId,
   brightness = 1,
+  liltoon = false,
   autoRotate = true,
   zoom = true,
   signal,
@@ -202,11 +209,13 @@ export async function createVrmStage({
   // --- 後片付け（何度呼ばれても1回だけ実行） ---
   let vrm: VRM | null = null;
   let motionPlayer: MotionPlayer | null = null;
+  let releaseLilToon: (() => void) | null = null;
   let disposed = false;
   const dispose = () => {
     if (disposed) return;
     disposed = true;
     renderer.setAnimationLoop(null);
+    releaseLilToon?.();
     resizeObserver.disconnect();
     controls.dispose();
     motionPlayer?.dispose();
@@ -218,7 +227,20 @@ export async function createVrmStage({
   try {
     // --- モデル読み込み ---
     const loader = new GLTFLoader();
-    loader.register((parser) => new VRMLoaderPlugin(parser));
+    if (liltoon) {
+      // lilToon の見た目のまま描く（輪郭線などの追加の描画も、ここで有効にする）
+      const [{ enableLilToon }, { enableLilToonVRM }] = await Promise.all([
+        import('@mochiya/three-liltoon'),
+        import('@mochiya/three-liltoon/vrm'),
+      ]);
+      signal.throwIfAborted();
+      releaseLilToon = enableLilToon(renderer);
+      loader.register((parser) =>
+        enableLilToonVRM(new VRMLoaderPlugin(parser)),
+      );
+    } else {
+      loader.register((parser) => new VRMLoaderPlugin(parser));
+    }
     // 届いた量は、圧縮をほどいたあとの大きさで数えられるので、
     // 割る数もファイルの実際の大きさにする（scripts/vite-model-sizes.ts）
     const fileSize = modelSizes[modelUrl] as number | undefined;

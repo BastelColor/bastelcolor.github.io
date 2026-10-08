@@ -13,6 +13,8 @@ type VrmViewerProps = {
   motionId?: MotionId;
   /** 照明の明るさの倍率 */
   brightness?: number;
+  /** lilToon の見た目で表示する（vrm-stage.ts の liltoon） */
+  liltoon?: boolean;
   /**
    * full: 操作ボタン・操作ガイド付き（アバターページ用）
    * bare: モデルだけを表示し、ドラッグでの回転のみ可能（ページ内の装飾用）
@@ -31,6 +33,7 @@ export function VrmViewer({
   modelName,
   motionId,
   brightness,
+  liltoon,
   variant = 'full',
   bleedTo,
 }: VrmViewerProps) {
@@ -57,6 +60,7 @@ export function VrmViewer({
       modelUrl,
       motionId,
       brightness,
+      liltoon,
       autoRotate: isFull,
       zoom: isFull,
       signal: controller.signal,
@@ -80,7 +84,7 @@ export function VrmViewer({
       stageRef.current?.dispose();
       stageRef.current = null;
     };
-  }, [modelUrl, motionId, brightness, isFull, bleedTo]);
+  }, [modelUrl, motionId, brightness, liltoon, isFull, bleedTo]);
 
   const toggleAutoRotate = () => {
     const next = !autoRotate;

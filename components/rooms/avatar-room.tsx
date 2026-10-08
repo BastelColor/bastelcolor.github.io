@@ -46,6 +46,7 @@ export function AvatarRoom() {
           modelName={selected.name}
           motionId={avatarMotion.id}
           brightness={selected.brightness}
+          liltoon={selected.liltoon}
           variant="bare"
           // Quiple の大きなしっぽなどが枠で切れないよう、部屋の左右の端まで描く
           bleedTo=".room-inner"
