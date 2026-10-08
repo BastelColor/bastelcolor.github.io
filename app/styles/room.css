@@ -75,9 +75,10 @@
   color: var(--ink-soft);
 }
 
-/* 部屋の右下から、その部屋の子がのぞく */
+/* 部屋の右下から、その部屋の子がのぞく。かざりなので、中身（文字や画像）よりうしろに置く */
 .room-mascot {
   position: absolute;
+  z-index: -1;
   right: clamp(-40px, -2vw, 0px);
   bottom: -6%;
   width: calc(clamp(180px, 24vw, 360px) * var(--mascot-width, 1));

@@ -137,3 +137,25 @@
     row-gap: calc((100vw - 2 * var(--side)) * 0.24);
   }
 }
+
+/* 縦長のタブレット: 横1列だと雲が小さく、空が大きくあきすぎるので、
+   スマホと同じく2列×2段にして、雲と名前を大きくする */
+@media (min-width: 761px) and (max-width: 1100px) and (orientation: portrait) {
+  .home-name-letters {
+    font-size: clamp(120px, 20vw, 220px);
+  }
+
+  .home-menu {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 6vw;
+    row-gap: calc(min(100vw - 2 * var(--side), 720px) * 0.24);
+    width: 100%;
+    max-width: 720px;
+    margin-inline: auto;
+  }
+
+  /* 雲が大きくなったぶん、雲の文字も大きく */
+  .home-menu .puni-label {
+    font-size: clamp(26px, 4.2vw, 40px);
+  }
+}
