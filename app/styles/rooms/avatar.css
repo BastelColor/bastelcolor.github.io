@@ -208,7 +208,8 @@
   }
 
   .avatar-room-choice-text small {
-    display: none;
+    margin-top: 0;
+    font-size: 11px;
   }
 
   .avatar-room-stage {

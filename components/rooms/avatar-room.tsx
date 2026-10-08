@@ -42,14 +42,14 @@ export function AvatarRoom() {
                 </span>
                 <span className="avatar-room-choice-text">
                   {avatar.name}
-                  <small>VRM 1.0 · {avatar.version}</small>
+                  <small>{avatar.nameEn}</small>
                 </span>
               </button>
             </li>
           ))}
         </ul>
         <p className="avatar-room-hint">ドラッグでまわせます</p>
-        <a href={boothUrl} target="_blank" rel="noreferrer">
+        <a href={selected.booth ?? boothUrl} target="_blank" rel="noreferrer">
           BOOTHで見る
         </a>
         <p className="avatar-room-credit">{avatarMotion.credit}</p>

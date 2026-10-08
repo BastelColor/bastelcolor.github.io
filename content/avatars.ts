@@ -6,8 +6,9 @@ export const boothUrl = 'https://bastelcolor.booth.pm/';
 export const avatars: Avatar[] = [
   {
     id: 'quiple',
-    name: 'Quiple',
-    version: '0.0.1 beta',
+    name: 'キュイプル',
+    nameEn: 'Quiple',
+    booth: 'https://bastelcolor.booth.pm/items/6746290',
     modelUrl: '/models/quiple.vrm',
     icon: {
       normal: '/characters/quiple-icon.webp',
@@ -16,8 +17,9 @@ export const avatars: Avatar[] = [
   },
   {
     id: 'coflet',
-    name: 'こふりぃ / Coflet',
-    version: 'Beta 1.1',
+    name: 'こふりぃ',
+    nameEn: 'Coflet',
+    booth: 'https://bastelcolor.booth.pm/items/7525867',
     modelUrl: '/models/coflet.vrm',
     icon: {
       normal: '/characters/coflet-icon.webp',
@@ -26,8 +28,9 @@ export const avatars: Avatar[] = [
   },
   {
     id: 'timi',
-    name: 'Timi',
-    version: '1.0.0',
+    name: 'ティミ',
+    nameEn: 'Timi',
+    booth: 'https://bastelcolor.booth.pm/items/6372032',
     modelUrl: '/models/timi.vrm',
     icon: {
       normal: '/characters/timi-icon.webp',

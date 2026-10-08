@@ -275,8 +275,9 @@ https://youtu.be/dQw4w9WgXcQ                 →  youtubeId: 'dQw4w9WgXcQ'
 ```ts
 {
   id: 'timi',                     // 英小文字・数字・ハイフン
-  name: 'Timi',                   // 選択ボタンに出る名前
-  version: '1.0.0',               // 名前の下に「VRM 1.0 · 1.0.0」と出る
+  name: 'ティミ',                 // 選択ボタンに大きく出る名前（BOOTH と同じ）
+  nameEn: 'Timi',                 // 名前の下に小さく出る英語の名前
+  booth: 'https://bastelcolor.booth.pm/items/6372032', // 省略できる。「BOOTHで見る」の行き先（省略するとショップのトップ）
   modelUrl: '/models/timi.vrm',  // models/timi.vrm を置くと、この場所で表示される
   icon: {
     normal: '/characters/timi-icon.webp',       // ふだんの顔

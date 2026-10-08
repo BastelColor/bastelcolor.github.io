@@ -92,8 +92,12 @@ export type WorkImage = {
 
 export type Avatar = {
   id: string;
+  /** 名前（BOOTH と同じ）。選択ボタンに大きく出る */
   name: string;
-  version: string;
+  /** 英語の名前。名前の下に小さく出る */
+  nameEn: string;
+  /** BOOTH の商品ページ。「BOOTHで見る」がここへ飛ぶ（省略するとショップのトップ） */
+  booth?: string;
   /** public/ 以下の VRM ファイルのパス */
   modelUrl: string;
   /** 選択ボタンの顔アイコン（VRM から描画した画像）。選んでいるあいだは笑顔 */
