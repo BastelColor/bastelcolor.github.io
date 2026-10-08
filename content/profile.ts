@@ -7,7 +7,7 @@ export const profile: Profile = {
   skills: [
     { level: 'メイン', items: ['Blender', 'Unity'] },
     {
-      level: 'よくつかう',
+      level: 'よく使う',
       items: [
         'After Effects',
         'Premiere Pro',
@@ -19,6 +19,10 @@ export const profile: Profile = {
       ],
     },
     { level: '勉強中', items: ['Photoshop', 'Illustrator', 'Maya'] },
+  ],
+  certifications: [
+    'CGクリエイター検定 エキスパート',
+    'CGエンジニア検定 エキスパート',
   ],
   links: [
     { label: 'X / Twitter', url: 'https://twitter.com/bastelcolor' },

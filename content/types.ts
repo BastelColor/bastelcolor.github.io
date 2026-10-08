@@ -38,6 +38,8 @@ export type Profile = {
   body: string;
   /** 「つかっているもの」。慣れている順にまとまりで並べる */
   skills: SkillGroup[];
+  /** 「資格」。1要素が1行。無ければ空の [ ] にすると、行ごと出なくなる */
+  certifications: string[];
   links: ExternalLink[];
 };
 

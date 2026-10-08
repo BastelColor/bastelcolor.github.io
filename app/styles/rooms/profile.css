@@ -46,7 +46,8 @@
 }
 
 /* つかっているもの: 慣れている順に1行ずつ。見出しは小さな丸いラベル */
-.profile-skills {
+.profile-skills,
+.profile-certifications {
   display: grid;
   gap: 10px;
   margin: 0;

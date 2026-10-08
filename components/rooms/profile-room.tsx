@@ -22,6 +22,18 @@ export function ProfileRoom() {
             ))}
           </ul>
         </dd>
+        {profile.certifications.length > 0 && (
+          <>
+            <dt>資格</dt>
+            <dd>
+              <ul className="profile-certifications">
+                {profile.certifications.map((certification) => (
+                  <li key={certification}>{certification}</li>
+                ))}
+              </ul>
+            </dd>
+          </>
+        )}
         <dt>ほかの場所</dt>
         <dd>
           {profile.links.map((link) => (
