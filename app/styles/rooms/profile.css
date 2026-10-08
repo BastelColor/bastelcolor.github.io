@@ -45,6 +45,36 @@
   font-weight: 700;
 }
 
+/* つかっているもの: 慣れている順に1行ずつ。見出しは小さな丸いラベル */
+.profile-skills {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  line-height: 1.6;
+}
+
+/* 折り返した2行目も、ラベルの右にそろえる */
+.profile-skills li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+}
+
+.profile-skill-level {
+  display: inline-block;
+  min-width: 5.5em;
+  margin-right: 0.8em;
+  white-space: nowrap;
+  padding: 1px 10px 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
 @media (max-width: 760px) {
   .profile-facts {
     grid-template-columns: 1fr;

@@ -12,7 +12,16 @@ export function ProfileRoom() {
 
       <dl className="profile-facts">
         <dt>つかっているもの</dt>
-        <dd>{profile.skills.join('、')}</dd>
+        <dd>
+          <ul className="profile-skills">
+            {profile.skills.map((group) => (
+              <li key={group.level}>
+                <span className="profile-skill-level">{group.level}</span>
+                {group.items.join('、')}
+              </li>
+            ))}
+          </ul>
+        </dd>
         <dt>ほかの場所</dt>
         <dd>
           {profile.links.map((link) => (

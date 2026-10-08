@@ -2,12 +2,24 @@
 import type { Profile } from './types';
 
 export const profile: Profile = {
-  leadLines: [
-    'キャラクターモデルと映像を中心に、',
-    '「つくって遊べるもの」を制作しています。',
+  leadLines: ['「なんでもやる！」をモットーに。'],
+  body: 'Blenderでの3DCGをメインに、VRアバター制作や、映像制作などを行っています。新しい表現や制作方法を試すことが好きです！',
+  skills: [
+    { level: 'メイン', items: ['Blender', 'Unity'] },
+    {
+      level: 'よくつかう',
+      items: [
+        'After Effects',
+        'Premiere Pro',
+        'Substance 3D Painter',
+        'InDesign',
+        'OBS Studio',
+        'Python',
+        'C#',
+      ],
+    },
+    { level: '勉強中', items: ['Photoshop', 'Illustrator', 'Maya'] },
   ],
-  body: 'Blenderでのモデリング、VRChat向けアバター、After Effectsを使った映像制作など。新しい表現や制作方法を試すのが好きです。',
-  skills: ['Blender', 'After Effects', 'Unity', 'VRChat'],
   links: [
     { label: 'X / Twitter', url: 'https://twitter.com/bastelcolor' },
     { label: 'YouTube', url: 'https://youtube.com/@bastelcolor' },

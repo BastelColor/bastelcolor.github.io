@@ -36,8 +36,15 @@ export type Profile = {
   /** 1要素 = 1行 */
   leadLines: string[];
   body: string;
-  skills: string[];
+  /** 「つかっているもの」。慣れている順にまとまりで並べる */
+  skills: SkillGroup[];
   links: ExternalLink[];
+};
+
+export type SkillGroup = {
+  /** まとまりの見出し（例: 'メイン'） */
+  level: string;
+  items: string[];
 };
 
 /**
