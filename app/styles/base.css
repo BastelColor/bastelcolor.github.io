@@ -20,6 +20,10 @@
   --sky: #c9e2f5;
   /* 画面の左右の余白 */
   --side: clamp(20px, 7vw, 112px);
+  /* 中身の幅の上限。これより広い画面では、中身を真ん中に寄せて左右に余白をとる */
+  --content-width: 1280px;
+  /* 左右の余白。ふだんは --side、広い画面では中身が真ん中に来るよう広げる */
+  --gutter: max(var(--side), calc((100% - var(--content-width)) / 2));
 }
 
 * {

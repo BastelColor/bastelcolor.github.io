@@ -15,7 +15,7 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  padding: clamp(40px, 10vh, 112px) var(--side) clamp(28px, 6vh, 64px);
+  padding: clamp(40px, 10vh, 112px) var(--gutter) clamp(28px, 6vh, 64px);
 }
 
 /* 画面下の雲の海（白い円を横に並べて描く）。

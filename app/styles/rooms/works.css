@@ -65,7 +65,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: clamp(28px, 4vw, 48px) clamp(20px, 3vw, 36px);
-  max-width: 1040px;
   margin: 0;
   padding: 0;
   list-style: none;

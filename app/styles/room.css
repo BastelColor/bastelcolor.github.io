@@ -35,7 +35,7 @@
 .room-inner {
   height: 100%;
   overflow-y: auto;
-  padding: clamp(20px, 4vh, 40px) var(--side) clamp(48px, 10vh, 96px);
+  padding: clamp(20px, 4vh, 40px) var(--gutter) clamp(48px, 10vh, 96px);
   opacity: 0;
   transition: opacity 0.2s ease;
 }

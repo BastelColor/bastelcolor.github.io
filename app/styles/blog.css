@@ -22,7 +22,7 @@
 .post-layer-inner {
   height: 100%;
   overflow-y: auto;
-  padding: clamp(20px, 4vh, 40px) var(--side) clamp(40px, 8vh, 80px);
+  padding: clamp(20px, 4vh, 40px) var(--gutter) clamp(40px, 8vh, 80px);
   opacity: 0;
   transition: opacity 0.2s ease;
 }
