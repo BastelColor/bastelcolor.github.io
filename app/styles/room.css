@@ -94,8 +94,19 @@
 }
 
 @media (max-width: 760px) {
+  /* 見出しまわりを詰めて、中身が最初の画面に多く入るようにする */
+  .room-head {
+    margin-bottom: 28px;
+  }
+
+  .room-head h2 {
+    margin-top: 12px;
+  }
+
+  /* 狭い画面では中身に重なりやすいので、小さく端から顔だけ出す */
   .room-mascot {
-    width: 140px;
+    right: -12px;
+    width: calc(104px * var(--mascot-width, 1));
   }
 }
 

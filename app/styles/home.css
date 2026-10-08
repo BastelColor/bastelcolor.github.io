@@ -101,8 +101,15 @@
   margin-top: auto;
 }
 
+/* スマホ: 雲を2列×2段にする。下の段の子が上の段の雲に重ならないよう、
+   段のあいだを、雲のうしろから出る頭のぶん（列幅の約半分）あける */
 @media (max-width: 760px) {
+  .home-name-letters {
+    font-size: clamp(72px, 27vw, 140px);
+  }
+
   .home-menu {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: calc((100vw - 2 * var(--side)) * 0.24);
   }
 }

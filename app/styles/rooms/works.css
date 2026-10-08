@@ -349,6 +349,32 @@
   height: 0.9em;
 }
 
+/* スマホ: 一覧は2列にして、たくさんの作品を見渡せるようにする */
+@media (max-width: 760px) {
+  .works {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px 14px;
+  }
+
+  .work-thumbnail {
+    border-radius: 16px;
+  }
+
+  .works-item-title {
+    margin-top: 10px;
+    font-size: 15px;
+  }
+
+  .works-item-category {
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+
+  .work-thumbnail.is-empty {
+    font-size: 15px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .work-dialog,
   .work-dialog::backdrop {

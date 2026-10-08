@@ -144,13 +144,58 @@
   color: var(--ink-soft);
 }
 
+/* スマホ: モデルを選ぶボタンを、モデルの上に3つ横並びで出す
+   （下に置くと、モデルの下までスクロールしないと選べることに気づけない） */
 @media (max-width: 760px) {
   .avatar-room {
-    grid-template-columns: 1fr;
-    margin-top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: -8px;
+  }
+
+  .avatar-room-side {
+    display: contents;
+  }
+
+  .avatar-room-choices {
+    order: -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .avatar-room-choice {
+    flex-direction: column;
+    gap: 6px;
+    height: 100%;
+    padding: 10px 6px 12px;
+    border-radius: 22px;
+    text-align: center;
+  }
+
+  .avatar-room-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .avatar-room-choice-text {
+    font-size: 13px;
+  }
+
+  .avatar-room-choice-text small {
+    display: none;
   }
 
   .avatar-room-stage {
-    height: 56svh;
+    height: 52svh;
+    min-height: 320px;
+  }
+
+  .avatar-room-hint {
+    margin: 0 0 6px;
+  }
+
+  .avatar-room-credit {
+    margin-top: 16px;
   }
 }

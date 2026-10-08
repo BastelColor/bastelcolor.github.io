@@ -175,6 +175,10 @@
 }
 
 .post-body table {
+  /* 列の多い表は、スマホでは表だけ横にスクロールさせる */
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
   border-collapse: collapse;
   font-size: 15px;
 }

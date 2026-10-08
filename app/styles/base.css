@@ -68,6 +68,19 @@ body {
   font-weight: 500;
 }
 
+/* 日本語の見出しや短い文が「中/心に」のように単語の途中で折り返さないよう、
+   文節で折り返す（対応していないブラウザでは今までどおり）。
+   長い本文は右端がそろっているほうが読みやすいので対象にしない */
+h1,
+h2,
+h3,
+.profile-lead,
+.work-detail-lead,
+.works-item-title,
+.log-title {
+  word-break: auto-phrase;
+}
+
 button,
 a {
   font: inherit;

@@ -119,6 +119,9 @@ export async function createVrmStage({
   controls.autoRotate = autoRotate;
   controls.enableZoom = zoom;
   controls.autoRotateSpeed = AUTO_ROTATE_SPEED;
+  // OrbitControls はタッチ操作をすべて受け取るため、スマホでモデルの上を
+  // なぞると画面がスクロールできなくなる。縦はスクロール、横はモデルの回転にする
+  canvas.style.touchAction = 'pan-y';
 
   const resize = () => {
     const width = Math.max(1, container.clientWidth);
