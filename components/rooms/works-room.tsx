@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { WorkDetail } from '@/components/rooms/work-detail';
 import { WorkThumbnail } from '@/components/rooms/work-thumbnail';
+import { site } from '@/content/site';
 import type { WorkGenre } from '@/content/types';
 import { workGenres, works } from '@/content/works';
 import {
@@ -89,6 +90,16 @@ export function WorksRoom() {
     show(id);
     pushLayers({ room: 'works', work: id });
   };
+
+  // ブラウザのタブの名前も、開いている作品に合わせる
+  // （URL は書きかえるだけで、ページの読み込み直しは起きないため）
+  useEffect(() => {
+    if (!shown) return;
+    document.title = `${shown.title} | ${site.title}`;
+    return () => {
+      document.title = site.title;
+    };
+  }, [shown]);
 
   const listed =
     genre === 'all' ? works : works.filter((work) => work.genre === genre);

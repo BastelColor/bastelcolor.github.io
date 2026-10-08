@@ -199,9 +199,12 @@ X や Discord などに URL を貼ったときに出る画像は `public/og.png`
 
 ### 作品のURL
 
-作品を開くと、URL が `https://bastelcolor.github.io/#works/<作品のid>` に変わります（例: `#works/toon-shader`）。この URL を共有すると、開いた人にもその作品の詳細が開きます。
+作品を開くと、URL が `https://bastelcolor.github.io/work/<作品のid>` に変わります（例: `/work/toon-shader`）。この URL を共有すると、開いた人にもその作品の詳細が開きます。X などに貼ったときのカードには、その作品のタイトル・`description`・サムネイルが出ます（サムネイルが無い作品はサイト共通の画像）。
+
+- 作品のページは、公開するときに `works` の中身から自動で作られます。
 
 - `id` を変えると URL も変わるので、一度共有した作品の `id` はなるべく変えないでください。
+- 前の形の URL（`/#works/toon-shader`）で来た人にも、同じ作品が開きます。
 - 部屋だけの URL もあります: `#profile`（プロフィール）、`#works`（さくひん）、`#avatar`（アバター）、`#log`（ブログ）。
 - ブログの本文から部屋へリンクするときは `[さくひん](/#works)` のように書きます。
 

@@ -2,7 +2,7 @@
  * 書き出したサイト（dist/client）に、検索エンジン向けの2つのファイルを足す。
  * npm run build のあとに自動で実行される（package.json の postbuild）。
  *
- * - sitemap.xml: このサイトにあるページの一覧。公開した記事は自動で入る
+ * - sitemap.xml: このサイトにあるページの一覧。公開した記事と、作品のページ（/work/<id>）は自動で入る
  * - robots.txt : すべてのページを見てよいことと、sitemap.xml の場所
  *
  * ページの一覧は、実際に書き出されたファイルから作る（下書きの記事は書き出されないので入らない）。
@@ -39,7 +39,16 @@ const posts = await Promise.all(
 );
 posts.sort((a, b) => (b.lastmod ?? '').localeCompare(a.lastmod ?? ''));
 
-const pages = [{ url: `${siteUrl}/`, lastmod: posts[0]?.lastmod }, ...posts];
+// 作品の詳細のページ（app/(site)/work/[id]/page.tsx）
+const workPages = (await readdir(path.join(dist, 'work')).catch(() => []))
+  .filter((name) => name.endsWith('.html'))
+  .map((name) => ({ url: `${siteUrl}/work/${name.replace(/\.html$/, '')}` }));
+
+const pages = [
+  { url: `${siteUrl}/`, lastmod: posts[0]?.lastmod },
+  ...posts,
+  ...workPages,
+];
 
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

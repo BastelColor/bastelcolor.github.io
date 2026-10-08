@@ -2,16 +2,20 @@ import { pages } from '@/content/pages';
 import type { PageId } from '@/content/types';
 
 /**
- * 部屋や作品の詳細を開くたびに、ブラウザの履歴を1つ積み、URL の # を変える。
+ * 部屋や作品の詳細を開くたびに、ブラウザの履歴を1つ積み、URL を変える。
  *
  *   トップ             https://bastelcolor.github.io/
  *   さくひんの部屋     https://bastelcolor.github.io/#works
- *   作品の詳細         https://bastelcolor.github.io/#works/toon-shader
+ *   作品の詳細         https://bastelcolor.github.io/work/toon-shader
  *   アバターを選ぶ     https://bastelcolor.github.io/#avatar/quiple
+ *
+ * 作品の詳細だけは # ではなく本物のページ（app/(site)/work/[id]/page.tsx）にしてある。
+ * SNS に貼ったとき、その作品のサムネイルとタイトルがカードに出るように
+ * （# より後ろは、カードを作るときに読まれない）。
  *
  * - ブラウザやスマホの「戻る」で、ひとつ前の画面（詳細 → 部屋 → トップ）へ順にもどれる
  *   （積まないと、サイトに来る前のページまで一気にもどってしまう）
- * - # 付きの URL をそのまま開いたり共有したりすると、その部屋・作品が開く
+ * - これらの URL をそのまま開いたり共有したりすると、その部屋・作品が開く
  *
  * サイトの「もどる」ボタンなどで閉じるときは leaveLayer を使う。
  * このサイトの中で積んだ履歴なら history.back() し、実際に閉じるのは popstate を受けた側で行う
@@ -34,14 +38,14 @@ type StoredLayers = HistoryLayers & {
 
 const KEY = 'yzmo';
 
-/** いまの履歴で開いているもの。履歴に無ければ URL の # から読む */
+/** いまの履歴で開いているもの。履歴に無ければ URL から読む */
 export function readLayers(): StoredLayers {
   const state: unknown = window.history.state;
   if (state && typeof state === 'object') {
     const stored = (state as Record<string, unknown>)[KEY];
     if (stored && typeof stored === 'object') return stored as StoredLayers;
   }
-  return { ...parseHash(window.location.hash), depth: 0 };
+  return { ...parseUrl(window.location), depth: 0 };
 }
 
 /** 開いたものを履歴に積み、URL の # を変える */
@@ -74,11 +78,23 @@ export function leaveLayer(fallback: HistoryLayers): boolean {
   return false;
 }
 
+const WORK_PATH = '/work/';
+
 function toUrl({ room, work, avatar }: HistoryLayers) {
-  const base = window.location.pathname + window.location.search;
-  if (!room) return base;
-  const item = work ?? avatar;
-  return `${base}#${room}${item ? `/${encodeURIComponent(item)}` : ''}`;
+  const { search } = window.location;
+  if (room === 'works' && work) {
+    return `${WORK_PATH}${encodeURIComponent(work)}${search}`;
+  }
+  if (!room) return `/${search}`;
+  return `/${search}#${room}${avatar ? `/${encodeURIComponent(avatar)}` : ''}`;
+}
+
+function parseUrl({ pathname, hash }: Location): HistoryLayers {
+  if (pathname.startsWith(WORK_PATH)) {
+    const work = decodeURIComponent(pathname.slice(WORK_PATH.length));
+    return { room: 'works', work: work.replace(/\/$/, '') };
+  }
+  return parseHash(hash);
 }
 
 /**
