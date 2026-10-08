@@ -1,15 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
 import { avatars, boothUrl } from '@/content/avatars';
 import { avatarMotion } from '@/content/motions';
+import { readLayers, replaceLayers } from '@/lib/history-layers';
 
-/** この部屋に入った人はモデルを見に来ているので、最初の1体はすぐ読み込む */
+/** URL（#avatar/quiple）で選ばれているアバター。無い・知らない子なら最初の1体 */
+function linkedAvatarId() {
+  const { avatar } = readLayers();
+  return avatars.some((item) => item.id === avatar) ? avatar! : avatars[0].id;
+}
+
+/**
+ * この部屋に入った人はモデルを見に来ているので、最初の1体はすぐ読み込む。
+ * 選んだ子は URL（#avatar/quiple）に書く。選び直しても履歴は積まないので、
+ * ブラウザの「戻る」では部屋ごともどる
+ */
 export function AvatarRoom() {
-  const [selectedId, setSelectedId] = useState(avatars[0].id);
+  const [selectedId, setSelectedId] = useState(linkedAvatarId);
   const selected =
     avatars.find((avatar) => avatar.id === selectedId) ?? avatars[0];
+
+  const select = (id: string) => {
+    setSelectedId(id);
+    replaceLayers({ room: 'avatar', avatar: id });
+  };
+
+  // URL の # を手で書きかえたときなどに、選んでいる子を合わせる
+  useEffect(() => {
+    const onPopState = () => {
+      // 部屋を閉じる「戻る」のときは、縮んでいくあいだにモデルを読み直さない
+      if (readLayers().room === 'avatar') setSelectedId(linkedAvatarId());
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   return (
     <div className="avatar-room">
@@ -34,7 +60,7 @@ export function AvatarRoom() {
                 type="button"
                 className="avatar-room-choice"
                 aria-pressed={avatar.id === selectedId}
-                onClick={() => setSelectedId(avatar.id)}
+                onClick={() => select(avatar.id)}
               >
                 <span className="avatar-room-icon">
                   <img src={avatar.icon.normal} alt="" />

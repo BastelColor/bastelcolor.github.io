@@ -144,9 +144,32 @@ export function SiteApp({ posts, children }: SiteAppProps) {
 
   // リスナーから常に最新の関数・状態を使えるようにしておく
   // （記事を開いているあいだの Esc は、記事の側で閉じる）
-  const latest = useRef({ open, close, requestClose, room, isPostPage });
+  // 縮んでいる途中で「進む」を押されたら、閉じるのをやめて広げ直す
+  // （ちょうど縮み終わって部屋が消えた直後でも、同じ部屋を開き直す）
+  const reopen = (id: PageId) => {
+    window.clearTimeout(timer.current);
+    setRoom(id);
+    setIsExpanded(true);
+  };
+  const latest = useRef({
+    open,
+    close,
+    reopen,
+    requestClose,
+    room,
+    isExpanded,
+    isPostPage,
+  });
   useEffect(() => {
-    latest.current = { open, close, requestClose, room, isPostPage };
+    latest.current = {
+      open,
+      close,
+      reopen,
+      requestClose,
+      room,
+      isExpanded,
+      isPostPage,
+    };
   });
 
   // ブラウザの「戻る」「進む」で、部屋を閉じたり開き直したりする
@@ -159,6 +182,8 @@ export function SiteApp({ posts, children }: SiteAppProps) {
       if (!wanted && current.room) current.close();
       else if (wanted && !current.room) {
         current.open(wanted, buttons.current.get(wanted), { push: false });
+      } else if (wanted && wanted === current.room && !current.isExpanded) {
+        current.reopen(wanted);
       }
     };
     window.addEventListener('popstate', onPopState);

@@ -7,6 +7,7 @@ import type { PageId } from '@/content/types';
  *   トップ             https://bastelcolor.github.io/
  *   さくひんの部屋     https://bastelcolor.github.io/#works
  *   作品の詳細         https://bastelcolor.github.io/#works/toon-shader
+ *   アバターを選ぶ     https://bastelcolor.github.io/#avatar/quiple
  *
  * - ブラウザやスマホの「戻る」で、ひとつ前の画面（詳細 → 部屋 → トップ）へ順にもどれる
  *   （積まないと、サイトに来る前のページまで一気にもどってしまう）
@@ -22,6 +23,8 @@ export type HistoryLayers = {
   room?: PageId;
   /** さくひんの部屋で開いている作品の詳細 */
   work?: string;
+  /** アバターの部屋で選んでいるアバター */
+  avatar?: string;
 };
 
 type StoredLayers = HistoryLayers & {
@@ -71,18 +74,24 @@ export function leaveLayer(fallback: HistoryLayers): boolean {
   return false;
 }
 
-function toUrl({ room, work }: HistoryLayers) {
+function toUrl({ room, work, avatar }: HistoryLayers) {
   const base = window.location.pathname + window.location.search;
   if (!room) return base;
-  return `${base}#${room}${work ? `/${encodeURIComponent(work)}` : ''}`;
+  const item = work ?? avatar;
+  return `${base}#${room}${item ? `/${encodeURIComponent(item)}` : ''}`;
 }
 
-/** 「#works/toon-shader」を { room: 'works', work: 'toon-shader' } にする。知らない部屋は無視する */
+/**
+ * 「#works/toon-shader」を { room: 'works', work: 'toon-shader' } に、
+ * 「#avatar/quiple」を { room: 'avatar', avatar: 'quiple' } にする。知らない部屋は無視する
+ */
 function parseHash(hash: string): HistoryLayers {
-  const [room, work] = hash.replace(/^#/, '').split('/');
+  const [room, rawItem] = hash.replace(/^#/, '').split('/');
   if (!pages.some((page) => page.id === room)) return {};
+  const item = rawItem ? decodeURIComponent(rawItem) : undefined;
   return {
     room: room as PageId,
-    work: work ? decodeURIComponent(work) : undefined,
+    work: room === 'works' ? item : undefined,
+    avatar: room === 'avatar' ? item : undefined,
   };
 }

@@ -288,6 +288,7 @@ https://youtu.be/dQw4w9WgXcQ                 →  youtubeId: 'dQw4w9WgXcQ'
 ```
 
 - 部屋を開いたときは、**いちばん上のアバター** が最初に表示されます。
+- アバターを選ぶと URL が `https://bastelcolor.github.io/#avatar/<id>` に変わります（例: `#avatar/quiple`）。この URL を共有すると、その子を選んだ状態で部屋が開きます。`id` はなるべく変えないでください。
 - 表示用の VRM（`public/models/`）は、サイトを見た人がダウンロードできる状態になります。販売しているモデルを置くときは注意してください。
 - `npm run dev` を動かしたままモデルを足したときは、一度止めて動かし直すと表示用の VRM が作られます。
 - 白っぽいモデルがくすんで見えるときは `brightness` を 1.2〜1.4 くらいにします。
