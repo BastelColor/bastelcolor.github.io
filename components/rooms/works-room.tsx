@@ -5,10 +5,17 @@ import { WorkDetail } from '@/components/rooms/work-detail';
 import { WorkThumbnail } from '@/components/rooms/work-thumbnail';
 import type { WorkGenre } from '@/content/types';
 import { workGenres, works } from '@/content/works';
-import { pushLayers, readLayers } from '@/lib/history-layers';
+import {
+  leaveLayer,
+  pushLayers,
+  readLayers,
+  replaceLayers,
+} from '@/lib/history-layers';
 
 /** ダイアログが消えるまでの時間（works.css の .work-dialog の transition と合わせる） */
 const DIALOG_FADE_MS = 200;
+/** # 付きの URL で来たとき、部屋が広がってから作品の詳細を開くまでの時間 */
+const LINKED_OPEN_DELAY_MS = 700;
 
 /**
  * 作品はサムネイルで並べ、ジャンルで絞り込める。押すと詳細をダイアログで開く。
@@ -49,7 +56,7 @@ export function WorksRoom() {
       );
       // 「もどる」ボタン・背景・Esc で閉じたときは、開いたときに積んだ履歴も外す
       // （ブラウザの「戻る」で閉じたときは、もう外れている）
-      if (readLayers().work) window.history.back();
+      if (readLayers().work) leaveLayer({ room: 'works' });
     };
     // ブラウザの「戻る」「進む」で、詳細を閉じたり開き直したりする
     const onPopState = () => {
@@ -57,6 +64,15 @@ export function WorksRoom() {
       if (!work && element.open) element.close();
       else if (work && !element.open) showRef.current(work);
     };
+    // # 付きの URL（例: /#works/toon-shader）で来たら、部屋が開いてからその作品を開く。
+    // 知らない作品なら、URL を部屋だけにもどす
+    const linked = readLayers().work;
+    const linkTimer = linked
+      ? window.setTimeout(() => {
+          if (works.some((work) => work.id === linked)) showRef.current(linked);
+          else replaceLayers({ room: 'works' });
+        }, LINKED_OPEN_DELAY_MS)
+      : undefined;
     element.addEventListener('click', onClick);
     element.addEventListener('close', onClose);
     window.addEventListener('popstate', onPopState);
@@ -65,6 +81,7 @@ export function WorksRoom() {
       element.removeEventListener('close', onClose);
       window.removeEventListener('popstate', onPopState);
       window.clearTimeout(clearTimer.current);
+      window.clearTimeout(linkTimer);
     };
   }, []);
 

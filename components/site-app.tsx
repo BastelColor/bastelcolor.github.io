@@ -18,7 +18,7 @@ import { WorksRoom } from '@/components/rooms/works-room';
 import { findPage, pages } from '@/content/pages';
 import { site } from '@/content/site';
 import type { PageId } from '@/content/types';
-import { pushLayers, readLayers } from '@/lib/history-layers';
+import { leaveLayer, pushLayers, readLayers } from '@/lib/history-layers';
 import type { Post } from '@/lib/post-meta';
 import { cn } from '@/lib/utils';
 
@@ -26,6 +26,8 @@ import { cn } from '@/lib/utils';
 const PRESS_MS = 200;
 /** 部屋が雲へ縮み終わるまで（room.css の .room の transition と合わせる） */
 const SHRINK_MS = 700;
+/** # 付きの URL で来たとき、トップを少し見せてから部屋を開くまでの時間 */
+const LINKED_OPEN_DELAY_MS = 400;
 
 /** 部屋に渡すデータ（サーバー側で読み込んだもの） */
 type RoomProps = {
@@ -112,10 +114,11 @@ export function SiteApp({ posts, children }: SiteAppProps) {
   /**
    * サイトの「もどる」ボタンや Esc で部屋を閉じる。部屋を開いたときに積んだ履歴があれば
    * ブラウザの「戻る」と同じく履歴をもどし、閉じるのは下の popstate で行う
+   * （# 付きの URL を直接開いたときなどは、URL の # を外してすぐ閉じる）
    */
   const requestClose = () => {
-    if (room && readLayers().room === room) window.history.back();
-    else close();
+    if (room && readLayers().room === room && leaveLayer({})) return;
+    close();
   };
 
   // 記事からもどったら、さっき開いた記事の一覧の項目へフォーカスを戻す
@@ -160,6 +163,21 @@ export function SiteApp({ posts, children }: SiteAppProps) {
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  // # 付きの URL（例: /#works）を直接開いたら、ページを表示してからその部屋を開く
+  useEffect(() => {
+    if (window.location.pathname.startsWith('/blog/')) return;
+    const { room: linked } = readLayers();
+    if (!linked) return;
+    const timer = window.setTimeout(
+      () =>
+        latest.current.open(linked, buttons.current.get(linked), {
+          push: false,
+        }),
+      LINKED_OPEN_DELAY_MS,
+    );
+    return () => window.clearTimeout(timer);
   }, []);
 
   // 部屋が開いたら「もどる」へフォーカスし、Esc でも戻れるようにする
