@@ -49,7 +49,7 @@ export const avatars: Avatar[] = [
     id: 'falle',
     name: 'ファーレ',
     nameEn: 'Falle',
-    description: '（仮）まだ制作中の子です。',
+    description: '秋をつかさどるラスカルっ娘です！',
     badge: '制作中',
     modelUrl: '/models/falle.vrm',
     icon: {
