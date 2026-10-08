@@ -82,7 +82,6 @@ export default function RootLayout({
           geistMono.variable,
           cherryBomb.variable,
           zenMaru.variable,
-          'antialiased',
         )}
       >
         {children}

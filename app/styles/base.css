@@ -20,27 +20,6 @@
   --sky: #c9e2f5;
   /* 画面の左右の余白 */
   --side: clamp(20px, 7vw, 112px);
-
-  /* shadcn/ui（components/ui）が参照する配色 */
-  --background: var(--sky);
-  --foreground: var(--ink);
-  --card: #fff;
-  --card-foreground: var(--ink);
-  --popover: #fff;
-  --popover-foreground: var(--ink);
-  --primary: #5293d6;
-  --primary-foreground: #fff;
-  --secondary: #eef6fc;
-  --secondary-foreground: var(--ink);
-  --muted: #eef6fc;
-  --muted-foreground: var(--ink-soft);
-  --accent: #ffe08a;
-  --accent-foreground: var(--ink);
-  --destructive: #e2709a;
-  --border: #b9d3e6;
-  --input: #b9d3e6;
-  --ring: #5293d6;
-  --radius: 1.5rem;
 }
 
 * {
@@ -67,6 +46,8 @@ body {
   color: var(--ink);
   font-family: var(--body);
   font-weight: 500;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* 日本語の見出しや短い文が「中/心に」のように単語の途中で折り返さないよう、

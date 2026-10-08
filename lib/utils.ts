@@ -1,6 +1,4 @@
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+/** クラス名を並べる。false / undefined などは飛ばす（例: cn('room', isOpen && 'is-open')） */
+export function cn(...classes: (string | false | null | undefined)[]) {
+  return classes.filter(Boolean).join(' ');
 }
