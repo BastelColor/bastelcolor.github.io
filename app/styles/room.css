@@ -46,6 +46,9 @@
 }
 
 .room-head {
+  /* アバターの部屋では、モデルが見出しのうしろまで描かれるので、見出しを上に重ねる */
+  position: relative;
+  z-index: 1;
   margin-bottom: clamp(32px, 7vh, 72px);
 }
 

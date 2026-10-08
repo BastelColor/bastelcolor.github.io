@@ -33,8 +33,10 @@
   border-top-color: var(--ink);
 }
 
-/* モデルは枠の外まで描くので、右の列（選ぶボタンなど）はその上に重ねる */
-.avatar-room-side {
+/* モデルは枠の外まで描くので、右の列（選ぶボタンなど）はその上に重ねる。
+   スマホでは選ぶボタンがモデルの上にあるので、ボタンの列にも付ける */
+.avatar-room-side,
+.avatar-room-choices {
   position: relative;
   z-index: 1;
 }

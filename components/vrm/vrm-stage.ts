@@ -43,6 +43,12 @@ type CreateVrmStageOptions = {
 
 const MAX_PIXEL_RATIO = 2;
 const AUTO_ROTATE_SPEED = 0.65;
+/** 枠の高さに対するカメラの画角（度） */
+const FOV = 30;
+const TAN_HALF_FOV = Math.tan(((FOV / 2) * Math.PI) / 180);
+/** bleed を指定したとき、枠の上下へはみ出して描く量（枠の高さに対する割合） */
+const BLEED_TOP = 0.45;
+const BLEED_BOTTOM = 0.2;
 
 // three.js 一式は重いので、アバターを選んだときに初めて読み込む
 async function loadThreeModules() {
@@ -106,7 +112,7 @@ export async function createVrmStage({
   // MToon はトーンマッピングなし前提の色づくり。ACES をかけると白がくすむ
 
   const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 100);
+  const camera = new THREE.PerspectiveCamera(FOV, 1, 0.01, 100);
 
   const hemisphere = new THREE.HemisphereLight(
     0xf7fdff,
@@ -134,15 +140,18 @@ export async function createVrmStage({
     canvas.style.touchAction = 'auto';
   }
 
-  // 枠（container）の大きさと、はみ出して描ける左右の幅
-  const frame = { width: 1, height: 1, left: 0, right: 0 };
+  // 枠（container）の大きさと、はみ出して描ける上下左右の幅
+  const frame = { width: 1, height: 1, left: 0, right: 0, top: 0, bottom: 0 };
   let onFrameChange = () => {};
   const resize = () => {
     frame.width = Math.max(1, container.clientWidth);
     frame.height = Math.max(1, container.clientHeight);
     frame.left = 0;
     frame.right = 0;
+    frame.top = 0;
+    frame.bottom = 0;
     if (bleed) {
+      // 左右は bleed の要素の端まで
       const frameRect = container.getBoundingClientRect();
       const bleedRect = bleed.getBoundingClientRect();
       const bleedLeft = bleedRect.left + bleed.clientLeft;
@@ -151,25 +160,36 @@ export async function createVrmStage({
         0,
         bleedLeft + bleed.clientWidth - frameRect.right,
       );
+      // 上下は枠の高さに対する割合で。回ってしっぽが手前に来ると、
+      // 近いぶん大きく映って枠の上下にもはみ出すため
+      frame.top = frame.height * BLEED_TOP;
+      frame.bottom = frame.height * BLEED_BOTTOM;
     }
-    // canvas は枠の左右へはみ出して置く
+    // canvas は枠の外へはみ出して置く
     const width = frame.width + frame.left + frame.right;
+    const height = frame.height + frame.top + frame.bottom;
     canvas.style.left = `${-frame.left}px`;
+    canvas.style.top = `${-frame.top}px`;
     canvas.style.width = `${width}px`;
-    canvas.style.height = `${frame.height}px`;
-    renderer.setSize(width, frame.height, false);
+    canvas.style.height = `${height}px`;
+    renderer.setSize(width, height, false);
 
-    // カメラの中心は枠の真ん中のまま。左右対称の大きな画面を考え、
-    // そのうち canvas に入る部分だけを描く（はみ出しが左右で違っても、モデルは枠の中央に立つ）
-    const half = frame.width / 2 + Math.max(frame.left, frame.right);
-    camera.aspect = (half * 2) / frame.height;
+    // カメラの中心は枠の真ん中のまま。上下左右対称の大きな画面を考え、
+    // そのうち canvas に入る部分だけを描く（はみ出しが左右で違っても、モデルは枠の中央に立つ）。
+    // 画角は「枠の高さで FOV 度」になるように、大きな画面のぶん広げる
+    const halfWidth = frame.width / 2 + Math.max(frame.left, frame.right);
+    const halfHeight = frame.height / 2 + Math.max(frame.top, frame.bottom);
+    camera.fov = THREE.MathUtils.radToDeg(
+      2 * Math.atan(TAN_HALF_FOV * (halfHeight / (frame.height / 2))),
+    );
+    camera.aspect = halfWidth / halfHeight;
     camera.setViewOffset(
-      half * 2,
-      frame.height,
-      half - frame.width / 2 - frame.left,
-      0,
+      halfWidth * 2,
+      halfHeight * 2,
+      halfWidth - frame.width / 2 - frame.left,
+      halfHeight - frame.height / 2 - frame.top,
       width,
-      frame.height,
+      height,
     );
     camera.updateProjectionMatrix();
     onFrameChange();
@@ -261,9 +281,7 @@ export async function createVrmStage({
     // はみ出して描ける範囲（枠＋左右の狭いほうの余白）に収まればよい。
     // しっぽなどが回って横へ伸びたぶんは、枠を越えて描く
     const resetView = () => {
-      const tanHalfVertical = Math.tan(
-        THREE.MathUtils.degToRad(camera.fov) / 2,
-      );
+      const tanHalfVertical = TAN_HALF_FOV;
       const visibleHalfWidth =
         frame.width / 2 + Math.min(frame.left, frame.right);
       const tanHalfHorizontal =
