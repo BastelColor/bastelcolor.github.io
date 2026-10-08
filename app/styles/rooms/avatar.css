@@ -183,17 +183,19 @@
     display: contents;
   }
 
+  /* 何体あっても1列に、同じ幅で並べる */
   .avatar-room-choices {
     order: -1;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 8px;
   }
 
   .avatar-room-choice {
     flex-direction: column;
     gap: 6px;
     height: 100%;
-    padding: 10px 6px 12px;
+    padding: 10px 4px 12px;
     border-radius: 22px;
     text-align: center;
   }
