@@ -149,6 +149,40 @@
   color: var(--ink-soft);
 }
 
+/* ---- 選んでいる子のひとこと紹介と、目印（無料配布中・制作中など） ---- */
+
+.avatar-room-about {
+  margin: 22px 0 0;
+  padding: 14px 18px 16px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.avatar-room-about p {
+  margin: 6px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.7;
+}
+
+.avatar-room-badge {
+  display: inline-block;
+  padding: 1px 10px 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone) 55%, #fff);
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+/* 選ぶボタンの中では、名前の右に小さく */
+.avatar-room-badge.is-small {
+  flex: none;
+  margin-left: auto;
+  padding: 0 8px 1px;
+  font-size: 11px;
+}
+
 .avatar-room-hint {
   margin: 28px 0 10px;
   font-size: 13px;
@@ -212,6 +246,16 @@
   .avatar-room-choice-text small {
     margin-top: 0;
     font-size: 11px;
+  }
+
+  /* 細いボタンの中では、目印は名前の下に */
+  .avatar-room-badge.is-small {
+    margin-left: 0;
+    font-size: 10px;
+  }
+
+  .avatar-room-about {
+    margin-top: 4px;
   }
 
   .avatar-room-stage {

@@ -96,6 +96,10 @@ export type Avatar = {
   name: string;
   /** 英語の名前。名前の下に小さく出る */
   nameEn: string;
+  /** ひとこと紹介。選んでいる子の紹介として、選ぶボタンの下に出る */
+  description: string;
+  /** 小さな目印（例: '無料配布中'、'制作中'）。名前の横と紹介の上に出る。省略できる */
+  badge?: string;
   /** BOOTH の商品ページ。「BOOTHで見る」がここへ飛ぶ（省略するとショップのトップ） */
   booth?: string;
   /** public/ 以下の VRM ファイルのパス */

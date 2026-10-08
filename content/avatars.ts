@@ -8,6 +8,8 @@ export const avatars: Avatar[] = [
     id: 'quiple',
     name: 'キュイプル',
     nameEn: 'Quiple',
+    description: 'リスのぬいぐるみ、キュイプルです🐿',
+    badge: '無料配布中',
     booth: 'https://bastelcolor.booth.pm/items/6746290',
     modelUrl: '/models/quiple.vrm',
     icon: {
@@ -19,6 +21,8 @@ export const avatars: Avatar[] = [
     id: 'coflet',
     name: 'こふりぃ',
     nameEn: 'Coflet',
+    description: 'コーラフロートの妖精、こふりぃです🍨',
+    badge: '無料配布中',
     booth: 'https://bastelcolor.booth.pm/items/7525867',
     modelUrl: '/models/coflet.vrm',
     icon: {
@@ -30,6 +34,8 @@ export const avatars: Avatar[] = [
     id: 'timi',
     name: 'ティミ',
     nameEn: 'Timi',
+    description: 'ゆきうさぎのティミです🐰',
+    badge: '無料配布中',
     booth: 'https://bastelcolor.booth.pm/items/6372032',
     modelUrl: '/models/timi.vrm',
     icon: {
@@ -43,6 +49,8 @@ export const avatars: Avatar[] = [
     id: 'falle',
     name: 'ファーレ',
     nameEn: 'Falle',
+    description: '（仮）まだ制作中の子です。',
+    badge: '制作中',
     modelUrl: '/models/falle.vrm',
     icon: {
       normal: '/characters/falle-icon.webp',

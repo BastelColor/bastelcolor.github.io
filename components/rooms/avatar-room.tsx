@@ -6,6 +6,9 @@ import { avatars, boothUrl } from '@/content/avatars';
 import { avatarMotion } from '@/content/motions';
 import { readLayers, replaceLayers } from '@/lib/history-layers';
 
+/** 選ぶボタンにも目印を出す badge（まだ配布していない子だと、ひと目で分かるように） */
+const WIP_BADGE = '制作中';
+
 /** URL（#avatar/quiple）で選ばれているアバター。無い・知らない子なら最初の1体 */
 function linkedAvatarId() {
   const { avatar } = readLayers();
@@ -71,10 +74,22 @@ export function AvatarRoom() {
                   {avatar.name}
                   <small>{avatar.nameEn}</small>
                 </span>
+                {avatar.badge === WIP_BADGE && (
+                  <span className="avatar-room-badge is-small">
+                    {avatar.badge}
+                  </span>
+                )}
               </button>
             </li>
           ))}
         </ul>
+        {/* 選んでいる子のひとこと紹介 */}
+        <div className="avatar-room-about" aria-live="polite">
+          {selected.badge && (
+            <span className="avatar-room-badge">{selected.badge}</span>
+          )}
+          <p>{selected.description}</p>
+        </div>
         <p className="avatar-room-hint">ドラッグでまわせます</p>
         <a href={selected.booth ?? boothUrl} target="_blank" rel="noreferrer">
           BOOTHで見る
