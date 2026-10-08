@@ -38,16 +38,4 @@ export const avatars: Avatar[] = [
     },
     brightness: 1.3,
   },
-  {
-    // 制作途中のお試し。BOOTH にはまだ無いので、booth は書かない（ショップのトップへ飛ぶ）
-    id: 'falle',
-    name: 'ファーレ',
-    nameEn: 'Falle',
-    modelUrl: '/models/falle.vrm',
-    icon: {
-      // 表情がまだ無いので、笑顔もふだんの顔と同じ画像
-      normal: '/characters/falle-icon.webp',
-      happy: '/characters/falle-icon-happy.webp',
-    },
-  },
 ];
