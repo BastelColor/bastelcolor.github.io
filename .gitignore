@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Claude Code のローカル設定（開発サーバーの起動設定など）
 /.claude/
+
+# models/ から自動で作る、Web 表示用に軽くした VRM（scripts/optimize-models.mjs）
+/public/models/

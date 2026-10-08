@@ -226,8 +226,10 @@ https://youtu.be/dQw4w9WgXcQ                 →  youtubeId: 'dQw4w9WgXcQ'
 ## 7. アバター
 
 **ファイル:** `content/avatars.ts`
-**モデルの置き場所:** `public/models/`
+**モデルの置き場所:** `models/`（`public/models/` ではありません）
 **アイコンの置き場所:** `public/characters/`
+
+元の VRM は `models/` に置きます。`npm run dev` や公開のたびに、Web で表示する用に軽くした VRM が自動で `public/models/` に作られます（テクスチャを WebP に変えるだけで、形・ボーン・揺れもの・表情はそのままです）。`public/models/` は自動で作られる場所なので、直接置いたり書き換えたりしないでください。
 
 ### アバターを足す
 
@@ -236,7 +238,7 @@ https://youtu.be/dQw4w9WgXcQ                 →  youtubeId: 'dQw4w9WgXcQ'
   id: 'timi',                     // 英小文字・数字・ハイフン
   name: 'Timi',                   // 選択ボタンに出る名前
   version: '1.0.0',               // 名前の下に「VRM 1.0 · 1.0.0」と出る
-  modelUrl: '/models/timi.vrm',
+  modelUrl: '/models/timi.vrm',  // models/timi.vrm を置くと、この場所で表示される
   icon: {
     normal: '/characters/timi-icon.webp',       // ふだんの顔
     happy: '/characters/timi-icon-happy.webp',  // 選んでいるとき・ホバー中の顔
@@ -246,7 +248,8 @@ https://youtu.be/dQw4w9WgXcQ                 →  youtubeId: 'dQw4w9WgXcQ'
 ```
 
 - 部屋を開いたときは、**いちばん上のアバター** が最初に表示されます。
-- `public/` に置いた VRM は、サイトを見た人がダウンロードできる状態になります。販売しているモデルを置くときは注意してください。
+- 表示用の VRM（`public/models/`）は、サイトを見た人がダウンロードできる状態になります。販売しているモデルを置くときは注意してください。
+- `npm run dev` を動かしたままモデルを足したときは、一度止めて動かし直すと表示用の VRM が作られます。
 - 白っぽいモデルがくすんで見えるときは `brightness` を 1.2〜1.4 くらいにします。
 
 ### アイコン画像
