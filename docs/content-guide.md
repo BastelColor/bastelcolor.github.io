@@ -280,7 +280,7 @@ https://youtu.be/dQw4w9WgXcQ                 →  youtubeId: 'dQw4w9WgXcQ'
   id: 'timi',                     // 英小文字・数字・ハイフン
   name: 'ティミ',                 // 選択ボタンに大きく出る名前（BOOTH と同じ）
   nameEn: 'Timi',                 // 名前の下に小さく出る英語の名前
-  description: 'ゆきうさぎのティミです🐰', // 選んでいる子のひとこと紹介（選ぶボタンの下に出る）
+  description: 'ゆきうさぎのティミです！', // 選んでいる子のひとこと紹介（選ぶボタンの下に出る）
   badge: '無料配布中',             // 省略できる。紹介の上に出る小さな目印。'制作中' のときは選ぶボタンにも出る
   booth: 'https://bastelcolor.booth.pm/items/6372032', // 省略できる。「BOOTHで見る」の行き先（省略するとショップのトップ）
   modelUrl: '/models/timi.vrm',  // models/timi.vrm を置くと、この場所で表示される
