@@ -1,4 +1,4 @@
-import type { Material, Mesh, Object3D, Texture, Vector3 } from 'three';
+import type { Material, Object3D, Texture } from 'three';
 import type { VRM } from '@pixiv/three-vrm';
 import modelSizes from 'virtual:model-sizes';
 import { createIdleMotion } from '@/components/vrm/idle-motion';
@@ -49,8 +49,6 @@ const TAN_HALF_FOV = Math.tan(((FOV / 2) * Math.PI) / 180);
 /** bleed を指定したとき、枠の上下へはみ出して描く量（枠の高さに対する割合） */
 const BLEED_TOP = 0.45;
 const BLEED_BOTTOM = 0.2;
-/** 回ったときに届く半径に足す余白（モーションで体が動き、しっぽが振れるぶん） */
-const TURN_MARGIN = 1.1;
 
 // three.js 一式は重いので、アバターを選んだときに初めて読み込む
 async function loadThreeModules() {
@@ -268,41 +266,20 @@ export async function createVrmStage({
       pivot.x = hipsPosition.x;
       pivot.z = hipsPosition.z;
     }
-    // 正面から見たときの、軸から左右の端までの幅と、軸より手前に出ている奥行き
-    const frontHalfWidth = Math.max(
-      pivot.x - bounds.min.x,
-      bounds.max.x - pivot.x,
-    );
+    // 軸より手前に出ている奥行き（近いぶん大きく映るので、そのぶん離す）
     const frontDepth = Math.max(bounds.max.z - pivot.z, 0);
-    // 軸のまわりを回ったときに届く、いちばん遠いところまでの水平な距離（しっぽの先など）
-    const turnRadius = measureTurnRadius(THREE, vrm.scene, pivot);
 
     controls.minDistance = modelHeight * 0.45;
     controls.maxDistance = modelHeight * 4;
     controls.maxPolarAngle = Math.PI * 0.72;
 
-    // 大きさは次の2つのうち、小さく映るほうに合わせる
-    // - 背丈が枠に収まる
-    // - どの向きに回っても、しっぽの先まで画面（はみ出して描ける範囲）に収まる
-    // 広い画面では背丈で決まり、しっぽは枠をはみ出して描く。
-    // スマホなど細い画面では、しっぽが画面の端で切れないよう、モデルを小さめに映す
+    // 大きさは「背丈が枠に収まる」ことだけで決め、どの子も同じ大きさに映す。
+    // しっぽなど横に大きく伸びるものは、枠をはみ出して描く。
+    // （スマホなど細い画面では、Quiple が真横を向いた一瞬、しっぽの先が画面の端で切れる。
+    //   しっぽに合わせて小さく映すより、ほかの子と同じ大きさを優先している）
     const resetView = () => {
-      const tanHalfVertical = TAN_HALF_FOV;
-      const visibleHalfWidth =
-        frame.width / 2 + Math.min(frame.left, frame.right);
-      const tanHalfHorizontal =
-        tanHalfVertical * (visibleHalfWidth / (frame.height / 2));
-      const distanceForHeight = size.y / 2 / tanHalfVertical;
-      const distanceForWidth = frontHalfWidth / tanHalfHorizontal;
-      // 半径 r の円を回る点は、ななめ手前に来たとき（近いぶん大きく映る）がいちばん横に広がる。
-      // その幅が画面に収まる距離は r × √(1 + tan²) / tan
-      const reach = turnRadius * TURN_MARGIN;
-      const distanceForTurn =
-        (reach * Math.sqrt(1 + tanHalfHorizontal ** 2)) / tanHalfHorizontal;
-      const distance = Math.max(
-        Math.max(distanceForHeight, distanceForWidth) * 1.06 + frontDepth,
-        distanceForTurn,
-      );
+      const distanceForHeight = size.y / 2 / TAN_HALF_FOV;
+      const distance = distanceForHeight * 1.06 + frontDepth;
 
       // ズームで離れられる上限より遠くに置くと、上限まで引き戻されてしまう
       controls.maxDistance = Math.max(modelHeight * 4, distance * 1.5);
@@ -366,35 +343,6 @@ function measureVisibleBounds(THREE: typeof import('three'), root: Object3D) {
   });
   if (bounds.isEmpty()) bounds.setFromObject(root, true);
   return bounds;
-}
-
-/**
- * 軸（pivot を通る縦の線）から、いちばん遠い頂点までの水平な距離。
- * モデルが軸のまわりを回ったときに、横へ届く長さになる
- */
-function measureTurnRadius(
-  THREE: typeof import('three'),
-  root: Object3D,
-  pivot: Vector3,
-) {
-  const vertex = new THREE.Vector3();
-  let radius = 0;
-  root.traverse((object) => {
-    const mesh = object as Mesh;
-    if (!mesh.isMesh || !mesh.visible) return;
-    const position = mesh.geometry.getAttribute('position');
-    if (!position) return;
-    for (let i = 0; i < position.count; i++) {
-      // スキンや表情で動いたあとの位置（Box3.expandByObject と同じ方法）
-      mesh.getVertexPosition(i, vertex);
-      vertex.applyMatrix4(mesh.matrixWorld);
-      radius = Math.max(
-        radius,
-        Math.hypot(vertex.x - pivot.x, vertex.z - pivot.z),
-      );
-    }
-  });
-  return Math.max(radius, 0.01);
 }
 
 function disposeObject(root: Object3D) {
