@@ -3,6 +3,7 @@ title: サイトをリニューアルしました（サンプル記事）
 date: 2026-10-08
 category: お知らせ
 summary: ブログの見た目を確かめるための仮の記事です。
+draft: true
 thumbnail: /posts/hello-new-site/cover.webp
 ---
 

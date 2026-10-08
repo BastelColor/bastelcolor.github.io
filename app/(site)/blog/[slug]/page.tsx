@@ -9,8 +9,14 @@ type PostPageProps = {
   params: Promise<{ slug: string }>;
 };
 
+/** 記事がまだ1本も無いときに作る、「まだ記事はありません」だけのページ */
+const NO_POSTS_SLUG = 'no-posts';
+
 export function generateStaticParams() {
-  return getPosts().map((post) => ({ slug: post.slug }));
+  const posts = getPosts();
+  // 静的に書き出すときは、記事のページが最低1つ必要なため
+  if (posts.length === 0) return [{ slug: NO_POSTS_SLUG }];
+  return posts.map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({
@@ -32,7 +38,15 @@ export async function generateMetadata({
 
 /** 記事のページ。ブログの部屋の上に重ねて表示する（components/blog/post-layer.tsx） */
 export default async function PostPage({ params }: PostPageProps) {
-  const post = getPost((await params).slug);
+  const { slug } = await params;
+  const post = getPost(slug);
+  if (!post && slug === NO_POSTS_SLUG) {
+    return (
+      <PostLayer>
+        <p className="post-empty">まだ記事はありません。</p>
+      </PostLayer>
+    );
+  }
   if (!post) notFound();
 
   return (

@@ -79,6 +79,13 @@
   line-height: 1.35;
 }
 
+.post-empty {
+  max-width: 44em;
+  margin: clamp(40px, 10vh, 120px) auto 0;
+  text-align: center;
+  color: var(--ink-soft);
+}
+
 .post-foot {
   display: flex;
   justify-content: center;

@@ -47,6 +47,14 @@ const zenMaru = Zen_Maru_Gothic({
 export const metadata: Metadata = {
   title: site.title,
   description: site.description,
+  // タブのアイコン（public/ に置いた画像）
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '16x16 32x32 48x48' },
+      { url: '/icon.png', type: 'image/png', sizes: '192x192' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export default function RootLayout({
