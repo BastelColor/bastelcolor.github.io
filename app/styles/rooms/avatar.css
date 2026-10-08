@@ -10,6 +10,8 @@
 }
 
 .avatar-room-stage {
+  /* 中の canvas は枠の外へ広げて置くので、枠の幅はここで決める */
+  width: 100%;
   height: min(68svh, 720px);
   min-height: 380px;
 }
@@ -29,6 +31,12 @@
 .avatar-room .vrm-loading-orb {
   border-color: rgba(47, 69, 88, 0.15);
   border-top-color: var(--ink);
+}
+
+/* モデルは枠の外まで描くので、右の列（選ぶボタンなど）はその上に重ねる */
+.avatar-room-side {
+  position: relative;
+  z-index: 1;
 }
 
 /* ---- モデルを選ぶボタン ----

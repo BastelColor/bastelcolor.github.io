@@ -1,4 +1,4 @@
-import type { Material, Mesh, Object3D, Texture, Vector3 } from 'three';
+import type { Material, Object3D, Texture } from 'three';
 import type { VRM } from '@pixiv/three-vrm';
 import modelSizes from 'virtual:model-sizes';
 import { createIdleMotion } from '@/components/vrm/idle-motion';
@@ -20,8 +20,13 @@ export type VrmStage = {
 
 type CreateVrmStageOptions = {
   canvas: HTMLCanvasElement;
-  /** このサイズに合わせて描画解像度を追従させる */
+  /** モデルを収める枠。モデルの大きさはこの枠に合わせる */
   container: HTMLElement;
+  /**
+   * 枠の外へはみ出して描いてよい範囲（枠を囲む要素）。
+   * 指定すると、canvas をこの要素の左右の端まで広げ、しっぽなどが枠で切れないようにする
+   */
+  bleed?: HTMLElement;
   modelUrl: string;
   /** ループ再生する埋め込みモーション。省略時は待機モーションのみ */
   motionId?: MotionId;
@@ -69,6 +74,7 @@ async function loadThreeModules() {
 export async function createVrmStage({
   canvas,
   container,
+  bleed,
   modelUrl,
   motionId,
   brightness = 1,
@@ -128,15 +134,49 @@ export async function createVrmStage({
     canvas.style.touchAction = 'auto';
   }
 
+  // 枠（container）の大きさと、はみ出して描ける左右の幅
+  const frame = { width: 1, height: 1, left: 0, right: 0 };
+  let onFrameChange = () => {};
   const resize = () => {
-    const width = Math.max(1, container.clientWidth);
-    const height = Math.max(1, container.clientHeight);
-    renderer.setSize(width, height, false);
-    camera.aspect = width / height;
+    frame.width = Math.max(1, container.clientWidth);
+    frame.height = Math.max(1, container.clientHeight);
+    frame.left = 0;
+    frame.right = 0;
+    if (bleed) {
+      const frameRect = container.getBoundingClientRect();
+      const bleedRect = bleed.getBoundingClientRect();
+      const bleedLeft = bleedRect.left + bleed.clientLeft;
+      frame.left = Math.max(0, frameRect.left - bleedLeft);
+      frame.right = Math.max(
+        0,
+        bleedLeft + bleed.clientWidth - frameRect.right,
+      );
+    }
+    // canvas は枠の左右へはみ出して置く
+    const width = frame.width + frame.left + frame.right;
+    canvas.style.left = `${-frame.left}px`;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${frame.height}px`;
+    renderer.setSize(width, frame.height, false);
+
+    // カメラの中心は枠の真ん中のまま。左右対称の大きな画面を考え、
+    // そのうち canvas に入る部分だけを描く（はみ出しが左右で違っても、モデルは枠の中央に立つ）
+    const half = frame.width / 2 + Math.max(frame.left, frame.right);
+    camera.aspect = (half * 2) / frame.height;
+    camera.setViewOffset(
+      half * 2,
+      frame.height,
+      half - frame.width / 2 - frame.left,
+      0,
+      width,
+      frame.height,
+    );
     camera.updateProjectionMatrix();
+    onFrameChange();
   };
-  const resizeObserver = new ResizeObserver(resize);
+  const resizeObserver = new ResizeObserver(() => resize());
   resizeObserver.observe(container);
+  if (bleed) resizeObserver.observe(bleed);
   resize();
 
   // --- 後片付け（何度呼ばれても1回だけ実行） ---
@@ -196,38 +236,53 @@ export async function createVrmStage({
     // --- カメラをモデル全身が収まる位置に合わせる ---
     const bounds = measureVisibleBounds(THREE, vrm.scene);
     const size = bounds.getSize(new THREE.Vector3());
-    const center = bounds.getCenter(new THREE.Vector3());
     const modelHeight = Math.max(size.y, 0.01);
-    // くるっと回ったときに横へはみ出す幅（うしろに伸びたしっぽなども含む）
-    const turnRadius = measureTurnRadius(THREE, vrm.scene, center);
+    // 回す軸は腰の真上。モーションで体の向きが変わっても体は枠の中央に立ち、
+    // しっぽなどは体のまわりを回る（枠の外へはみ出したぶんは bleed の範囲に描く）
+    const hips = vrm.humanoid.getRawBoneNode('hips');
+    const pivot = bounds.getCenter(new THREE.Vector3());
+    if (hips) {
+      const hipsPosition = hips.getWorldPosition(new THREE.Vector3());
+      pivot.x = hipsPosition.x;
+      pivot.z = hipsPosition.z;
+    }
+    // 正面から見たときの、軸から左右の端までの幅と、軸より手前に出ている奥行き
+    const frontHalfWidth = Math.max(
+      pivot.x - bounds.min.x,
+      bounds.max.x - pivot.x,
+    );
+    const frontDepth = Math.max(bounds.max.z - pivot.z, 0);
 
     controls.minDistance = modelHeight * 0.45;
     controls.maxDistance = modelHeight * 4;
     controls.maxPolarAngle = Math.PI * 0.72;
 
+    // 大きさは「背丈が枠に収まる」ことで決める。横は、正面の姿が
+    // はみ出して描ける範囲（枠＋左右の狭いほうの余白）に収まればよい。
+    // しっぽなどが回って横へ伸びたぶんは、枠を越えて描く
     const resetView = () => {
-      const verticalFov = THREE.MathUtils.degToRad(camera.fov);
-      const horizontalFov =
-        2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
-      // 正面の幅ではなく、どの向きに回っても収まる幅（turnRadius の2倍）で合わせる。
-      // 正面だけで合わせると、回ったときに大きなしっぽが画面の端で切れる
-      const distanceForHeight = size.y / (2 * Math.tan(verticalFov / 2));
-      const distanceForWidth = turnRadius / Math.tan(horizontalFov / 2);
-      // 横は、モーション中に体の向きが変わってしっぽが振れるぶんの余白を多めにとる。
-      // （Quiple のしっぽは背丈より長く、真横を向く一瞬は端に触れることがある。
-      //   それも収めようとすると体がとても小さくなるので、ここで釣り合いをとっている）
+      const tanHalfVertical = Math.tan(
+        THREE.MathUtils.degToRad(camera.fov) / 2,
+      );
+      const visibleHalfWidth =
+        frame.width / 2 + Math.min(frame.left, frame.right);
+      const tanHalfHorizontal =
+        tanHalfVertical * (visibleHalfWidth / (frame.height / 2));
+      const distanceForHeight = size.y / 2 / tanHalfVertical;
+      const distanceForWidth = frontHalfWidth / tanHalfHorizontal;
       const distance =
-        Math.max(distanceForHeight * 1.06, distanceForWidth * 1.18) +
-        Math.min(turnRadius, size.z) * 0.5;
+        Math.max(distanceForHeight, distanceForWidth) * 1.06 + frontDepth;
 
       camera.near = Math.max(distance / 100, 0.001);
       camera.far = Math.max(distance * 10, distance + size.z * 4);
-      camera.position.set(center.x, center.y, center.z + distance);
+      camera.position.set(pivot.x, pivot.y, pivot.z + distance);
       camera.updateProjectionMatrix();
-      controls.target.copy(center);
+      controls.target.copy(pivot);
       controls.update();
     };
     resetView();
+    // 枠の大きさが変わったら合わせ直す
+    onFrameChange = resetView;
 
     const player = createMotionPlayer({ ...modules, vrm });
     motionPlayer = player;
@@ -278,35 +333,6 @@ function measureVisibleBounds(THREE: typeof import('three'), root: Object3D) {
   });
   if (bounds.isEmpty()) bounds.setFromObject(root, true);
   return bounds;
-}
-
-/**
- * 体の中心を通る縦の軸から、いちばん遠い頂点までの水平な距離。
- * モデルが縦の軸で回ったときに、横へはみ出す幅の半分になる
- */
-function measureTurnRadius(
-  THREE: typeof import('three'),
-  root: Object3D,
-  center: Vector3,
-) {
-  const vertex = new THREE.Vector3();
-  let radius = 0;
-  root.traverse((object) => {
-    const mesh = object as Mesh;
-    if (!mesh.isMesh || !mesh.visible) return;
-    const position = mesh.geometry.getAttribute('position');
-    if (!position) return;
-    for (let i = 0; i < position.count; i++) {
-      // スキンや表情で動いたあとの位置（Box3.expandByObject と同じ方法）
-      mesh.getVertexPosition(i, vertex);
-      vertex.applyMatrix4(mesh.matrixWorld);
-      radius = Math.max(
-        radius,
-        Math.hypot(vertex.x - center.x, vertex.z - center.z),
-      );
-    }
-  });
-  return Math.max(radius, 0.01);
 }
 
 function disposeObject(root: Object3D) {

@@ -79,7 +79,9 @@
   bottom: -6%;
   width: calc(clamp(180px, 24vw, 360px) * var(--mascot-width, 1));
   pointer-events: none;
-  mask-image: linear-gradient(to right, transparent 0, #000 14%);
+  /* 撮影範囲の左端で切れた髪（こふりぃ）だけを目立たなくする、ごく細いぼかし。
+     広くすると、小さく表示したときに顔や髪までうすく消えてしまう */
+  mask-image: linear-gradient(to right, transparent 0, #000 4%);
   opacity: 0;
   translate: 0 30%;
   transition:

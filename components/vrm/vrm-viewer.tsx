@@ -18,6 +18,11 @@ type VrmViewerProps = {
    * bare: モデルだけを表示し、ドラッグでの回転のみ可能（ページ内の装飾用）
    */
   variant?: 'full' | 'bare';
+  /**
+   * 枠の外へはみ出して描いてよい範囲（祖先要素の CSS セレクター）。
+   * 指定すると、その要素の左右の端までモデルを描ける
+   */
+  bleedTo?: string;
 };
 
 /** モデルを差し替えるときは key を変えて作り直す前提 */
@@ -27,6 +32,7 @@ export function VrmViewer({
   motionId,
   brightness,
   variant = 'full',
+  bleedTo,
 }: VrmViewerProps) {
   const isFull = variant === 'full';
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -45,6 +51,9 @@ export function VrmViewer({
     createVrmStage({
       canvas,
       container,
+      bleed: bleedTo
+        ? (container.closest<HTMLElement>(bleedTo) ?? undefined)
+        : undefined,
       modelUrl,
       motionId,
       brightness,
@@ -71,7 +80,7 @@ export function VrmViewer({
       stageRef.current?.dispose();
       stageRef.current = null;
     };
-  }, [modelUrl, motionId, brightness, isFull]);
+  }, [modelUrl, motionId, brightness, isFull, bleedTo]);
 
   const toggleAutoRotate = () => {
     const next = !autoRotate;
