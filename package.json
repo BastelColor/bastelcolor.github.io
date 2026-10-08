@@ -13,7 +13,8 @@
     "format": "oxfmt",
     "motion:encode": "node scripts/encode-motion.mjs",
     "predev": "node scripts/optimize-models.mjs",
-    "prebuild": "node scripts/optimize-models.mjs"
+    "prebuild": "node scripts/optimize-models.mjs",
+    "postbuild": "node scripts/write-sitemap.mjs"
   },
   "dependencies": {
     "@pixiv/three-vrm": "^3.5.5",

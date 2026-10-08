@@ -1,5 +1,6 @@
-import type { Material, Object3D, Texture } from 'three';
+import type { Material, Mesh, Object3D, Texture, Vector3 } from 'three';
 import type { VRM } from '@pixiv/three-vrm';
+import modelSizes from 'virtual:model-sizes';
 import { createIdleMotion } from '@/components/vrm/idle-motion';
 import {
   createMotionPlayer,
@@ -158,11 +159,13 @@ export async function createVrmStage({
     // --- モデル読み込み ---
     const loader = new GLTFLoader();
     loader.register((parser) => new VRMLoaderPlugin(parser));
+    // 届いた量は、圧縮をほどいたあとの大きさで数えられるので、
+    // 割る数もファイルの実際の大きさにする（scripts/vite-model-sizes.ts）
+    const fileSize = modelSizes[modelUrl] as number | undefined;
     const gltf = await loader.loadAsync(modelUrl, (event) => {
-      if (event.total > 0 && !signal.aborted) {
-        onProgress(
-          Math.min(100, Math.round((event.loaded / event.total) * 100)),
-        );
+      const total = fileSize ?? event.total;
+      if (total > 0 && !signal.aborted) {
+        onProgress(Math.min(100, Math.round((event.loaded / total) * 100)));
       }
     });
 
@@ -195,6 +198,8 @@ export async function createVrmStage({
     const size = bounds.getSize(new THREE.Vector3());
     const center = bounds.getCenter(new THREE.Vector3());
     const modelHeight = Math.max(size.y, 0.01);
+    // くるっと回ったときに横へはみ出す幅（うしろに伸びたしっぽなども含む）
+    const turnRadius = measureTurnRadius(THREE, vrm.scene, center);
 
     controls.minDistance = modelHeight * 0.45;
     controls.maxDistance = modelHeight * 4;
@@ -204,10 +209,16 @@ export async function createVrmStage({
       const verticalFov = THREE.MathUtils.degToRad(camera.fov);
       const horizontalFov =
         2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
+      // 正面の幅ではなく、どの向きに回っても収まる幅（turnRadius の2倍）で合わせる。
+      // 正面だけで合わせると、回ったときに大きなしっぽが画面の端で切れる
       const distanceForHeight = size.y / (2 * Math.tan(verticalFov / 2));
-      const distanceForWidth = size.x / (2 * Math.tan(horizontalFov / 2));
+      const distanceForWidth = turnRadius / Math.tan(horizontalFov / 2);
+      // 横は、モーション中に体の向きが変わってしっぽが振れるぶんの余白を多めにとる。
+      // （Quiple のしっぽは背丈より長く、真横を向く一瞬は端に触れることがある。
+      //   それも収めようとすると体がとても小さくなるので、ここで釣り合いをとっている）
       const distance =
-        Math.max(distanceForHeight, distanceForWidth) * 1.08 + size.z * 0.5;
+        Math.max(distanceForHeight * 1.06, distanceForWidth * 1.18) +
+        Math.min(turnRadius, size.z) * 0.5;
 
       camera.near = Math.max(distance / 100, 0.001);
       camera.far = Math.max(distance * 10, distance + size.z * 4);
@@ -267,6 +278,35 @@ function measureVisibleBounds(THREE: typeof import('three'), root: Object3D) {
   });
   if (bounds.isEmpty()) bounds.setFromObject(root, true);
   return bounds;
+}
+
+/**
+ * 体の中心を通る縦の軸から、いちばん遠い頂点までの水平な距離。
+ * モデルが縦の軸で回ったときに、横へはみ出す幅の半分になる
+ */
+function measureTurnRadius(
+  THREE: typeof import('three'),
+  root: Object3D,
+  center: Vector3,
+) {
+  const vertex = new THREE.Vector3();
+  let radius = 0;
+  root.traverse((object) => {
+    const mesh = object as Mesh;
+    if (!mesh.isMesh || !mesh.visible) return;
+    const position = mesh.geometry.getAttribute('position');
+    if (!position) return;
+    for (let i = 0; i < position.count; i++) {
+      // スキンや表情で動いたあとの位置（Box3.expandByObject と同じ方法）
+      mesh.getVertexPosition(i, vertex);
+      vertex.applyMatrix4(mesh.matrixWorld);
+      radius = Math.max(
+        radius,
+        Math.hypot(vertex.x - center.x, vertex.z - center.z),
+      );
+    }
+  });
+  return Math.max(radius, 0.01);
 }
 
 function disposeObject(root: Object3D) {

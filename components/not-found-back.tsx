@@ -23,7 +23,7 @@ export function NotFoundBack() {
     <>
       <p className="not-found-note">
         {isOldHomepageUrl
-          ? '前のホームページは、いま新しいサイトへお引っ越し中です。'
+          ? 'こちらのページは公開を終了しました！'
           : 'URL がまちがっているか、ページがお引っ越ししたのかもしれません。'}
       </p>
       <div className="not-found-back">
