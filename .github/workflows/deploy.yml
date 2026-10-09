@@ -29,8 +29,18 @@ jobs:
 
       - run: npm ci
 
+      # 書き方と型のまちがいがあれば、ここで止める（公開しない）
+      - run: npm run lint
+      - run: npm run typecheck
+
       # next.config.ts の output: 'export' で、dist/client に静的なファイルを書き出す
       - run: npm run build
+
+      # 公開する前に、おもな画面（トップ・各部屋・作品・アバター・記事・404）を
+      # 本物のブラウザで開いて、エラーが出ないかを確かめる（scripts/smoke-test.mjs）
+      - run: npm run smoke
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
 
       - uses: actions/configure-pages@v5
 

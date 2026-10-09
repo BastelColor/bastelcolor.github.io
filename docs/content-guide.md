@@ -46,6 +46,8 @@ npm run build
 GitHub の `BastelColor/bastelcolor.github.io` の `main` ブランチに push すると、自動でビルドされて数分後に https://bastelcolor.github.io/ に反映されます（`.github/workflows/deploy.yml`）。
 進み具合とエラーは、GitHub のリポジトリの「Actions」タブで見られます。
 
+- 公開の前に、自動でチェックが走ります。書き方・型のまちがい（`npm run lint`・`npm run typecheck`）と、おもな画面（トップ・各部屋・作品・アバター4体・記事・404）を本物のブラウザで開いてエラーが出ないか（`npm run smoke`）を確かめます。どれかで問題が見つかると、**公開されずに止まり**、いま公開しているサイトはそのまま残ります。「Actions」タブで、赤い ✗ の付いた手順を開くと、どの画面で何が起きたかが出ます。
+- 手元で同じチェックをするときは、`npm run build` のあとに `npm run smoke` を実行します（Chrome が入っていれば動きます）。
 - サイトは全部、静的なファイルとして書き出しています（`next.config.ts` の `output: 'export'`）。サーバーは使っていないので、公開の費用はかかりません。
 - 前のホームページ（https://bastelcolor.github.io/homepage/ ）は、別のリポジトリ（`BastelColor/homepage`）のまま残ります。
 
