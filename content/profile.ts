@@ -28,5 +28,6 @@ export const profile: Profile = {
     { label: 'X / Twitter', url: 'https://twitter.com/bastelcolor' },
     { label: 'YouTube', url: 'https://youtube.com/@bastelcolor' },
     { label: 'Misskey', url: 'https://misskey.io/@BastelColor' },
+    { label: 'BOOTH', url: 'https://bastelcolor.booth.pm/' },
   ],
 };
