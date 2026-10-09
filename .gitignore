@@ -49,3 +49,6 @@ next-env.d.ts
 
 # models/ から自動で作る、Web 表示用に軽くした VRM（scripts/optimize-models.mjs）
 /public/models/
+
+# public/characters/ から自動で作る、半分の大きさのキャラクター画像（scripts/resize-characters.mjs）
+/public/characters/small/
