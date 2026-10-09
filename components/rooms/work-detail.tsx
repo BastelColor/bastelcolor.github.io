@@ -1,4 +1,5 @@
 import { PuniButton } from '@/components/puni-button';
+import { WorkImageViewer } from '@/components/rooms/work-image-viewer';
 import { WorkThumbnail } from '@/components/rooms/work-thumbnail';
 import { ShareButtons } from '@/components/share-buttons';
 import type { Work } from '@/content/types';
@@ -46,14 +47,9 @@ export function WorkDetail({ work, titleId, onClose }: WorkDetailProps) {
         </ul>
       )}
 
+      {/* 画像は押すと大きく見られる */}
       {work.images && work.images.length > 0 && (
-        <ul className="work-detail-images">
-          {work.images.map((image) => (
-            <li key={image.src}>
-              <img src={image.src} alt={image.alt} loading="lazy" />
-            </li>
-          ))}
-        </ul>
+        <WorkImageViewer images={work.images} />
       )}
 
       <div className="work-detail-share">

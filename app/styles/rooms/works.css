@@ -242,7 +242,8 @@
     .work-thumbnail,
     .work-detail-cover,
     .work-detail-video,
-    .work-detail-footer
+    .work-detail-footer,
+    .work-viewer
   ) {
   margin-inline: var(--pad);
 }
@@ -299,12 +300,173 @@
   list-style: none;
 }
 
+.work-detail-image {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.work-detail-image:focus-visible {
+  outline: none;
+}
+
+.work-detail-image:focus-visible img {
+  outline: 3px solid var(--ink);
+  outline-offset: 4px;
+}
+
 .work-detail-images img {
   display: block;
   max-width: 100%;
   max-height: 80svh;
   margin-inline: auto;
   border-radius: 14px;
+}
+
+/* ---- 画像を大きく見る（components/rooms/work-image-viewer.tsx） ----
+   作品の詳細の上に重ねる。画像は画面に収まる大きさで真ん中に出す */
+
+.work-viewer {
+  width: 100vw;
+  max-width: none;
+  height: 100svh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  /* 横になぞる動きはページに渡さず、前後の画像へ移るのに使う */
+  touch-action: pan-y pinch-zoom;
+  opacity: 0;
+  transition:
+    opacity 0.2s ease,
+    overlay 0.2s allow-discrete,
+    display 0.2s allow-discrete;
+}
+
+.work-viewer[open] {
+  display: grid;
+  place-items: center;
+  opacity: 1;
+}
+
+@starting-style {
+  .work-viewer[open] {
+    opacity: 0;
+  }
+}
+
+.work-viewer::backdrop {
+  background: rgba(24, 36, 48, 0.92);
+}
+
+.work-viewer-figure {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin: 0;
+  /* 画像のまわりを押したら閉じるので、figure 自体は押せないようにする */
+  pointer-events: none;
+}
+
+.work-viewer-figure img {
+  display: block;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100svh - 120px);
+  border-radius: 12px;
+  object-fit: contain;
+  pointer-events: auto;
+}
+
+.work-viewer-figure figcaption {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* 前後の画像・とじるボタン。白くて丸い、ぷっくりしたボタン */
+.work-viewer-nav,
+.work-viewer-close {
+  position: fixed;
+  border: 0;
+  background: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
+  font-family: var(--body);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.work-viewer-nav {
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-top: -24px;
+  border-radius: 50%;
+}
+
+.work-viewer-nav svg {
+  width: 20px;
+  height: 20px;
+}
+
+.work-viewer-nav.is-prev {
+  left: 16px;
+}
+
+.work-viewer-nav.is-next {
+  right: 16px;
+}
+
+.work-viewer-nav.is-next svg {
+  scale: -1 1;
+}
+
+.work-viewer-close {
+  top: 16px;
+  right: 16px;
+  padding: 8px 18px 9px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.work-viewer-nav:focus-visible,
+.work-viewer-close:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .work-viewer-nav:hover,
+  .work-viewer-close:hover {
+    translate: 0 -2px;
+  }
+}
+
+/* スマホ: 前後のボタンは画像の下に並べ、画像を隠さないようにする */
+@media (max-width: 760px) {
+  .work-viewer-nav {
+    top: auto;
+    bottom: 20px;
+    margin-top: 0;
+  }
+
+  .work-viewer-nav.is-prev {
+    left: calc(50% - 64px);
+  }
+
+  .work-viewer-nav.is-next {
+    right: calc(50% - 64px);
+  }
+
+  .work-viewer-figure img {
+    max-height: calc(100svh - 180px);
+  }
 }
 
 .work-detail-links {
@@ -386,6 +548,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .work-viewer,
   .work-dialog,
   .work-dialog::backdrop {
     transition: none;
