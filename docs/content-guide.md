@@ -80,6 +80,8 @@ GitHub の `BastelColor/bastelcolor.github.io` の `main` ブランチに push �
 | `description` | 検索結果やリンクの共有時に出る説明文 |
 | `url` | 公開しているURL。SNSで共有したときのカードに使います（URLが変わったときだけ書き換えます） |
 | `roles` | トップの名前の下に出る役職。`/` で区切って表示されます |
+| `googleSiteVerification` | Google Search Console の持ち主の確認用の文字（下の「Google に登録する」）。空なら何も出しません |
+| `goatcounter` | アクセス数を数える GoatCounter のコード（下の「アクセス数を見る」）。空なら数えません |
 
 トップの大きな「Yzmo」と「唯繕物置」の文字は、デザインの一部としてコードに直接書いてあります。
 
@@ -104,9 +106,36 @@ X や Discord などに URL を貼ったときに出る画像は `public/og.png`
 
 公開するたびに、`sitemap.xml`（サイトにあるページの一覧）と `robots.txt` が自動で作られます。記事を足せば一覧にも自動で入るので、ふだんは何もしなくて大丈夫です（下書きの記事は入りません）。
 
+### Google に登録する（Search Console）
+
+Google にサイトを知らせて、検索でどう見つけられているかを見られるようにします。最初に一度だけやります。
+
+1. [Google Search Console](https://search.google.com/search-console) を開き、「プロパティを追加」→ 右側の **「URL プレフィックス」** に `https://bastelcolor.github.io/` を入れます。
+2. 確認方法の一覧から **「HTML タグ」** を選びます。`<meta name="google-site-verification" content="…" />` と出るので、`content="…"` の **…の部分だけ** をコピーします。
+3. `content/site.ts` の `googleSiteVerification: ''` の `''` の中に貼り、公開します（Claude に渡して「入れて公開して」でも大丈夫です）。
+4. 公開が終わったら（数分）、Search Console に戻って **「確認」** を押します。
+5. 左のメニューの **「サイトマップ」** で `sitemap.xml` と入れて「送信」します。
+
+検索結果に出るまでは、数日〜数週間かかります。`googleSiteVerification` は、確認が終わったあとも消さずに残しておきます（消すと持ち主の確認が外れます）。
+
+### アクセス数を見る（GoatCounter）
+
+[GoatCounter](https://www.goatcounter.com) という、Cookie を使わない無料のアクセス解析を使います。Cookie を使わないので、「Cookie に同意しますか？」の表示は要りません。
+
+1. GoatCounter のサイトで「Sign up」からアカウントを作ります。**Code** の欄に入れた文字（例：`yzmo`）が、見るページの住所（`https://yzmo.goatcounter.com`）になります。
+2. その Code を `content/site.ts` の `goatcounter: ''` の `''` の中に入れて、公開します。
+3. `https://<Code>.goatcounter.com` を開くと、見られたページの数が出ます。
+
+- 部屋は `/#works` のように、アバターは `/avatar/quiple`、作品は `/work/…`、記事は `/blog/…` として数えます。開いてすぐ（1秒以内）別の画面へ移ったものは数えません。
+- 自分のパソコンで確認しているとき（`localhost`）は数えません。公開しているサイトを自分で見た分は数えられるので、気になるときは GoatCounter の設定（Settings）で自分を除外できます。
+
 ### ブログの更新情報（RSS・自動）
 
 公開するたびに、ブログの更新情報 `feed.xml`（RSS）が自動で作られます。RSS リーダーに `https://bastelcolor.github.io/feed.xml` を登録すると、新しい記事が届きます。ブログの部屋のいちばん下にもリンクがあります。下書きの記事は入りません。
+
+### フォント（自動）
+
+文字のフォント（Zen Maru Gothic・Cherry Bomb One）は `fonts/` に入っています。公開するときに、サイトで使っている文字だけを取り出した軽いフォントが自動で作られるので、文章を足しても何もしなくて大丈夫です。`npm run dev` で確認しているときは、全部の文字が入ったフォントが使われます。
 
 ### ページがみつかりません（404）
 

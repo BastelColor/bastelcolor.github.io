@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
-import { Cherry_Bomb_One, Zen_Maru_Gothic } from 'next/font/google';
+import { PageCounter } from '@/components/page-counter';
 import { site } from '@/content/site';
-import { cn } from '@/lib/utils';
 import './globals.css';
 // サイト固有のスタイル（画面の構成順）
+import './styles/fonts.css';
 import './styles/base.css';
 import './styles/home.css';
 import './styles/floating-bits.css';
@@ -16,20 +16,6 @@ import './styles/rooms/log.css';
 import './styles/vrm-viewer.css';
 import './styles/blog.css';
 import './styles/not-found.css';
-
-// 見出し・メニューボタン用
-const cherryBomb = Cherry_Bomb_One({
-  variable: '--font-cherry-bomb',
-  weight: '400',
-  preload: false,
-});
-
-// 本文用
-const zenMaru = Zen_Maru_Gothic({
-  variable: '--font-zen-maru',
-  weight: ['500', '700', '900'],
-  preload: false,
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
@@ -46,6 +32,10 @@ export const metadata: Metadata = {
     images: [{ url: '/og.png', width: 1200, height: 630, alt: site.title }],
   },
   twitter: { card: 'summary_large_image' },
+  // Google Search Console で、このサイトの持ち主であることを確かめるためのしるし
+  verification: site.googleSiteVerification
+    ? { google: site.googleSiteVerification }
+    : undefined,
   // ブログの更新情報（RSS）。公開するときに scripts/write-feed.mjs が作る
   alternates: {
     types: {
@@ -69,8 +59,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <body className={cn(cherryBomb.variable, zenMaru.variable)}>
+      <body>
         {children}
+        <PageCounter />
       </body>
     </html>
   );

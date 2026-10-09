@@ -38,6 +38,9 @@ type StoredLayers = HistoryLayers & {
 
 const KEY = 'yzmo';
 
+/** pushLayers・replaceLayers で URL を変えたときに window へ送るイベント（アクセス数を数えるのに使う） */
+export const LAYERS_CHANGE_EVENT = 'yzmo:layers-change';
+
 /** いまの履歴で開いているもの。履歴に無ければ URL から読む */
 export function readLayers(): StoredLayers {
   const state: unknown = window.history.state;
@@ -52,6 +55,7 @@ export function readLayers(): StoredLayers {
 export function pushLayers(layers: HistoryLayers) {
   const depth = readLayers().depth + 1;
   window.history.pushState({ [KEY]: { ...layers, depth } }, '', toUrl(layers));
+  window.dispatchEvent(new Event(LAYERS_CHANGE_EVENT));
 }
 
 /** いまの履歴を書きかえる（積まない） */
@@ -62,6 +66,7 @@ export function replaceLayers(layers: HistoryLayers) {
     '',
     toUrl(layers),
   );
+  window.dispatchEvent(new Event(LAYERS_CHANGE_EVENT));
 }
 
 /**
