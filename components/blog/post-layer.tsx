@@ -88,7 +88,8 @@ export function PostLayer({ children }: { children: ReactNode }) {
         } as CSSProperties
       }
     >
-      <div className="post-layer-inner">
+      {/* 名前の付いた section にして、読み上げで記事の場所へ飛べるようにする */}
+      <section className="post-layer-inner" aria-label="ブログの記事">
         <header className="post-head">
           <PuniButton
             ref={backButton}
@@ -107,7 +108,7 @@ export function PostLayer({ children }: { children: ReactNode }) {
             onPress={close}
           />
         </footer>
-      </div>
+      </section>
     </div>
   );
 }

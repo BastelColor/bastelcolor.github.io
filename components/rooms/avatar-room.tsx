@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { VrmStage } from '@/components/vrm/vrm-stage';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
 import { avatars } from '@/content/avatars';
@@ -10,6 +10,21 @@ import { readLayers, replaceLayers } from '@/lib/history-layers';
 
 /** 選ぶボタンにも目印を出す badge（まだ配布していない子だと、ひと目で分かるように） */
 const WIP_BADGE = '制作中';
+
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+
+/** 「視差効果を減らす」など、動きを減らす設定にしているか */
+function usePrefersReducedMotion() {
+  return useSyncExternalStore(
+    (onChange) => {
+      const query = window.matchMedia(REDUCED_MOTION);
+      query.addEventListener('change', onChange);
+      return () => query.removeEventListener('change', onChange);
+    },
+    () => window.matchMedia(REDUCED_MOTION).matches,
+    () => false,
+  );
+}
 
 /** URL（/avatar/quiple）で選ばれているアバター。無い・知らない子なら最初の1体 */
 function linkedAvatarId() {
@@ -28,6 +43,8 @@ export function AvatarRoom() {
     avatars.find((avatar) => avatar.id === selectedId) ?? avatars[0];
   // 表示できたモデルの舞台。読み込み中は null（表情のボタンは押せない）
   const [stage, setStage] = useState<VrmStage | null>(null);
+  // 動きを減らす設定の人には、くるっと回るループのモーションは流さない（その場で小さく揺れるだけ）
+  const reduceMotion = usePrefersReducedMotion();
 
   const select = (id: string) => {
     setSelectedId(id);
@@ -59,7 +76,7 @@ export function AvatarRoom() {
           key={selected.id}
           modelUrl={selected.modelUrl}
           modelName={selected.name}
-          motionId={avatarMotion.id}
+          motionId={reduceMotion ? undefined : avatarMotion.id}
           brightness={selected.brightness}
           liltoon={selected.liltoon}
           variant="bare"

@@ -16,7 +16,7 @@
 
 :root {
   --ink: #2f4558;
-  --ink-soft: #6a7d8c;
+  --ink-soft: #56697a;
   --sky: #c9e2f5;
   /* 画面の左右の余白 */
   --side: clamp(20px, 7vw, 112px);
