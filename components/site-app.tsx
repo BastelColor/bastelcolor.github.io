@@ -1,10 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type ComponentType,
   type CSSProperties,
   type ReactNode,
@@ -19,7 +21,8 @@ import { findPage, pages } from '@/content/pages';
 import { site } from '@/content/site';
 import type { PageId } from '@/content/types';
 import { leaveLayer, pushLayers, readLayers } from '@/lib/history-layers';
-import type { Post } from '@/lib/post-meta';
+import { isNewPost, type Post } from '@/lib/post-meta';
+import { rememberPostOrigin } from '@/lib/post-origin';
 import { cn } from '@/lib/utils';
 
 /** 雲を押してから部屋が膨らみ始めるまで（「ぷにっ」を見せる時間） */
@@ -28,6 +31,9 @@ const PRESS_MS = 200;
 const SHRINK_MS = 700;
 /** # 付きの URL で来たとき、トップを少し見せてから部屋を開くまでの時間 */
 const LINKED_OPEN_DELAY_MS = 400;
+
+/** 変化を知らせない useSyncExternalStore 用（日付は読み込んだときに1回確かめれば十分） */
+const noSubscribe = () => () => {};
 
 /** 部屋に渡すデータ（サーバー側で読み込んだもの） */
 type RoomProps = {
@@ -51,11 +57,13 @@ const rooms: Record<PageId, ComponentType<RoomProps>> = {
  * その上に記事（children）を重ねる。
  */
 type SiteAppProps = RoomProps & {
+  /** いちばん新しい記事が、公開したときに新しかったか（トップに「NEW」を出す） */
+  hasNewPost: boolean;
   /** 記事のページのときは記事。トップのときは何も表示しない */
   children: ReactNode;
 };
 
-export function SiteApp({ posts, children }: SiteAppProps) {
+export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
   const pathname = usePathname();
   const isPostPage = pathname.startsWith('/blog/');
   // 記事のページを直接開いたときは、ブログの部屋が開いた状態から始める
@@ -110,6 +118,15 @@ export function SiteApp({ posts, children }: SiteAppProps) {
   };
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  // トップの「NEW」のお知らせ。公開から時間がたって古くなっていたら、見ている人の側で隠す
+  // （ページを書き出したときの判断で表示し、読み込んだあとに今日の日付で確かめ直す）
+  const newPost = posts[0];
+  const showNewPost = useSyncExternalStore(
+    noSubscribe,
+    () => hasNewPost && newPost !== undefined && isNewPost(newPost.date),
+    () => hasNewPost,
+  );
 
   /**
    * サイトの「もどる」ボタンや Esc で部屋を閉じる。部屋を開いたときに積んだ履歴があれば
@@ -226,7 +243,7 @@ export function SiteApp({ posts, children }: SiteAppProps) {
   return (
     <div className="site">
       <FloatingBits variant="home" />
-      <main className="home" inert={room !== null}>
+      <main className="home" inert={room !== null || isPostPage}>
         {/* 「Yzmo」の4文字は、4つの部屋（雲）と同じ順・同じ色 */}
         <h1 className="home-name" aria-label={site.title}>
           <span className="home-name-letters" aria-hidden="true">
@@ -241,6 +258,17 @@ export function SiteApp({ posts, children }: SiteAppProps) {
           </span>
         </h1>
         <p className="home-roles">{site.roles.join(' / ')}</p>
+        {showNewPost && newPost && (
+          <Link
+            href={`/blog/${newPost.slug}`}
+            className="home-news"
+            // お知らせの位置から記事を膨らませ、閉じたらトップへもどる
+            onClick={(event) => rememberPostOrigin(event.currentTarget)}
+          >
+            <span className="home-news-badge">NEW</span>
+            <span className="home-news-title">{newPost.title}</span>
+          </Link>
+        )}
 
         <nav className="home-menu" aria-label="メニュー">
           {pages.map((item, i) => (

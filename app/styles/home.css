@@ -117,6 +117,64 @@
   color: var(--ink-soft);
 }
 
+/* いちばん新しい記事のお知らせ。押せるけれど雲ではない、小さなリンク */
+.home-news {
+  display: inline-flex;
+  align-items: center;
+  /* 親が縦に並べて引き伸ばすので、文字の長さぶんだけにする */
+  justify-self: start;
+  align-self: flex-start;
+  gap: 10px;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 18px;
+  padding: 6px 16px 7px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 3px 0 rgba(47, 69, 88, 0.1);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  color: var(--ink);
+  transition:
+    translate 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.home-news-badge {
+  flex: none;
+  padding: 2px 10px 3px;
+  border-radius: 999px;
+  background: #ffe08a;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+.home-news-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .home-news:hover {
+    translate: 0 -2px;
+    background-color: #fff;
+  }
+
+  .home-news:hover .home-news-title {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
+  }
+}
+
+.home-news:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+
 .home-menu {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

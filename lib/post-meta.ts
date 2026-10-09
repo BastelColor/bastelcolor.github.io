@@ -24,3 +24,12 @@ export type PostWithBody = Post & {
 export function formatPostDate(date: string): string {
   return date.replaceAll('-', '.');
 }
+
+/** トップに「NEW」として出す、記事の新しさ（日数） */
+const NEW_POST_DAYS = 30;
+
+/** date（YYYY-MM-DD、日本時間）から NEW_POST_DAYS 日以内か */
+export function isNewPost(date: string, now = new Date()): boolean {
+  const posted = new Date(`${date}T00:00:00+09:00`).getTime();
+  return now.getTime() - posted <= NEW_POST_DAYS * 24 * 60 * 60 * 1000;
+}
