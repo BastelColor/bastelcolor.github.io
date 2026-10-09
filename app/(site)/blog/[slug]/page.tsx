@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { PostLayer } from '@/components/blog/post-layer';
+import { ShareButtons } from '@/components/share-buttons';
 import { site } from '@/content/site';
 import { formatPostDate } from '@/lib/post-meta';
 import { getPost, getPosts } from '@/lib/posts';
@@ -70,6 +71,9 @@ export default async function PostPage({ params }: PostPageProps) {
           className="post-body"
           dangerouslySetInnerHTML={{ __html: post.html }}
         />
+        <div className="post-share">
+          <ShareButtons path={`/blog/${slug}`} title={post.title} />
+        </div>
       </article>
     </PostLayer>
   );

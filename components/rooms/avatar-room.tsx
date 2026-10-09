@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import { ShareButtons } from '@/components/share-buttons';
 import type { VrmStage } from '@/components/vrm/vrm-stage';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
 import { avatars } from '@/content/avatars';
@@ -150,6 +151,12 @@ export function AvatarRoom() {
         ) : (
           <span className="avatar-room-booth-soon">BOOTH（準備中）</span>
         )}
+        <div className="avatar-room-share">
+          <ShareButtons
+            path={`/avatar/${selected.id}`}
+            title={`${selected.name} / ${selected.nameEn}`}
+          />
+        </div>
         <p className="avatar-room-credit">{avatarMotion.credit}</p>
       </div>
     </div>

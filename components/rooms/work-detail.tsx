@@ -1,5 +1,6 @@
 import { PuniButton } from '@/components/puni-button';
 import { WorkThumbnail } from '@/components/rooms/work-thumbnail';
+import { ShareButtons } from '@/components/share-buttons';
 import type { Work } from '@/content/types';
 
 type WorkDetailProps = {
@@ -54,6 +55,10 @@ export function WorkDetail({ work, titleId, onClose }: WorkDetailProps) {
           ))}
         </ul>
       )}
+
+      <div className="work-detail-share">
+        <ShareButtons path={`/work/${work.id}`} title={work.title} />
+      </div>
 
       <footer className="work-detail-footer">
         <PuniButton

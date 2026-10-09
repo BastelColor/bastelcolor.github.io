@@ -16,6 +16,7 @@ import './styles/rooms/log.css';
 import './styles/vrm-viewer.css';
 import './styles/blog.css';
 import './styles/not-found.css';
+import './styles/share.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
