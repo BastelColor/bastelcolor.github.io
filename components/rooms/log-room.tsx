@@ -1,18 +1,48 @@
+'use client';
+
 import Link from 'next/link';
+import { useState } from 'react';
 import { site } from '@/content/site';
 import { formatPostDate, type Post } from '@/lib/post-meta';
 import { rememberPostOrigin } from '@/lib/post-origin';
 
 /** 記事の一覧。押すと、その位置から記事（/blog/<slug>）が膨らんで開く */
 export function LogRoom({ posts }: { posts: Post[] }) {
+  const [category, setCategory] = useState<string | null>(null);
   if (posts.length === 0) {
     return <p className="log-empty">まだ記事はありません。</p>;
   }
 
+  // カテゴリが2つ以上あるときだけ、絞り込みのボタンを出す
+  const categories = [
+    ...new Set(posts.flatMap((post) => (post.category ? [post.category] : []))),
+  ];
+  const listed = category
+    ? posts.filter((post) => post.category === category)
+    : posts;
+
   return (
     <>
+      {categories.length > 1 && (
+        <ul
+          className="works-genres log-categories"
+          aria-label="カテゴリで絞り込む"
+        >
+          {[null, ...categories].map((item) => (
+            <li key={item ?? 'all'}>
+              <button
+                type="button"
+                aria-pressed={category === item}
+                onClick={() => setCategory(item)}
+              >
+                {item ?? 'すべて'}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       <ul className="log">
-        {posts.map((post) => (
+        {listed.map((post) => (
           <li key={post.slug}>
             <Link
               href={`/blog/${post.slug}`}

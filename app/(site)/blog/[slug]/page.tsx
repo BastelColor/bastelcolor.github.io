@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { PostBody } from '@/components/blog/post-body';
 import { PostLayer } from '@/components/blog/post-layer';
 import { ShareButtons } from '@/components/share-buttons';
 import { site } from '@/content/site';
@@ -56,6 +58,12 @@ export default async function PostPage({ params }: PostPageProps) {
   }
   if (!post) notFound();
 
+  // 一覧は新しい順なので、1つ後ろが前（古い）の記事
+  const posts = getPosts();
+  const index = posts.findIndex((item) => item.slug === post.slug);
+  const older = index >= 0 ? posts[index + 1] : undefined;
+  const newer = index > 0 ? posts[index - 1] : undefined;
+
   return (
     <PostLayer>
       <article className="post">
@@ -67,11 +75,26 @@ export default async function PostPage({ params }: PostPageProps) {
           {post.category && <span>{post.category}</span>}
         </p>
         <h1>{post.title}</h1>
-        {/* 本文は content/posts/*.md を変換した HTML（自分で書いたものだけ） */}
-        <div
-          className="post-body"
-          dangerouslySetInnerHTML={{ __html: post.html }}
-        />
+        {/* 本文の画像は押すと大きく見られる */}
+        <PostBody html={post.html} />
+        {/* 前の記事・次の記事（日付の順） */}
+        {(older || newer) && (
+          <nav className="post-pager" aria-label="ほかの記事">
+            {older && (
+              // 履歴を積まずに切りかえ、「もどる」で一覧へ帰れるようにする
+              <Link href={`/blog/${older.slug}`} replace className="is-older">
+                <small>前の記事</small>
+                {older.title}
+              </Link>
+            )}
+            {newer && (
+              <Link href={`/blog/${newer.slug}`} replace className="is-newer">
+                <small>次の記事</small>
+                {newer.title}
+              </Link>
+            )}
+          </nav>
+        )}
         <div className="post-share">
           <ShareButtons path={`/blog/${slug}`} title={post.title} />
         </div>

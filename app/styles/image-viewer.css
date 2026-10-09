@@ -1,0 +1,148 @@
+/* 画像を大きく見る（components/image-viewer.tsx）。作品の詳細とブログの記事で使う
+   開いている画面の上に重ねる。画像は画面に収まる大きさで真ん中に出す */
+
+.image-viewer {
+  width: 100vw;
+  max-width: none;
+  height: 100svh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  /* 横になぞる動きはページに渡さず、前後の画像へ移るのに使う */
+  touch-action: pan-y pinch-zoom;
+  opacity: 0;
+  transition:
+    opacity 0.2s ease,
+    overlay 0.2s allow-discrete,
+    display 0.2s allow-discrete;
+}
+
+.image-viewer[open] {
+  display: grid;
+  place-items: center;
+  opacity: 1;
+}
+
+@starting-style {
+  .image-viewer[open] {
+    opacity: 0;
+  }
+}
+
+.image-viewer::backdrop {
+  background: rgba(24, 36, 48, 0.92);
+}
+
+.image-viewer-figure {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin: 0;
+  /* 画像のまわりを押したら閉じるので、figure 自体は押せないようにする */
+  pointer-events: none;
+}
+
+.image-viewer-figure img {
+  display: block;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100svh - 120px);
+  border-radius: 12px;
+  object-fit: contain;
+  pointer-events: auto;
+}
+
+.image-viewer-figure figcaption {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* 前後の画像・とじるボタン。白くて丸い、ぷっくりしたボタン */
+.image-viewer-nav,
+.image-viewer-close {
+  position: fixed;
+  border: 0;
+  background: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.18);
+  font-family: var(--body);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.image-viewer-nav {
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-top: -24px;
+  border-radius: 50%;
+}
+
+.image-viewer-nav svg {
+  width: 20px;
+  height: 20px;
+}
+
+.image-viewer-nav.is-prev {
+  left: 16px;
+}
+
+.image-viewer-nav.is-next {
+  right: 16px;
+}
+
+.image-viewer-nav.is-next svg {
+  scale: -1 1;
+}
+
+.image-viewer-close {
+  top: 16px;
+  right: 16px;
+  padding: 8px 18px 9px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.image-viewer-nav:focus-visible,
+.image-viewer-close:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+@media (hover: hover) {
+  .image-viewer-nav:hover,
+  .image-viewer-close:hover {
+    translate: 0 -2px;
+  }
+}
+
+/* スマホ: 前後のボタンは画像の下に並べ、画像を隠さないようにする */
+@media (max-width: 760px) {
+  .image-viewer-nav {
+    top: auto;
+    bottom: 20px;
+    margin-top: 0;
+  }
+
+  .image-viewer-nav.is-prev {
+    left: calc(50% - 64px);
+  }
+
+  .image-viewer-nav.is-next {
+    right: calc(50% - 64px);
+  }
+
+  .image-viewer-figure img {
+    max-height: calc(100svh - 180px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .image-viewer {
+    transition: none;
+  }
+}

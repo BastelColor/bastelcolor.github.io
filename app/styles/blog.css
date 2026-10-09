@@ -195,3 +195,61 @@
   border: 0;
   border-top: 3px dashed color-mix(in srgb, var(--edge) 40%, transparent);
 }
+
+/* 本文の画像は押すと大きく見られる（components/blog/post-body.tsx） */
+.post-body img.is-zoomable {
+  cursor: zoom-in;
+}
+
+.post-body img.is-zoomable:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 4px;
+}
+
+/* ---- 前の記事・次の記事 ---- */
+
+.post-pager {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 40px;
+}
+
+.post-pager a {
+  display: block;
+  padding: 14px 18px 16px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--tone) 28%, #fff);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.5;
+  text-decoration: none;
+  color: var(--ink);
+  transition:
+    translate 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.post-pager small {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.post-pager .is-newer {
+  grid-column: 2;
+  text-align: right;
+}
+
+@media (hover: hover) {
+  .post-pager a:hover {
+    translate: 0 -2px;
+    background-color: color-mix(in srgb, var(--tone) 45%, #fff);
+  }
+}
+
+.post-pager a:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
