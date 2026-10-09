@@ -99,7 +99,7 @@ GitHub の `BastelColor/bastelcolor.github.io` の `main` ブランチに push �
 
 X や Discord などに URL を貼ったときに出る画像は `public/og.png`（1200×630）です。いまはトップのページをそのまま撮った画像です。差し替えるときは、同じ名前・同じ大きさの画像で上書きします。
 
-- ブログの記事は、その記事の `thumbnail` がカードの画像になります。`thumbnail` が無い記事は `og.png` が使われます。
+- ブログの記事は、その記事の `thumbnail` がカードの画像になります。`thumbnail` が無い記事は、公開するときに、空と雲の上に記事のタイトル・日付・カテゴリを書いたカードの画像が自動で作られます（`scripts/write-post-cards.mjs`、`/og/posts/<記事の名前>.png`）。
 - X などは画像を覚えておくので、差し替えてもしばらく前の画像が出ることがあります。
 - 作品の詳細・アバターの部屋・ブログの記事には、「シェア」のボタン（X・Misskey・URLをコピー）が自動で付きます。投稿の文面は「ページの名前 | サイト名」です（`components/share-buttons.tsx`）。
 

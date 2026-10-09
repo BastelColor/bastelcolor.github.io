@@ -28,7 +28,7 @@ export async function generateMetadata({
   return {
     title: `${post.title} | ${site.title}`,
     description: post.summary ?? site.description,
-    // 共有したときのカード。サムネイルが無い記事はサイト共通の画像を使う
+    // 共有したときのカード
     openGraph: {
       type: 'article',
       url: `/blog/${post.slug}`,
@@ -37,7 +37,8 @@ export async function generateMetadata({
       description: post.summary ?? site.description,
       locale: 'ja_JP',
       publishedTime: post.date,
-      images: [post.thumbnail ?? '/og.png'],
+      // サムネイルの無い記事は、公開するときにタイトル入りのカードを作る（scripts/write-post-cards.mjs）
+      images: [post.thumbnail ?? `/og/posts/${post.slug}.png`],
     },
   };
 }
