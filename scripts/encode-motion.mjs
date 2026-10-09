@@ -71,7 +71,7 @@ const pick = (values, size) =>
     ),
   );
 
-const encoded = encodeMotion({
+const encoded = await encodeMotion({
   duration: animation.duration,
   restHipsPosition: animation.restHipsPosition.toArray(),
   bones: rotationTracks.map(([bone]) => bone),

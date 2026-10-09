@@ -1,6 +1,10 @@
 import type { VRMHumanBoneName } from '@pixiv/three-vrm';
 import type { VRMAnimation } from '@pixiv/three-vrm-animation';
-import { decodeMotion, type EncodedMotion } from './motion-codec';
+import {
+  decodeMotion,
+  type DecodedMotion,
+  type EncodedMotion,
+} from './motion-codec';
 
 type Three = typeof import('three');
 type VRMAnimationClass =
@@ -27,8 +31,8 @@ export function loadMotion(
   const cached = cache.get(id);
   if (cached) return cached;
 
-  const loading = sources[id]().then(({ default: encoded }) =>
-    toVrmAnimation(decodeMotion(encoded), THREE, VRMAnimation),
+  const loading = sources[id]().then(async ({ default: encoded }) =>
+    toVrmAnimation(await decodeMotion(encoded), THREE, VRMAnimation),
   );
   loading.catch(() => cache.delete(id));
   cache.set(id, loading);
@@ -37,7 +41,7 @@ export function loadMotion(
 
 /** three-vrm-animation が VRMA を読み込んだ直後と同じ形に組み立てる */
 function toVrmAnimation(
-  motion: ReturnType<typeof decodeMotion>,
+  motion: DecodedMotion,
   THREE: Three,
   VRMAnimation: VRMAnimationClass,
 ) {

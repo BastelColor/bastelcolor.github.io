@@ -3,19 +3,24 @@
  *
  * VRMA ファイルをそのまま配信すると「取り出せる状態での二次配布」になるため、
  * three-vrm-animation が読み込んだ後のキーフレームだけを詰め直し、
- * 量子化・難読化してから base64 文字列として埋め込む。
+ * 量子化・圧縮・難読化してから base64 文字列として埋め込む。
  *
  * scripts/encode-motion.mjs（Node）とブラウザの両方から使うので、
- * このファイルは three.js やパスエイリアスに依存させない。
+ * このファイルは three.js やパスエイリアスに依存させない
+ * （圧縮は、どちらにもある CompressionStream を使う）。
  *
- * バイナリの並び:
+ * バイナリの並び（圧縮する前）:
  *   times          Float32 × frameCount
  *   hipsTranslation Float32 × frameCount × 3
- *   rotations      Int16   × bones.length × frameCount × 4  (quaternion × 32767)
+ *   rotations      Int16   × bones.length × 4 × frameCount
+ *                  （quaternion × 4096（角度にして0.03度ほどの細かさで、見た目は変わらない）。ボーン・成分ごとに、1つ前のフレームとの差を 16bit で入れる。
+ *                    動かないボーンは差が 0 になり、よく縮む）
+ *
+ * 難読化（scramble）は圧縮のあとにかける。先にかけると、データが乱数のようになって縮まない。
  */
 
 export type EncodedMotion = {
-  version: 1;
+  version: 2;
   duration: number;
   restHipsPosition: [number, number, number];
   /** VRM の humanoid ボーン名。rotations はこの順に並ぶ */
@@ -34,9 +39,11 @@ export type DecodedMotion = {
   rotations: Float32Array[];
 };
 
-const QUATERNION_SCALE = 32767;
+const QUATERNION_SCALE = 4096;
 
-export function encodeMotion(motion: DecodedMotion): EncodedMotion {
+export async function encodeMotion(
+  motion: DecodedMotion,
+): Promise<EncodedMotion> {
   const frameCount = motion.times.length;
   const bytes = new Uint8Array(byteLength(motion.bones.length, frameCount));
   const view = new DataView(bytes.buffer);
@@ -51,31 +58,45 @@ export function encodeMotion(motion: DecodedMotion): EncodedMotion {
     offset += 4;
   }
   for (const rotation of motion.rotations) {
-    for (const value of rotation) {
-      view.setInt16(offset, Math.round(value * QUATERNION_SCALE), true);
-      offset += 2;
+    for (let component = 0; component < 4; component++) {
+      let previous = 0;
+      for (let frame = 0; frame < frameCount; frame++) {
+        const value = Math.round(
+          rotation[frame * 4 + component] * QUATERNION_SCALE,
+        );
+        view.setUint16(offset, (value - previous) & 0xffff, true);
+        previous = value;
+        offset += 2;
+      }
     }
   }
 
-  scramble(bytes);
+  const compressed = await transform(bytes, new CompressionStream('deflate-raw'));
+  scramble(compressed);
   return {
-    version: 1,
+    version: 2,
     duration: motion.duration,
     restHipsPosition: motion.restHipsPosition,
     bones: motion.bones,
     frameCount,
-    data: toBase64(bytes),
+    data: toBase64(compressed),
   };
 }
 
-export function decodeMotion(encoded: EncodedMotion): DecodedMotion {
+export async function decodeMotion(
+  encoded: EncodedMotion,
+): Promise<DecodedMotion> {
   const { frameCount, bones } = encoded;
-  const bytes = fromBase64(encoded.data);
+  const compressed = fromBase64(encoded.data);
+  scramble(compressed);
+  const bytes = await transform(
+    compressed,
+    new DecompressionStream('deflate-raw'),
+  );
   if (bytes.length !== byteLength(bones.length, frameCount)) {
     throw new Error('モーションデータが壊れています');
   }
-  scramble(bytes);
-  const view = new DataView(bytes.buffer);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let offset = 0;
 
   const times = new Float32Array(frameCount);
@@ -88,8 +109,13 @@ export function decodeMotion(encoded: EncodedMotion): DecodedMotion {
   }
   const rotations = bones.map(() => {
     const values = new Float32Array(frameCount * 4);
-    for (let i = 0; i < values.length; i++, offset += 2) {
-      values[i] = view.getInt16(offset, true) / QUATERNION_SCALE;
+    for (let component = 0; component < 4; component++) {
+      let value = 0;
+      for (let frame = 0; frame < frameCount; frame++, offset += 2) {
+        // 差を足して元に戻す（16bit で桁あふれさせて、符号付きに読み直す）
+        value = ((value + view.getUint16(offset, true)) << 16) >> 16;
+        values[frame * 4 + component] = value / QUATERNION_SCALE;
+      }
     }
     normalizeQuaternions(values);
     return values;
@@ -103,6 +129,15 @@ export function decodeMotion(encoded: EncodedMotion): DecodedMotion {
     hipsTranslation,
     rotations,
   };
+}
+
+/** CompressionStream / DecompressionStream に通す */
+async function transform(
+  bytes: Uint8Array,
+  stream: CompressionStream | DecompressionStream,
+) {
+  const output = new Blob([bytes as BlobPart]).stream().pipeThrough(stream);
+  return new Uint8Array(await new Response(output).arrayBuffer());
 }
 
 function byteLength(boneCount: number, frameCount: number) {

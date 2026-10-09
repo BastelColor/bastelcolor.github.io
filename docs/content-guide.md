@@ -305,7 +305,7 @@ https://youtu.be/dQw4w9WgXcQ                 →  youtubeId: 'dQw4w9WgXcQ'
 **モデルの置き場所:** `models/`（`public/models/` ではありません）
 **アイコンの置き場所:** `public/characters/`
 
-元の VRM は `models/` に置きます。`npm run dev` や公開のたびに、Web で表示する用に軽くした VRM が自動で `public/models/` に作られます（テクスチャを WebP に変えるだけで、形・ボーン・揺れもの・表情はそのままです）。`public/models/` は自動で作られる場所なので、直接置いたり書き換えたりしないでください。
+元の VRM は `models/` に置きます。`npm run dev` や公開のたびに、Web で表示する用に軽くした VRM が自動で `public/models/` に作られます（テクスチャを WebP に変え、頂点の向き・UV・ボーンの重みを小さい数の形で持ち直します。形・ボーン・揺れもの・表情はそのままで、見た目もほぼ変わりません）。`public/models/` は自動で作られる場所なので、直接置いたり書き換えたりしないでください。
 
 ### アバターを足す
 
