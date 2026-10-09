@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { WorkDetail } from '@/components/rooms/work-detail';
 import { WorkThumbnail } from '@/components/rooms/work-thumbnail';
 import { site } from '@/content/site';
-import type { WorkGenre } from '@/content/types';
+import type { Work, WorkGenre } from '@/content/types';
 import { workGenres, works } from '@/content/works';
 import {
   leaveLayer,
@@ -26,8 +26,39 @@ const LINKED_OPEN_DELAY_MS = 700;
  * 詳細を開くと履歴を1つ積むので、ブラウザの「戻る」で詳細だけを閉じられる
  * （lib/history-layers.ts）。
  */
+const VIEWS = [
+  { id: 'grid', label: '一覧' },
+  { id: 'timeline', label: '年表' },
+] as const;
+type WorkView = (typeof VIEWS)[number]['id'];
+
+/** 年のない作品をまとめる見出し */
+const NO_YEAR = 'その他';
+
+/**
+ * 作品を、作り始めた年（year の最初の4けた。「2023〜2025」なら 2023）ごとにまとめ、新しい年から並べる。
+ * 同じ年の中は content/works.ts の順のまま。年のない作品は最後に「その他」として出す
+ */
+function groupByYear(list: Work[]) {
+  const groups = new Map<string, Work[]>();
+  for (const work of list) {
+    const year = /\d{4}/.exec(work.year ?? '')?.[0] ?? NO_YEAR;
+    groups.set(year, [...(groups.get(year) ?? []), work]);
+  }
+  return [...groups]
+    .map(([year, items]) => ({ year, works: items }))
+    .sort((a, b) =>
+      a.year === NO_YEAR
+        ? 1
+        : b.year === NO_YEAR
+          ? -1
+          : b.year.localeCompare(a.year),
+    );
+}
+
 export function WorksRoom() {
   const [genre, setGenre] = useState<WorkGenre | 'all'>('all');
+  const [view, setView] = useState<WorkView>('grid');
   const [shownId, setShownId] = useState<string | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const clearTimer = useRef<number | undefined>(undefined);
@@ -103,13 +134,17 @@ export function WorksRoom() {
 
   const listed =
     genre === 'all' ? works : works.filter((work) => work.genre === genre);
+  // 年表で見るときは、作り始めた年ごとにまとめる
+  const yearGroups = view === 'timeline' ? groupByYear(listed) : [];
+  const ordered =
+    view === 'timeline' ? yearGroups.flatMap((group) => group.works) : listed;
 
-  // 詳細の「前の作品・次の作品」。いま一覧に出ている順（絞り込み中ならその中）でたどる
-  const shownIndex = listed.findIndex((work) => work.id === shownId);
-  const previous = shownIndex > 0 ? listed[shownIndex - 1] : undefined;
+  // 詳細の「前の作品・次の作品」。いま画面に出ている順（絞り込み中ならその中）でたどる
+  const shownIndex = ordered.findIndex((work) => work.id === shownId);
+  const previous = shownIndex > 0 ? ordered[shownIndex - 1] : undefined;
   const next =
-    shownIndex >= 0 && shownIndex < listed.length - 1
-      ? listed[shownIndex + 1]
+    shownIndex >= 0 && shownIndex < ordered.length - 1
+      ? ordered[shownIndex + 1]
       : undefined;
   // 詳細を開いたまま、となりの作品へ切りかえる（履歴は積まず、URL だけ変える）
   const switchTo = (id: string) => {
@@ -118,39 +153,65 @@ export function WorksRoom() {
     dialog.current?.scrollTo({ top: 0 });
   };
 
+  const renderItem = (work: Work) => (
+    <li key={work.id}>
+      <button
+        type="button"
+        className="works-item"
+        onClick={() => open(work.id)}
+      >
+        <WorkThumbnail work={work} />
+        <span className="works-item-title">{work.title}</span>
+        <span className="works-item-category">{work.category}</span>
+      </button>
+    </li>
+  );
+
   return (
     <>
-      <ul className="works-genres" aria-label="ジャンルで絞り込む">
-        {[{ id: 'all' as const, label: 'すべて' }, ...workGenres].map(
-          (item) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                aria-pressed={genre === item.id}
-                onClick={() => setGenre(item.id)}
-              >
-                {item.label}
-              </button>
-            </li>
-          ),
-        )}
-      </ul>
-
-      <ul className="works">
-        {listed.map((work) => (
-          <li key={work.id}>
+      <div className="works-controls">
+        <ul className="works-genres" aria-label="ジャンルで絞り込む">
+          {[{ id: 'all' as const, label: 'すべて' }, ...workGenres].map(
+            (item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  aria-pressed={genre === item.id}
+                  onClick={() => setGenre(item.id)}
+                >
+                  {item.label}
+                </button>
+              </li>
+            ),
+          )}
+        </ul>
+        {/* 並べ方: 一覧（いつもの）か、年ごとの年表か */}
+        <fieldset className="works-view" aria-label="並べ方">
+          {VIEWS.map((item) => (
             <button
+              key={item.id}
               type="button"
-              className="works-item"
-              onClick={() => open(work.id)}
+              aria-pressed={view === item.id}
+              onClick={() => setView(item.id)}
             >
-              <WorkThumbnail work={work} />
-              <span className="works-item-title">{work.title}</span>
-              <span className="works-item-category">{work.category}</span>
+              {item.label}
             </button>
-          </li>
-        ))}
-      </ul>
+          ))}
+        </fieldset>
+      </div>
+
+      {view === 'grid' ? (
+        <ul className="works">{listed.map(renderItem)}</ul>
+      ) : (
+        <ol className="works-timeline">
+          {yearGroups.map((group) => (
+            <li key={group.year}>
+              <h3 className="works-timeline-year">{group.year}</h3>
+              <ul className="works">{group.works.map(renderItem)}</ul>
+            </li>
+          ))}
+        </ol>
+      )}
 
       <dialog
         ref={dialog}
