@@ -119,3 +119,15 @@ export type Avatar = {
    */
   liltoon?: boolean;
 };
+
+/** プロフィールの部屋の「BOOTH」に並べる1つ（content/booth.ts） */
+export type BoothItem = {
+  /** 商品名 */
+  title: string;
+  /** BOOTH の商品ページ */
+  url: string;
+  /** 商品の画像（BOOTH の画像の住所） */
+  image: string;
+  /** 値段の表示（'無料'、'¥2,500' など） */
+  price: string;
+};

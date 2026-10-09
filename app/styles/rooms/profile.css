@@ -93,3 +93,88 @@
     border-radius: 20px;
   }
 }
+
+/* ---- BOOTH で配布・販売しているもの ----
+   正方形の画像と名前・値段の、小さなカードを並べる */
+
+.profile-booth {
+  margin-top: 48px;
+}
+
+.profile-booth h3 {
+  margin: 0 0 16px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.profile-booth ul {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 18px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profile-booth a {
+  display: block;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.profile-booth img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.5);
+  object-fit: cover;
+  transition: translate 0.35s cubic-bezier(0.3, 1.8, 0.5, 1);
+}
+
+.profile-booth-title {
+  display: block;
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.profile-booth-price {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 0 8px 1px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone) 50%, #fff);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+@media (hover: hover) {
+  .profile-booth a:hover img {
+    translate: 0 -4px;
+  }
+
+  .profile-booth a:hover .profile-booth-title {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 4px;
+  }
+}
+
+.profile-booth a:focus-visible {
+  outline: none;
+}
+
+.profile-booth a:focus-visible img {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .profile-booth ul {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

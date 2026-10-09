@@ -1,3 +1,4 @@
+import { boothItems } from '@/content/booth';
 import { profile } from '@/content/profile';
 
 export function ProfileRoom() {
@@ -53,6 +54,35 @@ export function ProfileRoom() {
           </dd>
         </div>
       </dl>
+
+      {/* BOOTH で配布・販売しているもの */}
+      {boothItems.length > 0 && (
+        <section
+          className="profile-booth"
+          aria-labelledby="profile-booth-title"
+        >
+          <h3 id="profile-booth-title">BOOTH で配布・販売しているもの</h3>
+          <ul>
+            {boothItems.map((item) => (
+              <li key={item.url}>
+                <a href={item.url} target="_blank" rel="noreferrer">
+                  <img
+                    src={item.image}
+                    alt=""
+                    width={300}
+                    height={300}
+                    loading="lazy"
+                    // BOOTH の画像は、どのページから見られたかを伝えずに読む
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="profile-booth-title">{item.title}</span>
+                  <span className="profile-booth-price">{item.price}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
