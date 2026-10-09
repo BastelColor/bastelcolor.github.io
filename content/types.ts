@@ -100,6 +100,8 @@ export type Avatar = {
   description: string;
   /** 小さな目印（例: '無料配布中'、'制作中'）。名前の横と紹介の上に出る。省略できる */
   badge?: string;
+  /** SNS で共有したときのカードの画像（1200x630）。省略するとサイト共通の画像 */
+  ogImage?: string;
   /** BOOTH の商品ページ。「BOOTHで見る」がここへ飛ぶ（省略するとショップのトップ） */
   booth?: string;
   /** public/ 以下の VRM ファイルのパス */

@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
-import { avatars, boothUrl } from '@/content/avatars';
+import { avatars } from '@/content/avatars';
 import { avatarMotion } from '@/content/motions';
+import { site } from '@/content/site';
 import { readLayers, replaceLayers } from '@/lib/history-layers';
 
 /** 選ぶボタンにも目印を出す badge（まだ配布していない子だと、ひと目で分かるように） */
 const WIP_BADGE = '制作中';
 
-/** URL（#avatar/quiple）で選ばれているアバター。無い・知らない子なら最初の1体 */
+/** URL（/avatar/quiple）で選ばれているアバター。無い・知らない子なら最初の1体 */
 function linkedAvatarId() {
   const { avatar } = readLayers();
   return avatars.some((item) => item.id === avatar) ? avatar! : avatars[0].id;
@@ -17,7 +18,7 @@ function linkedAvatarId() {
 
 /**
  * この部屋に入った人はモデルを見に来ているので、最初の1体はすぐ読み込む。
- * 選んだ子は URL（#avatar/quiple）に書く。選び直しても履歴は積まないので、
+ * 選んだ子は URL（/avatar/quiple）に書く。選び直しても履歴は積まないので、
  * ブラウザの「戻る」では部屋ごともどる
  */
 export function AvatarRoom() {
@@ -29,6 +30,14 @@ export function AvatarRoom() {
     setSelectedId(id);
     replaceLayers({ room: 'avatar', avatar: id });
   };
+
+  // ブラウザのタブの名前も、選んでいる子に合わせる
+  useEffect(() => {
+    document.title = `${selected.name} / ${selected.nameEn} | ${site.title}`;
+    return () => {
+      document.title = site.title;
+    };
+  }, [selected]);
 
   // URL の # を手で書きかえたときなどに、選んでいる子を合わせる
   useEffect(() => {
@@ -91,9 +100,14 @@ export function AvatarRoom() {
           <p>{selected.description}</p>
         </div>
         <p className="avatar-room-hint">ドラッグでまわせます</p>
-        <a href={selected.booth ?? boothUrl} target="_blank" rel="noreferrer">
-          BOOTHで見る
-        </a>
+        {/* BOOTH にまだ商品ページが無い子（制作中など）は、リンクにせず「準備中」と出す */}
+        {selected.booth ? (
+          <a href={selected.booth} target="_blank" rel="noreferrer">
+            BOOTHで見る
+          </a>
+        ) : (
+          <span className="avatar-room-booth-soon">BOOTH（準備中）</span>
+        )}
         <p className="avatar-room-credit">{avatarMotion.credit}</p>
       </div>
     </div>

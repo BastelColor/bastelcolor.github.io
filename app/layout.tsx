@@ -46,6 +46,12 @@ export const metadata: Metadata = {
     images: [{ url: '/og.png', width: 1200, height: 630, alt: site.title }],
   },
   twitter: { card: 'summary_large_image' },
+  // ブログの更新情報（RSS）。公開するときに scripts/write-feed.mjs が作る
+  alternates: {
+    types: {
+      'application/rss+xml': '/feed.xml',
+    },
+  },
   // タブのアイコン（public/ に置いた画像）
   icons: {
     icon: [

@@ -183,6 +183,10 @@
   font-size: 11px;
 }
 
+.avatar-room-booth-soon {
+  color: var(--ink-soft);
+}
+
 .avatar-room-hint {
   margin: 28px 0 10px;
   font-size: 13px;

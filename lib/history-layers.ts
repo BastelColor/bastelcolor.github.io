@@ -7,10 +7,10 @@ import type { PageId } from '@/content/types';
  *   トップ             https://bastelcolor.github.io/
  *   さくひんの部屋     https://bastelcolor.github.io/#works
  *   作品の詳細         https://bastelcolor.github.io/work/toon-shader
- *   アバターを選ぶ     https://bastelcolor.github.io/#avatar/quiple
+ *   アバターを選ぶ     https://bastelcolor.github.io/avatar/quiple
  *
- * 作品の詳細だけは # ではなく本物のページ（app/(site)/work/[id]/page.tsx）にしてある。
- * SNS に貼ったとき、その作品のサムネイルとタイトルがカードに出るように
+ * 作品の詳細とアバターは # ではなく本物のページ（app/(site)/work/[id]、avatar/[id]）にしてある。
+ * SNS に貼ったとき、その作品・その子の画像と名前がカードに出るように
  * （# より後ろは、カードを作るときに読まれない）。
  *
  * - ブラウザやスマホの「戻る」で、ひとつ前の画面（詳細 → 部屋 → トップ）へ順にもどれる
@@ -79,20 +79,28 @@ export function leaveLayer(fallback: HistoryLayers): boolean {
 }
 
 const WORK_PATH = '/work/';
+const AVATAR_PATH = '/avatar/';
 
 function toUrl({ room, work, avatar }: HistoryLayers) {
   const { search } = window.location;
   if (room === 'works' && work) {
     return `${WORK_PATH}${encodeURIComponent(work)}${search}`;
   }
+  if (room === 'avatar' && avatar) {
+    return `${AVATAR_PATH}${encodeURIComponent(avatar)}${search}`;
+  }
   if (!room) return `/${search}`;
-  return `/${search}#${room}${avatar ? `/${encodeURIComponent(avatar)}` : ''}`;
+  return `/${search}#${room}`;
 }
 
 function parseUrl({ pathname, hash }: Location): HistoryLayers {
+  const item = (prefix: string) =>
+    decodeURIComponent(pathname.slice(prefix.length)).replace(/\/$/, '');
   if (pathname.startsWith(WORK_PATH)) {
-    const work = decodeURIComponent(pathname.slice(WORK_PATH.length));
-    return { room: 'works', work: work.replace(/\/$/, '') };
+    return { room: 'works', work: item(WORK_PATH) };
+  }
+  if (pathname.startsWith(AVATAR_PATH)) {
+    return { room: 'avatar', avatar: item(AVATAR_PATH) };
   }
   return parseHash(hash);
 }

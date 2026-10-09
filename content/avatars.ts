@@ -12,6 +12,7 @@ export const avatars: Avatar[] = [
     badge: '無料配布中',
     booth: 'https://bastelcolor.booth.pm/items/6746290',
     modelUrl: '/models/quiple.vrm',
+    ogImage: '/avatars/quiple-og.png',
     icon: {
       normal: '/characters/quiple-icon.webp',
       happy: '/characters/quiple-icon-happy.webp',
@@ -25,6 +26,7 @@ export const avatars: Avatar[] = [
     badge: '無料配布中',
     booth: 'https://bastelcolor.booth.pm/items/7525867',
     modelUrl: '/models/coflet.vrm',
+    ogImage: '/avatars/coflet-og.png',
     icon: {
       normal: '/characters/coflet-icon.webp',
       happy: '/characters/coflet-icon-happy.webp',
@@ -38,6 +40,7 @@ export const avatars: Avatar[] = [
     badge: '無料配布中',
     booth: 'https://bastelcolor.booth.pm/items/6372032',
     modelUrl: '/models/timi.vrm',
+    ogImage: '/avatars/timi-og.png',
     icon: {
       normal: '/characters/timi-icon.webp',
       happy: '/characters/timi-icon-happy.webp',
@@ -52,6 +55,7 @@ export const avatars: Avatar[] = [
     description: '秋をつかさどるラスカルっ娘です！',
     badge: '制作中',
     modelUrl: '/models/falle.vrm',
+    ogImage: '/avatars/falle-og.png',
     icon: {
       normal: '/characters/falle-icon.webp',
       happy: '/characters/falle-icon-happy.webp',

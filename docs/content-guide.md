@@ -104,6 +104,10 @@ X や Discord などに URL を貼ったときに出る画像は `public/og.png`
 
 公開するたびに、`sitemap.xml`（サイトにあるページの一覧）と `robots.txt` が自動で作られます。記事を足せば一覧にも自動で入るので、ふだんは何もしなくて大丈夫です（下書きの記事は入りません）。
 
+### ブログの更新情報（RSS・自動）
+
+公開するたびに、ブログの更新情報 `feed.xml`（RSS）が自動で作られます。RSS リーダーに `https://bastelcolor.github.io/feed.xml` を登録すると、新しい記事が届きます。ブログの部屋のいちばん下にもリンクがあります。下書きの記事は入りません。
+
 ### ページがみつかりません（404）
 
 存在しない URL を開いたときのページです。文字を変えるときは次のファイルを書き換えます。
@@ -282,7 +286,8 @@ https://youtu.be/dQw4w9WgXcQ                 →  youtubeId: 'dQw4w9WgXcQ'
   nameEn: 'Timi',                 // 名前の下に小さく出る英語の名前
   description: 'ゆきうさぎのティミです！', // 選んでいる子のひとこと紹介（選ぶボタンの下に出る）
   badge: '無料配布中',             // 省略できる。紹介の上に出る小さな目印。'制作中' のときは選ぶボタンにも出る
-  booth: 'https://bastelcolor.booth.pm/items/6372032', // 省略できる。「BOOTHで見る」の行き先（省略するとショップのトップ）
+  ogImage: '/avatars/timi-og.png', // 省略できる。共有したときのカードの画像（1200×630）
+  booth: 'https://bastelcolor.booth.pm/items/6372032', // 省略できる。「BOOTHで見る」の行き先（省略すると「BOOTH（準備中）」と出る）
   modelUrl: '/models/timi.vrm',  // models/timi.vrm を置くと、この場所で表示される
   icon: {
     normal: '/characters/timi-icon.webp',       // ふだんの顔
@@ -293,7 +298,8 @@ https://youtu.be/dQw4w9WgXcQ                 →  youtubeId: 'dQw4w9WgXcQ'
 ```
 
 - 部屋を開いたときは、**いちばん上のアバター** が最初に表示されます。
-- アバターを選ぶと URL が `https://bastelcolor.github.io/#avatar/<id>` に変わります（例: `#avatar/quiple`）。この URL を共有すると、その子を選んだ状態で部屋が開きます。`id` はなるべく変えないでください。
+- アバターを選ぶと URL が `https://bastelcolor.github.io/avatar/<id>` に変わります（例: `/avatar/quiple`）。この URL を共有すると、その子を選んだ状態で部屋が開きます。X などに貼ったときのカードには、名前・紹介文・`ogImage` の画像が出ます。`id` はなるべく変えないでください。
+- `ogImage` は共有したときのカードの画像（1200×630）です。いまの4体は `public/avatars/<id>-og.png` に、トップと同じ空と雲から顔を出す絵を置いています。新しい子の画像は Claude に「〇〇のカード画像を作って」と頼めば作れます。省略するとサイト共通の画像になります。
 - 表示用の VRM（`public/models/`）は、サイトを見た人がダウンロードできる状態になります。販売しているモデルを置くときは注意してください。
 - `npm run dev` を動かしたままモデルを足したときは、一度止めて動かし直すと表示用の VRM が作られます。
 - 白っぽいモデルがくすんで見えるときは `brightness` を 1.2〜1.4 くらいにします。

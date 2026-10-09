@@ -13,7 +13,7 @@
     "motion:encode": "node scripts/encode-motion.mjs",
     "predev": "node scripts/optimize-models.mjs",
     "prebuild": "node scripts/optimize-models.mjs",
-    "postbuild": "node scripts/write-sitemap.mjs"
+    "postbuild": "node scripts/write-sitemap.mjs && node scripts/write-feed.mjs"
   },
   "dependencies": {
     "@mochiya/three-liltoon": "^0.1.4",
