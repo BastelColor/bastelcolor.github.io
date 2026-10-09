@@ -99,6 +99,67 @@
   transition-delay: 0.45s;
 }
 
+/* つつかれたら、ぴょんと跳ねる（components/room-mascot.tsx） */
+.room.is-expanded .room-mascot.is-poked {
+  transform-origin: 50% 100%;
+  animation: room-mascot-poke 0.7s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+@keyframes room-mascot-poke {
+  0% {
+    transform: scale(1.06, 0.9);
+  }
+  35% {
+    transform: translateY(-14%) scale(0.96, 1.05);
+  }
+  70% {
+    transform: translateY(0) scale(1.04, 0.96);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* つついたときに、頭のあたりから浮かぶハート */
+.room-mascot-hearts {
+  position: absolute;
+  z-index: -1;
+  right: clamp(60px, 9vw, 150px);
+  bottom: clamp(150px, 20vw, 300px);
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.room-mascot-hearts svg {
+  width: 28px;
+  height: 28px;
+  fill: #ff9fc4;
+  stroke: #e2709a;
+  stroke-width: 1.4;
+  opacity: 0;
+  animation: room-mascot-heart 1s ease-out forwards;
+  animation-delay: calc(var(--i) * 0.12s);
+}
+
+.room-mascot-hearts svg:nth-child(2) {
+  translate: 0 -10px;
+}
+
+@keyframes room-mascot-heart {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.6);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-40px) scale(1);
+  }
+}
+
 @media (max-width: 760px) {
   /* 見出しまわりを詰めて、中身が最初の画面に多く入るようにする */
   .room-head {
@@ -113,6 +174,11 @@
   .room-mascot {
     right: -12px;
     width: calc(104px * var(--mascot-width, 1));
+  }
+
+  .room-mascot-hearts {
+    right: 30px;
+    bottom: 90px;
   }
 }
 

@@ -13,6 +13,7 @@ import {
 } from 'react';
 import { FloatingBits } from '@/components/floating-bits';
 import { PuniButton } from '@/components/puni-button';
+import { RoomMascot } from '@/components/room-mascot';
 import { AvatarRoom, preloadAvatarRoom } from '@/components/rooms/avatar-room';
 import { LogRoom } from '@/components/rooms/log-room';
 import { ProfileRoom } from '@/components/rooms/profile-room';
@@ -317,16 +318,7 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
             </header>
             <Room posts={posts} />
           </div>
-          {page.mascot && (
-            <img
-              className="room-mascot"
-              src={page.mascot.happy}
-              style={
-                { '--mascot-width': page.mascot.width ?? 1 } as CSSProperties
-              }
-              alt=""
-            />
-          )}
+          {page.mascot && <RoomMascot mascot={page.mascot} />}
         </section>
       )}
 
