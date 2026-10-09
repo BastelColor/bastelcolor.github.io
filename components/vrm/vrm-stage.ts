@@ -212,7 +212,14 @@ export async function createVrmStage({
     camera.updateProjectionMatrix();
     onFrameChange();
   };
-  const resizeObserver = new ResizeObserver(() => resize());
+  // 大きさが変わった知らせの中で canvas の大きさを変えると、それでページのスクロールバーが
+  // 出たり消えたりしたときに知らせがくり返され、「ResizeObserver loop」の警告が出る。
+  // 次の描画の前にまとめて合わせる
+  let resizeFrame = 0;
+  const resizeObserver = new ResizeObserver(() => {
+    cancelAnimationFrame(resizeFrame);
+    resizeFrame = requestAnimationFrame(resize);
+  });
   resizeObserver.observe(container);
   if (bleed) resizeObserver.observe(bleed);
   resize();
@@ -227,6 +234,7 @@ export async function createVrmStage({
     disposed = true;
     renderer.setAnimationLoop(null);
     releaseLilToon?.();
+    cancelAnimationFrame(resizeFrame);
     resizeObserver.disconnect();
     controls.dispose();
     motionPlayer?.dispose();
