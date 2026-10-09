@@ -12,7 +12,7 @@
 .avatar-room-stage {
   --stage-glow: rgba(255, 255, 255, 0.55);
   --stage-top: #ffffff;
-  --stage-side: color-mix(in srgb, var(--tone) 40%, #fff);
+  --stage-side: color-mix(in srgb, var(--tone) 40%, var(--paper));
   --stage-rim: color-mix(in srgb, var(--edge) 22%, transparent);
   position: relative;
   /* 中の canvas は枠の外へ広げて置くので、枠の幅はここで決める */
@@ -92,13 +92,13 @@
     radial-gradient(circle at 58% 24%, #fff 0 1.2px, transparent 1.8px),
     radial-gradient(
       circle at 76% 12%,
-      rgba(255, 255, 255, 0.85) 0 1.6px,
+      var(--surface-strong) 0 1.6px,
       transparent 2.2px
     ),
     radial-gradient(circle at 90% 34%, #fff 0 1px, transparent 1.6px),
     radial-gradient(
       circle at 22% 52%,
-      rgba(255, 255, 255, 0.7) 0 1px,
+      var(--surface-strong) 0 1px,
       transparent 1.6px
     ),
     radial-gradient(
@@ -190,7 +190,7 @@
   padding: 0 12px;
   border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--surface-strong);
   box-shadow:
     inset 0 -3px 0 color-mix(in srgb, var(--edge) 8%, transparent),
     0 var(--thickness) 0 color-mix(in srgb, var(--edge) 22%, transparent);
@@ -212,7 +212,7 @@
   gap: 8px;
   padding: 6px 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--surface-strong);
 }
 
 .avatar-room-backdrops button {
@@ -225,7 +225,7 @@
 }
 
 .avatar-room-backdrops .is-sky {
-  background: color-mix(in srgb, var(--tone) 55%, #fff);
+  background: color-mix(in srgb, var(--tone) 55%, var(--paper));
 }
 
 .avatar-room-backdrops .is-white {
@@ -238,7 +238,7 @@
 
 .avatar-room-backdrops button[aria-pressed='true'] {
   border-color: var(--ink);
-  box-shadow: 0 0 0 2px #fff;
+  box-shadow: 0 0 0 2px var(--surface-solid);
 }
 
 @media (hover: hover) {
@@ -309,7 +309,7 @@
   padding: 10px 20px 10px 10px;
   border: 0;
   border-radius: 28px;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--surface);
   box-shadow:
     inset 0 -4px 0 color-mix(in srgb, var(--edge) 8%, transparent),
     0 var(--thickness) 0 color-mix(in srgb, var(--edge) 18%, transparent);
@@ -329,7 +329,7 @@
   .avatar-room-choice:hover {
     translate: 0 -2px;
     --thickness: 6px;
-    background-color: rgba(255, 255, 255, 0.75);
+    background-color: var(--surface-strong);
   }
 
   .avatar-room-choice:hover .avatar-room-icon .is-happy {
@@ -344,7 +344,7 @@
 }
 
 .avatar-room-choice[aria-pressed='true'] {
-  background: color-mix(in srgb, var(--tone) 45%, #fff);
+  background: color-mix(in srgb, var(--tone) 45%, var(--paper));
 }
 
 .avatar-room-choice:focus-visible {
@@ -361,7 +361,7 @@
   overflow: hidden;
   border: 3px solid var(--edge);
   border-radius: 50%;
-  background: color-mix(in srgb, var(--tone) 45%, #fff);
+  background: color-mix(in srgb, var(--tone) 45%, var(--paper));
 }
 
 .avatar-room-icon img {
@@ -402,7 +402,7 @@
   margin: 22px 0 0;
   padding: 14px 18px 16px;
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--surface);
 }
 
 .avatar-room-about p {
@@ -416,7 +416,7 @@
   display: inline-block;
   padding: 1px 10px 2px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--tone) 55%, #fff);
+  background: color-mix(in srgb, var(--tone) 55%, var(--paper));
   font-size: 12px;
   font-weight: 900;
   color: var(--ink);
@@ -437,7 +437,7 @@
   margin: 14px 0 0;
   padding: 14px 18px 16px;
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--surface);
 }
 
 .avatar-room-play-title {
@@ -458,7 +458,7 @@
   padding: 5px 12px 6px;
   border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--surface-strong);
   box-shadow:
     inset 0 -3px 0 color-mix(in srgb, var(--edge) 8%, transparent),
     0 var(--thickness) 0 color-mix(in srgb, var(--edge) 18%, transparent);
@@ -477,14 +477,14 @@
   .avatar-room-play button:not(:disabled):hover {
     translate: 0 -2px;
     --thickness: 5px;
-    background-color: #fff;
+    background-color: var(--surface-solid);
   }
 }
 
 .avatar-room-play button:not(:disabled):active {
   translate: 0 2px;
   --thickness: 1px;
-  background-color: color-mix(in srgb, var(--tone) 45%, #fff);
+  background-color: color-mix(in srgb, var(--tone) 45%, var(--paper));
 }
 
 .avatar-room-play button:focus-visible {
@@ -504,7 +504,7 @@
   margin: 14px 0 0;
   padding: 14px 18px 14px;
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--surface);
 }
 
 .avatar-room-spec dl {
@@ -656,8 +656,9 @@
   }
 }
 
-/* 夜の背景の上では、カードを白くはっきりさせる（選んでいる子のボタンは、部屋の色のまま） */
-.avatar-room[data-backdrop='night']
+/* 夜の背景の上では、カードを白くはっきりさせる（選んでいる子のボタンは、部屋の色のまま）。
+   暗いテーマでは、カードはもともと暗い下地なのでそのまま */
+:root:not([data-theme='dark']) .avatar-room[data-backdrop='night']
   :is(
     .avatar-room-choice:not([aria-pressed='true']),
     .avatar-room-about,

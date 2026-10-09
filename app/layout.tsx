@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { LangToggle } from '@/components/lang';
 import { PageCounter } from '@/components/page-counter';
 import { SkyClock } from '@/components/sky-clock';
+import { ThemeToggle } from '@/components/theme';
 import { site } from '@/content/site';
 import { SKY_SCRIPT } from '@/lib/sky';
 import './globals.css';
@@ -22,6 +23,7 @@ import './styles/blog.css';
 import './styles/not-found.css';
 import './styles/share.css';
 import './styles/image-viewer.css';
+import './styles/dark.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL(site.url),
@@ -64,15 +66,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // 空の色（data-sky）は、描く前に <head> のスクリプトが書き足すので、食い違いの警告は出さない
+    // テーマと空の色（data-theme / data-sky）は、描く前に <head> のスクリプトが書き足すので、食い違いの警告は出さない
     <html lang="ja" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: SKY_SCRIPT }} />
       </head>
       <body>
         {children}
-        {/* 右上の「日本語 / EN」 */}
-        <LangToggle />
+        {/* 右上の、テーマ（月・太陽）と「日本語 / EN」 */}
+        <div className="corner-tools">
+          <ThemeToggle />
+          <LangToggle />
+        </div>
         <SkyClock />
         <PageCounter />
       </body>

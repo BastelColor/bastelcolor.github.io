@@ -21,7 +21,7 @@
   padding: 5px 12px 6px;
   border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--surface-strong);
   box-shadow:
     inset 0 -3px 0 color-mix(in srgb, var(--edge) 8%, transparent),
     0 var(--thickness) 0 color-mix(in srgb, var(--edge) 18%, transparent);
@@ -43,7 +43,7 @@
 .work-detail .share button,
 .post .share a,
 .post .share button {
-  background: color-mix(in srgb, var(--tone) 30%, #fff);
+  background: color-mix(in srgb, var(--tone) 30%, var(--paper));
 }
 
 @media (hover: hover) {
@@ -51,7 +51,7 @@
   .share button:hover {
     translate: 0 -2px;
     --thickness: 5px;
-    background-color: #fff;
+    background-color: var(--surface-solid);
   }
 }
 

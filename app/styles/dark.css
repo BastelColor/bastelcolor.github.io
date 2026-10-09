@@ -1,0 +1,95 @@
+/* ============================================================
+   暗いテーマ（<html data-theme="dark">。lib/theme.ts、components/theme.tsx）
+
+   - トップと 404 は、時間に関係なく夜の星空（app/styles/sky.css の夜の色）
+   - 部屋は、それぞれの色をほんの少し混ぜた紺色。カードはうすい白を重ねる
+   - 雲のボタン・キャラ・作品の画像など、色そのものが見どころのものは変えない
+   ============================================================ */
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --ink: #e8eef7;
+  --ink-soft: #b3c1d4;
+  --surface-solid: #29344f;
+  --paper: #2a3550;
+  --post-paper: #1f2638;
+  /* カードの下地を混ぜる相手（部屋の中では部屋の色、記事の中では紙の色） */
+  --surface-base: #1a2135;
+}
+
+/* カードの下地。うすい白を重ねるだけだと、うしろのキャラや小物が透けて文字が読みにくいので、
+   部屋の色に白を混ぜた色で、ほとんど隠す（明るいテーマの白い下地と同じくらいの透け方） */
+:root[data-theme='dark'],
+:root[data-theme='dark'] :is(.room, .post-layer) {
+  --surface: color-mix(
+    in srgb,
+    color-mix(in srgb, #fff 7%, var(--surface-base)) 88%,
+    transparent
+  );
+  --surface-strong: color-mix(
+    in srgb,
+    color-mix(in srgb, #fff 14%, var(--surface-base)) 92%,
+    transparent
+  );
+}
+
+/* 部屋の色: 部屋の色を少しだけ混ぜた紺 */
+:root[data-theme='dark'] .room {
+  --tint: color-mix(in srgb, var(--tone) 12%, #1a2135);
+  --surface-base: var(--tint);
+}
+
+/* 記事の紙も、ブログの部屋の色をほんのり */
+:root[data-theme='dark'] .post-layer {
+  --post-paper: color-mix(in srgb, var(--tone) 6%, #1d2437);
+  --surface-base: var(--post-paper);
+}
+
+/* 記事のコードは、紙よりさらに暗く */
+:root[data-theme='dark'] .post-body pre {
+  background: #121827;
+}
+
+/* 部屋の中の、浮かぶ白い小物は、暗い部屋ではまぶしいので控えめに */
+:root[data-theme='dark'] .floating-bits.is-room .floating-bit {
+  opacity: 0.35;
+}
+
+/* 作品の詳細の、うしろのかげを濃く */
+:root[data-theme='dark'] .work-dialog {
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-theme='dark'] .work-dialog::backdrop {
+  background: color-mix(in srgb, var(--tone) 20%, rgba(5, 9, 20, 0.6));
+}
+
+/* アバターの台: 暗い部屋の中では、白い台を少し落とす */
+:root[data-theme='dark'] .avatar-room-stage[data-backdrop='sky'] {
+  --stage-glow: rgba(160, 190, 240, 0.22);
+  --stage-top: #4a5878;
+}
+
+/* アバターの背景を「白」にしたときは、部屋の中と右上のボタンだけ明るいテーマの色にもどす */
+:root[data-theme='dark'] .room:has(.avatar-room[data-backdrop='white']),
+:root[data-theme='dark']:has(.avatar-room[data-backdrop='white']) .corner-tools {
+  --ink: #2f4558;
+  --ink-soft: #56697a;
+  --surface: rgba(255, 255, 255, 0.5);
+  --surface-strong: rgba(255, 255, 255, 0.75);
+  --surface-solid: #fff;
+  --paper: #fff;
+}
+
+:root[data-theme='dark'] .avatar-room-stage[data-backdrop='white'] {
+  --stage-glow: rgba(214, 233, 252, 0.8);
+  --stage-top: #ffffff;
+}
+
+/* テーマを切りかえたときは、押したボタンから新しい色が広がる（theme.tsx が動かす）。
+   ブラウザが標準で付ける、ふわっと重ねる動きは使わない */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}

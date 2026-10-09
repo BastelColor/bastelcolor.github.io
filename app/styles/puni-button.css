@@ -101,7 +101,7 @@
 
 /* 白い雲は白い文字だと沈むので、墨色の文字に白い縁取り */
 .puni.white .puni-label {
-  color: var(--ink);
+  color: var(--ink-on-light);
   -webkit-text-stroke: 0.16em #fff;
   text-shadow: none;
 }

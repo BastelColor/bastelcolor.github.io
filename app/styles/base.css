@@ -17,7 +17,20 @@
 :root {
   --ink: #2f4558;
   --ink-soft: #56697a;
+  /* 明るい色の上に置く文字。暗いテーマでも変えない（白い雲のボタンなど） */
+  --ink-on-light: #2f4558;
   --sky: #c9e2f5;
+  /* 部屋の中のカードや押せるものの下地（暗いテーマの色は app/styles/dark.css）
+     --surface        : うすい下地（プロフィールの項目など）
+     --surface-strong : 少し濃い下地（ボタンなど）
+     --surface-solid  : 塗りつぶしの下地（作品の詳細・選んでいるボタン）
+     --paper          : 部屋の色を混ぜてうすくするときの相手の色
+     --post-paper     : 記事の紙の色 */
+  --surface: rgba(255, 255, 255, 0.5);
+  --surface-strong: rgba(255, 255, 255, 0.75);
+  --surface-solid: #fff;
+  --paper: #fff;
+  --post-paper: #fffcf3;
   /* 画面の左右の余白 */
   --side: clamp(20px, 7vw, 112px);
   /* 中身の幅の上限。これより広い画面では、中身を真ん中に寄せて左右に余白をとる */
@@ -115,19 +128,66 @@ a {
   }
 }
 
-/* ---- 右上の「日本語 / EN」（components/lang.tsx）----
+/* ---- 右上の、テーマの切りかえ（components/theme.tsx）と「日本語 / EN」（components/lang.tsx）----
    どの画面でも見えるよう、部屋や記事より手前に置く */
-.lang-toggle {
+.corner-tools {
   position: fixed;
   z-index: 60;
   top: 14px;
   right: 14px;
   display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-strong);
+  box-shadow: 0 2px 0 rgba(47, 69, 88, 0.1);
+  color: var(--ink);
+  cursor: pointer;
+  transition: translate 0.15s ease;
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 月は、塗りだけにする */
+.theme-toggle[aria-pressed='false'] svg {
+  stroke-width: 1;
+}
+
+@media (hover: hover) {
+  .theme-toggle:hover {
+    translate: 0 -2px;
+  }
+}
+
+.theme-toggle:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.lang-toggle {
+  display: flex;
   margin: 0;
   padding: 3px;
   border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--surface-strong);
   box-shadow: 0 2px 0 rgba(47, 69, 88, 0.1);
 }
 
@@ -144,7 +204,7 @@ a {
 }
 
 .lang-toggle button[aria-pressed='true'] {
-  background: #fff;
+  background: var(--surface-solid);
   color: var(--ink);
   box-shadow: 0 2px 0 rgba(47, 69, 88, 0.12);
 }

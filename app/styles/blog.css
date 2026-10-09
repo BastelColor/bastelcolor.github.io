@@ -9,7 +9,7 @@
   inset: 0;
   overflow: clip;
   /* 部屋の黄色の上で、読みやすい紙の色 */
-  background: #fffcf3;
+  background: var(--post-paper);
   clip-path: circle(0px at var(--origin-x) var(--origin-y));
   /* 時間を変えるときは post-layer.tsx の SHRINK_MS も合わせる */
   transition: clip-path 0.7s cubic-bezier(0.65, 0, 0.35, 1);
@@ -155,7 +155,7 @@
 .post-body :not(pre) > code {
   padding: 0.15em 0.4em;
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--surface-strong);
   /* 等幅の文字は端末に入っているものを使う（記事のためだけにフォントを読み込まない） */
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.9em;
@@ -219,7 +219,7 @@
   display: block;
   padding: 14px 18px 16px;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--tone) 28%, #fff);
+  background: color-mix(in srgb, var(--tone) 28%, var(--paper));
   font-size: 15px;
   font-weight: 900;
   line-height: 1.5;
@@ -245,7 +245,7 @@
 @media (hover: hover) {
   .post-pager a:hover {
     translate: 0 -2px;
-    background-color: color-mix(in srgb, var(--tone) 45%, #fff);
+    background-color: color-mix(in srgb, var(--tone) 45%, var(--paper));
   }
 }
 

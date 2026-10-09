@@ -34,7 +34,7 @@
   padding: 4px;
   border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--surface);
 }
 
 .works-view button {
@@ -50,7 +50,7 @@
 }
 
 .works-view button[aria-pressed='true'] {
-  background: #fff;
+  background: var(--surface-solid);
   color: var(--ink);
   box-shadow: 0 2px 0 color-mix(in srgb, var(--edge) 22%, transparent);
 }
@@ -112,7 +112,7 @@
   height: 20px;
   border: 4px solid var(--edge);
   border-radius: 50%;
-  background: #fff;
+  background: var(--surface-solid);
 }
 
 
@@ -121,7 +121,7 @@
   padding: 9px 20px 10px;
   border: 0;
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--surface);
   box-shadow:
     inset 0 -4px 0 color-mix(in srgb, var(--edge) 8%, transparent),
     0 var(--thickness) 0 color-mix(in srgb, var(--edge) 18%, transparent);
@@ -142,7 +142,7 @@
   .works-genres button:hover {
     translate: 0 -2px;
     --thickness: 6px;
-    background-color: rgba(255, 255, 255, 0.75);
+    background-color: var(--surface-strong);
     color: var(--ink);
   }
 }
@@ -154,7 +154,7 @@
 }
 
 .works-genres button[aria-pressed='true'] {
-  background: color-mix(in srgb, var(--tone) 55%, #fff);
+  background: color-mix(in srgb, var(--tone) 55%, var(--paper));
   color: var(--ink);
 }
 
@@ -263,7 +263,7 @@
   overflow-y: auto;
   border: 0;
   border-radius: 32px;
-  background: #fff;
+  background: var(--surface-solid);
   color: var(--ink);
   box-shadow: 0 24px 60px rgba(47, 69, 88, 0.22);
   opacity: 0;
@@ -330,7 +330,7 @@
 
 .work-detail-video {
   aspect-ratio: 16 / 9;
-  background: color-mix(in srgb, var(--tone) 30%, #fff);
+  background: color-mix(in srgb, var(--tone) 30%, var(--paper));
 }
 
 .work-detail-video iframe {
@@ -369,7 +369,7 @@
   padding: 10px;
   border: 0;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--tone) 22%, #fff);
+  background: color-mix(in srgb, var(--tone) 22%, var(--paper));
   font-family: var(--body);
   text-align: left;
   color: var(--ink);
@@ -409,7 +409,7 @@
 @media (hover: hover) {
   .work-detail-pager button:hover {
     translate: 0 -2px;
-    background-color: color-mix(in srgb, var(--tone) 38%, #fff);
+    background-color: color-mix(in srgb, var(--tone) 38%, var(--paper));
   }
 }
 
@@ -436,7 +436,7 @@
   justify-content: center;
   margin-top: 28px;
   padding: 24px 0 18px;
-  background: linear-gradient(transparent, #fff 45%);
+  background: linear-gradient(transparent, var(--surface-solid) 45%);
 }
 
 .work-detail h3 {
@@ -532,7 +532,7 @@
   font-size: 16px;
   font-weight: 900;
   text-decoration: none;
-  color: var(--ink);
+  color: var(--ink-on-light);
   transition:
     translate 0.15s ease,
     box-shadow 0.15s ease;

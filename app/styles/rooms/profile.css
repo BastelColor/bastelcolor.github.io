@@ -37,7 +37,7 @@
   align-items: baseline;
   padding: 18px 24px 20px;
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--surface);
 }
 
 .profile-facts dt {
@@ -80,7 +80,7 @@
   white-space: nowrap;
   padding: 1px 10px 2px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--tone) 45%, #fff);
+  background: color-mix(in srgb, var(--tone) 45%, var(--paper));
   font-size: 12px;
   text-align: center;
   color: var(--ink-soft);
@@ -129,7 +129,7 @@
   height: auto;
   aspect-ratio: 1;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--surface);
   object-fit: cover;
   transition: translate 0.35s cubic-bezier(0.3, 1.8, 0.5, 1);
 }
@@ -147,7 +147,7 @@
   margin-top: 4px;
   padding: 0 8px 1px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--tone) 50%, #fff);
+  background: color-mix(in srgb, var(--tone) 50%, var(--paper));
   font-size: 11px;
   font-weight: 900;
 }

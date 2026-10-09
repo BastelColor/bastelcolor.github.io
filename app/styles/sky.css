@@ -93,7 +93,7 @@
   }
 }
 
-/* 夜は、白いお知らせが灰色に沈まないよう、白を濃くする */
-:root[data-sky='night'] .home-news {
+/* 夜は、白いお知らせが灰色に沈まないよう、白を濃くする（暗いテーマでは暗い下地のまま） */
+:root[data-sky='night']:not([data-theme='dark']) .home-news {
   background: rgba(255, 255, 255, 0.92);
 }
