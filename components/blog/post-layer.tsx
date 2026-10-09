@@ -8,6 +8,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
+import { useT } from '@/components/lang';
 import { PuniButton } from '@/components/puni-button';
 import { findPage } from '@/content/pages';
 import { getPostOrigin, wasOpenedFromList } from '@/lib/post-origin';
@@ -26,6 +27,7 @@ type Phase = 'opening' | 'open' | 'closing';
  */
 export function PostLayer({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const t = useT();
   // 一覧から来たときだけ、押した位置から膨らませる
   const [origin] = useState(getPostOrigin);
   const [phase, setPhase] = useState<Phase>(origin ? 'opening' : 'open');
@@ -89,13 +91,16 @@ export function PostLayer({ children }: { children: ReactNode }) {
       }
     >
       {/* 名前の付いた section にして、読み上げで記事の場所へ飛べるようにする */}
-      <section className="post-layer-inner" aria-label="ブログの記事">
+      <section
+        className="post-layer-inner"
+        aria-label={t('ブログの記事', 'Blog post')}
+      >
         <header className="post-head">
           <PuniButton
             ref={backButton}
             tone="white"
             size="small"
-            label="もどる"
+            label={t('もどる', 'Back')}
             onPress={close}
           />
         </header>
@@ -104,7 +109,7 @@ export function PostLayer({ children }: { children: ReactNode }) {
           <PuniButton
             tone="white"
             size="small"
-            label="もどる"
+            label={t('もどる', 'Back')}
             onPress={close}
           />
         </footer>

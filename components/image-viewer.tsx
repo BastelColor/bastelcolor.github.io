@@ -7,6 +7,7 @@ import {
   useState,
   type Ref,
 } from 'react';
+import { useT } from '@/components/lang';
 
 export type ViewerImage = { src: string; alt: string };
 
@@ -32,6 +33,7 @@ const SWIPE_PX = 50;
  * - 「とじる」・画像のまわり・Esc で閉じる（下の画面は開いたまま）
  */
 export function ImageViewer({ images, ref }: ImageViewerProps) {
+  const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
   const [index, setIndex] = useState(0);
   const current = images[index];
@@ -94,7 +96,11 @@ export function ImageViewer({ images, ref }: ImageViewerProps) {
   }));
 
   return (
-    <dialog ref={dialog} className="image-viewer" aria-label="画像を大きく見る">
+    <dialog
+      ref={dialog}
+      className="image-viewer"
+      aria-label={t('画像を大きく見る', 'Image viewer')}
+    >
       {current && (
         <figure className="image-viewer-figure">
           <img src={current.src} alt={current.alt} />
@@ -110,7 +116,7 @@ export function ImageViewer({ images, ref }: ImageViewerProps) {
           <button
             type="button"
             className="image-viewer-nav is-prev"
-            aria-label="前の画像"
+            aria-label={t('前の画像', 'Previous image')}
             onClick={() => move(-1)}
           >
             <Arrow />
@@ -118,7 +124,7 @@ export function ImageViewer({ images, ref }: ImageViewerProps) {
           <button
             type="button"
             className="image-viewer-nav is-next"
-            aria-label="次の画像"
+            aria-label={t('次の画像', 'Next image')}
             onClick={() => move(1)}
           >
             <Arrow />
@@ -130,7 +136,7 @@ export function ImageViewer({ images, ref }: ImageViewerProps) {
         className="image-viewer-close"
         onClick={() => dialog.current?.close()}
       >
-        とじる
+        {t('とじる', 'Close')}
       </button>
     </dialog>
   );

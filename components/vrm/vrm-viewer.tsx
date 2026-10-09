@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useT } from '@/components/lang';
 import type { MotionId } from '@/components/vrm/motions';
 import { createVrmStage, type VrmStage } from '@/components/vrm/vrm-stage';
 
@@ -44,6 +45,7 @@ export function VrmViewer({
   onStage,
 }: VrmViewerProps) {
   const isFull = variant === 'full';
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<VrmStage | null>(null);
@@ -106,48 +108,70 @@ export function VrmViewer({
 
   return (
     <div className="vrm-viewer" ref={containerRef}>
-      <canvas ref={canvasRef} aria-label={`${modelName}の3Dモデル`} />
+      <canvas
+        ref={canvasRef}
+        aria-label={t(`${modelName}の3Dモデル`, `3D model of ${modelName}`)}
+      />
 
       {viewerState === 'loading' && (
         <output className="vrm-loading">
           <span className="vrm-loading-orb" />
-          <b>{modelName}をよみこみ中</b>
+          <b>{t(`${modelName}をよみこみ中`, `Loading ${modelName}`)}</b>
           <small>
-            {progress > 0 ? `${progress}%` : 'モデルを準備しています'}
+            {progress > 0
+              ? `${progress}%`
+              : t('モデルを準備しています', 'Preparing the model')}
           </small>
         </output>
       )}
 
       {viewerState === 'error' && (
         <div className="vrm-error" role="alert">
-          <b>モデルを表示できませんでした</b>
-          <span>ページを再読み込みして、もう一度選んでください。</span>
+          <b>
+            {t('モデルを表示できませんでした', 'The model couldn’t be shown')}
+          </b>
+          <span>
+            {t(
+              'ページを再読み込みして、もう一度選んでください。',
+              'Please reload the page and choose it again.',
+            )}
+          </span>
         </div>
       )}
 
       {isFull && viewerState === 'ready' && (
-        <div className="vrm-controls" aria-label="3Dモデル操作">
+        <div
+          className="vrm-controls"
+          aria-label={t('3Dモデル操作', '3D model controls')}
+        >
           <button
             type="button"
             onClick={toggleAutoRotate}
             aria-pressed={autoRotate}
           >
-            {autoRotate ? '回転をとめる' : '自動でまわす'}
+            {autoRotate
+              ? t('回転をとめる', 'Stop rotating')
+              : t('自動でまわす', 'Auto-rotate')}
           </button>
           <button type="button" onClick={() => stageRef.current?.resetView()}>
-            正面にもどす
+            {t('正面にもどす', 'Reset view')}
           </button>
           <button
             type="button"
             onClick={() => containerRef.current?.requestFullscreen?.()}
           >
-            大きく見る
+            {t('大きく見る', 'Fullscreen')}
           </button>
         </div>
       )}
 
       {isFull && (
-        <p className="vrm-guide">ドラッグで回転・ホイールで拡大縮小</p>
+        <p className="vrm-guide">
+          {t(
+            'ドラッグで回転・ホイールで拡大縮小',
+            'Drag to rotate, scroll to zoom',
+          )}
+        </p>
       )}
     </div>
   );

@@ -5,12 +5,14 @@ export const pages: SitePage[] = [
   {
     id: 'profile',
     tone: 'pink',
+    en: { menuLabel: 'Profile', note: 'About the creator.' },
     menuLabel: 'プロフィール',
     note: 'つくる人のこと。',
   },
   {
     id: 'works',
     tone: 'mint',
+    en: { menuLabel: 'Works', note: "Things I've made." },
     menuLabel: 'さくひん',
     note: 'これまでにつくったもの。',
     mascot: {
@@ -21,6 +23,7 @@ export const pages: SitePage[] = [
   {
     id: 'avatar',
     tone: 'blue',
+    en: { menuLabel: 'Avatars', note: 'Character models and making-of notes.' },
     menuLabel: 'アバター',
     note: 'キャラクターモデルと制作記録。',
     mascot: {
@@ -31,6 +34,7 @@ export const pages: SitePage[] = [
   {
     id: 'log',
     tone: 'yellow',
+    en: { menuLabel: 'Blog', note: 'Making-of notes and tech articles.' },
     menuLabel: 'ブログ',
     note: '制作メモと技術記事。',
     mascot: {

@@ -114,3 +114,42 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---- 右上の「日本語 / EN」（components/lang.tsx）----
+   どの画面でも見えるよう、部屋や記事より手前に置く */
+.lang-toggle {
+  position: fixed;
+  z-index: 60;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  margin: 0;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 2px 0 rgba(47, 69, 88, 0.1);
+}
+
+.lang-toggle button {
+  padding: 4px 11px 5px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.lang-toggle button[aria-pressed='true'] {
+  background: #fff;
+  color: var(--ink);
+  box-shadow: 0 2px 0 rgba(47, 69, 88, 0.12);
+}
+
+.lang-toggle button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}

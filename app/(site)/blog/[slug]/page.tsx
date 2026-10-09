@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PostBody } from '@/components/blog/post-body';
 import { PostLayer } from '@/components/blog/post-layer';
+import { T } from '@/components/lang';
 import { ShareButtons } from '@/components/share-buttons';
 import { site } from '@/content/site';
 import { formatPostDate } from '@/lib/post-meta';
@@ -79,17 +80,21 @@ export default async function PostPage({ params }: PostPageProps) {
         <PostBody html={post.html} />
         {/* 前の記事・次の記事（日付の順） */}
         {(older || newer) && (
-          <nav className="post-pager" aria-label="ほかの記事">
+          <nav className="post-pager" aria-label="ほかの記事 / More posts">
             {older && (
               // 履歴を積まずに切りかえ、「もどる」で一覧へ帰れるようにする
               <Link href={`/blog/${older.slug}`} replace className="is-older">
-                <small>前の記事</small>
+                <small>
+                  <T ja="前の記事" en="Previous post" />
+                </small>
                 {older.title}
               </Link>
             )}
             {newer && (
               <Link href={`/blog/${newer.slug}`} replace className="is-newer">
-                <small>次の記事</small>
+                <small>
+                  <T ja="次の記事" en="Next post" />
+                </small>
                 {newer.title}
               </Link>
             )}

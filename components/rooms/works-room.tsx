@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useLang, useT } from '@/components/lang';
 import { WorkDetail } from '@/components/rooms/work-detail';
 import { WorkThumbnail } from '@/components/rooms/work-thumbnail';
 import { site } from '@/content/site';
 import type { Work, WorkGenre } from '@/content/types';
-import { workGenres, works } from '@/content/works';
+import { workGenres, works as worksJa } from '@/content/works';
+import { localizeWork } from '@/lib/localize';
 import {
   leaveLayer,
   pushLayers,
@@ -27,8 +29,8 @@ const LINKED_OPEN_DELAY_MS = 700;
  * （lib/history-layers.ts）。
  */
 const VIEWS = [
-  { id: 'grid', label: '一覧' },
-  { id: 'timeline', label: '年表' },
+  { id: 'grid', label: '一覧', labelEn: 'Grid' },
+  { id: 'timeline', label: '年表', labelEn: 'Timeline' },
 ] as const;
 type WorkView = (typeof VIEWS)[number]['id'];
 
@@ -59,6 +61,10 @@ function groupByYear(list: Work[]) {
 export function WorksRoom() {
   const [genre, setGenre] = useState<WorkGenre | 'all'>('all');
   const [view, setView] = useState<WorkView>('grid');
+  const lang = useLang();
+  const t = useT();
+  // 英語のときは、作品の文章を content/works.ts の en で置きかえる
+  const works = worksJa.map((work) => localizeWork(work, lang));
   const [shownId, setShownId] = useState<string | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const clearTimer = useRef<number | undefined>(undefined);
@@ -101,7 +107,7 @@ export function WorksRoom() {
     const linked = readLayers().work;
     const linkTimer = linked
       ? window.setTimeout(() => {
-          if (works.some((work) => work.id === linked)) showRef.current(linked);
+          if (worksJa.some((work) => work.id === linked)) showRef.current(linked);
           else replaceLayers({ room: 'works' });
         }, LINKED_OPEN_DELAY_MS)
       : undefined;
@@ -170,23 +176,27 @@ export function WorksRoom() {
   return (
     <>
       <div className="works-controls">
-        <ul className="works-genres" aria-label="ジャンルで絞り込む">
-          {[{ id: 'all' as const, label: 'すべて' }, ...workGenres].map(
-            (item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  aria-pressed={genre === item.id}
-                  onClick={() => setGenre(item.id)}
-                >
-                  {item.label}
-                </button>
-              </li>
-            ),
-          )}
+        <ul
+          className="works-genres"
+          aria-label={t('ジャンルで絞り込む', 'Filter by genre')}
+        >
+          {[
+            { id: 'all' as const, label: 'すべて', labelEn: 'All' },
+            ...workGenres,
+          ].map((item) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                aria-pressed={genre === item.id}
+                onClick={() => setGenre(item.id)}
+              >
+                {t(item.label, item.labelEn)}
+              </button>
+            </li>
+          ))}
         </ul>
         {/* 並べ方: 一覧（いつもの）か、年ごとの年表か */}
-        <fieldset className="works-view" aria-label="並べ方">
+        <fieldset className="works-view" aria-label={t('並べ方', 'Layout')}>
           {VIEWS.map((item) => (
             <button
               key={item.id}
@@ -194,7 +204,7 @@ export function WorksRoom() {
               aria-pressed={view === item.id}
               onClick={() => setView(item.id)}
             >
-              {item.label}
+              {t(item.label, item.labelEn)}
             </button>
           ))}
         </fieldset>
@@ -206,7 +216,9 @@ export function WorksRoom() {
         <ol className="works-timeline">
           {yearGroups.map((group) => (
             <li key={group.year}>
-              <h3 className="works-timeline-year">{group.year}</h3>
+              <h3 className="works-timeline-year">
+                {group.year === NO_YEAR ? t('その他', 'Other') : group.year}
+              </h3>
               <ul className="works">{group.works.map(renderItem)}</ul>
             </li>
           ))}

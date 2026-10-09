@@ -36,24 +36,28 @@ export const boothItems: BoothItem[] = [
   },
   {
     title: 'レモン',
+    titleEn: 'Lemon',
     url: 'https://bastelcolor.booth.pm/items/5519300',
     image: `${IMAGE}/5519300/2d0bb343-65da-45a4-ada8-b6b2071a2509_base_resized.jpg`,
     price: '無料',
   },
   {
     title: '絵が描けなくてもキャラモデリング',
+    titleEn: 'Character Modeling Even If You Can’t Draw',
     url: 'https://bastelcolor.booth.pm/items/5354527',
     image: `${IMAGE}/5354527/0561bfda-0ffc-42ab-b174-c187b72c11e6_base_resized.jpg`,
     price: '¥2,500',
   },
   {
     title: 'ぽっぷる',
+    titleEn: 'Popple',
     url: 'https://bastelcolor.booth.pm/items/5232260',
     image: `${IMAGE}/5232260/1716614f-a4db-475e-a0f4-a34b43d080c1_base_resized.jpg`,
     price: '無料',
   },
   {
     title: 'ソラのガラケー',
+    titleEn: 'Sora’s Flip Phone',
     url: 'https://bastelcolor.booth.pm/items/4554834',
     image: `${IMAGE}/4554834/c798dcd2-b971-435b-90d8-c8c7e36bffd2_base_resized.jpg`,
     price: '無料',

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { LangToggle } from '@/components/lang';
 import { PageCounter } from '@/components/page-counter';
 import { SkyClock } from '@/components/sky-clock';
 import { site } from '@/content/site';
@@ -70,6 +71,8 @@ export default function RootLayout({
       </head>
       <body>
         {children}
+        {/* 右上の「日本語 / EN」 */}
+        <LangToggle />
         <SkyClock />
         <PageCounter />
       </body>

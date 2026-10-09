@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from 'react';
 import { FloatingBits } from '@/components/floating-bits';
+import { useT } from '@/components/lang';
 import { PuniButton } from '@/components/puni-button';
 import { RoomMascot } from '@/components/room-mascot';
 import { AvatarRoom, preloadAvatarRoom } from '@/components/rooms/avatar-room';
@@ -66,6 +67,7 @@ type SiteAppProps = RoomProps & {
 
 export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
   const pathname = usePathname();
+  const t = useT();
   const isPostPage = pathname.startsWith('/blog/');
   // 記事のページを直接開いたときは、ブログの部屋が開いた状態から始める
   const [room, setRoom] = useState<PageId | null>(() =>
@@ -271,7 +273,7 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
           </Link>
         )}
 
-        <nav className="home-menu" aria-label="メニュー">
+        <nav className="home-menu" aria-label={t('メニュー', 'Menu')}>
           {pages.map((item, i) => (
             <PuniButton
               key={item.id}
@@ -285,7 +287,7 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
               onPress={(button) => open(item.id, button)}
               // アバターの部屋は 3D の表示に時間がかかるので、雲にふれた時点で読み込み始める
               onIntent={item.id === 'avatar' ? preloadAvatarRoom : undefined}
-              label={item.menuLabel}
+              label={t(item.menuLabel, item.en.menuLabel)}
             />
           ))}
         </nav>
@@ -300,7 +302,7 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
               '--origin-y': `${origin.y}px`,
             } as CSSProperties
           }
-          aria-label={page.menuLabel}
+          aria-label={t(page.menuLabel, page.en.menuLabel)}
           inert={isPostPage}
         >
           <FloatingBits variant="room" />
@@ -311,10 +313,10 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
                 tone="white"
                 size="small"
                 onPress={requestClose}
-                label="もどる"
+                label={t('もどる', 'Back')}
               />
-              <h2>{page.menuLabel}</h2>
-              <p>{page.note}</p>
+              <h2>{t(page.menuLabel, page.en.menuLabel)}</h2>
+              <p>{t(page.note, page.en.note)}</p>
             </header>
             <Room posts={posts} />
           </div>

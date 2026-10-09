@@ -30,4 +30,29 @@ export const profile: Profile = {
     { label: 'Misskey', url: 'https://misskey.io/@BastelColor' },
     { label: 'BOOTH', url: 'https://bastelcolor.booth.pm/' },
   ],
+  // 英語で表示するときの文章（日本語版と同じ並び）
+  en: {
+    leadLines: ['My motto: “I’ll try anything!”'],
+    body: 'I mainly create 3DCG in Blender, and also make VR avatars and videos. I love trying out new forms of expression and new ways of making things!',
+    skills: [
+      { level: 'Main', items: ['Blender', 'Unity'] },
+      {
+        level: 'Often',
+        items: [
+          'After Effects',
+          'Premiere Pro',
+          'Substance 3D Painter',
+          'InDesign',
+          'OBS Studio',
+          'Python',
+          'C#',
+        ],
+      },
+      { level: 'Learning', items: ['Photoshop', 'Illustrator', 'Maya'] },
+    ],
+    certifications: [
+      'CG Creator Certification (Expert)',
+      'CG Engineer Certification (Expert)',
+    ],
+  },
 };

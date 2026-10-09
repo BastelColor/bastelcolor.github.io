@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useT } from '@/components/lang';
 import { site } from '@/content/site';
 
 type ShareButtonsProps = {
@@ -19,6 +20,7 @@ const COPIED_MS = 2000;
  * 貼ったときのカード（画像・名前）は、それぞれのページの OGP で出る
  */
 export function ShareButtons({ path, title }: ShareButtonsProps) {
+  const t = useT();
   const url = `${site.url}${path}`;
   const text = `${title} | ${site.title}`;
   const query = `text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
@@ -41,7 +43,7 @@ export function ShareButtons({ path, title }: ShareButtonsProps) {
 
   return (
     <div className="share">
-      <span className="share-label">シェア</span>
+      <span className="share-label">{t('シェア', 'Share')}</span>
       <a
         href={`https://x.com/intent/post?${query}`}
         target="_blank"
@@ -58,11 +60,11 @@ export function ShareButtons({ path, title }: ShareButtonsProps) {
         Misskey
       </a>
       <button type="button" onClick={copy}>
-        URLをコピー
+        {t('URLをコピー', 'Copy URL')}
       </button>
       <output className="share-status">
-        {copyState === 'copied' && 'コピーしました！'}
-        {copyState === 'failed' && 'コピーできませんでした'}
+        {copyState === 'copied' && t('コピーしました！', 'Copied!')}
+        {copyState === 'failed' && t('コピーできませんでした', 'Couldn’t copy')}
       </output>
     </div>
   );

@@ -2,12 +2,12 @@
 import type { Work, WorkGenre } from './types';
 
 /** 一覧の絞り込みボタンに並べる順 */
-export const workGenres: { id: WorkGenre; label: string }[] = [
-  { id: 'game', label: 'ゲーム' },
-  { id: 'movie', label: '映像・画像' },
-  { id: 'book', label: '書籍/同人誌' },
-  { id: 'vr', label: 'VR' },
-  { id: 'tool', label: 'ツール' },
+export const workGenres: { id: WorkGenre; label: string; labelEn: string }[] = [
+  { id: 'game', label: 'ゲーム', labelEn: 'Games' },
+  { id: 'movie', label: '映像・画像', labelEn: 'Video & Images' },
+  { id: 'book', label: '書籍/同人誌', labelEn: 'Books & Zines' },
+  { id: 'vr', label: 'VR', labelEn: 'VR' },
+  { id: 'tool', label: 'ツール', labelEn: 'Tools' },
 ];
 
 // 項目の意味は content/types.ts の Work を参照
@@ -15,6 +15,15 @@ export const workGenres: { id: WorkGenre; label: string }[] = [
 export const works: Work[] = [
   {
     id: 'marunomi-panic',
+    en: {
+      description: 'A co-op multiplayer TPS for a school festival exhibit',
+      body: [
+        'A TPS where up to four players team up to calm down the “Swallowing Dragon” that escaped from a lab studying mysterious creatures. Each character fights with unique skills and items—and if you get exhausted and stunned, you get swallowed whole.',
+        'I made as much of it as I could myself: character design and modeling, gameplay programming, cut-in effects, in-game UI, animation rigs, and stage design.',
+        'The enemy AI uses Unity Behavior, and multiplayer uses Netcode for GameObjects. I also optimized it to run on the festival PCs (57% less CPU and 50% less GPU usage) and wrote documents to share the techniques within our club.',
+        'Still in development.',
+      ],
+    },
     genre: 'game',
     title: 'まるのみぱにっく！',
     category: 'GAME / UNITY',
@@ -43,6 +52,15 @@ export const works: Work[] = [
   },
   {
     id: 'nakayoshi-en',
+    en: {
+      description: 'A mobile-game-style PV (team project)',
+      body: [
+        'A PV styled like a mobile mini-game, made with a team I met at an internship. It was a finalist in the Cygames Creative Contest 2025.',
+        'I handled the video, direction, and editing, and pulled everyone’s work together into one piece. I assembled the PSD and Maya data I received into a simple game in Unity, then finished it with UI animation and sound effects in After Effects.',
+        'I also supported the team’s progress: showing what was feasible at the planning stage, being the go-to person for technical questions, and streaming my editing work to share progress.',
+      ],
+      links: ['Watch on YouTube'],
+    },
     genre: 'movie',
     title: 'なかよし園 〜こころのかくれんぼ〜',
     category: 'MOVIE / TEAM',
@@ -64,6 +82,15 @@ export const works: Work[] = [
   },
   {
     id: 'capcom-games-competition',
+    en: {
+      description: 'A game proposal (team entry)',
+      body: [
+        'Our team’s entry to the CAPCOM GAMES COMPETITION, made with RE ENGINE from April to September 2025.',
+        'The story of Tsumugi, a girl lost in a world of dreams, and Baku, her guide. To heal the dream world tainted by “bad feelings,” she protects the “heart” through alternating stealth and tower-defense phases.',
+        'I first pitched a rough idea, discussed it with the team, and refined it into a proposal for the contest. I also managed the team’s database and progress.',
+        'Because of the contest rules, most of the production details can’t be shared.',
+      ],
+    },
     genre: 'game',
     title: 'Dream.（CAPCOM GAMES COMPETITION）',
     category: 'GAME / PLANNING',
@@ -93,6 +120,15 @@ export const works: Work[] = [
   },
   {
     id: 'virtual-camera',
+    en: {
+      description:
+        'A smartphone-controlled virtual camera, with plugins for DCC tools',
+      body: [
+        'I couldn’t get the camera work I wanted while making videos, so I developed a virtual camera app that works with multiple DCC tools, along with a plugin for each tool.',
+        'The app is an Android app made in Unity, with an AR mode for walking around and a gyro mode for turning in place. Camera position and rotation are sent over Open Sound Control and video over NDI, so it can support other DCC tools just by adding a plugin. The first plugin is for Blender.',
+        'With professional development in mind, I also paid attention to licensing when structuring it.',
+      ],
+    },
     genre: 'tool',
     title: 'Virtual Camera for DCCTools',
     category: 'TOOL / UNITY・BLENDER',
@@ -118,6 +154,15 @@ export const works: Work[] = [
   },
   {
     id: 'easy-easy-ease',
+    en: {
+      description: 'A Blender add-on that creates easing you can edit later',
+      body: [
+        'An add-on born from the problem that Blender only has animation presets you can’t edit afterwards.',
+        'Choose an easing type and strength, press the button, and you get an editable curve with its handles kept. The handles are set to FREE, so you can adjust them freely later.',
+        'I interviewed members of my club before building it, and wrote the code comments in English so people overseas can read them too. It’s available for free on BOOTH.',
+      ],
+      links: ['View on BOOTH (free)'],
+    },
     genre: 'tool',
     title: 'Easy Easy Ease',
     category: 'TOOL / BLENDER ADD-ON',
@@ -148,6 +193,13 @@ export const works: Work[] = [
   },
   {
     id: 'toon-shader',
+    en: {
+      description: 'A homemade toon shader that blends into the scene',
+      body: [
+        'A typical emission shader casts no shadows, so characters glow and look out of place. So I built a toon shader as a node group that adds shading and matches the colors of the scene.',
+        'Brightness, light color, shadow, rim light, and AO are all adjustable.',
+      ],
+    },
     genre: 'tool',
     title: 'ToonShader for Blender',
     category: 'TOOL / BLENDER SHADER',
@@ -172,6 +224,14 @@ export const works: Work[] = [
   },
   {
     id: 'underground-passage',
+    en: {
+      title: 'A Certain Famous Underground Passage',
+      description: 'A background made to test my toon shader',
+      body: [
+        'A background I made because I wanted a reflective environment to test ToonShader for Blender.',
+        'Time was limited, so the textures are procedural. I also processed external textures with shaders while looking at references, and finished it with post-processing.',
+      ],
+    },
     genre: 'movie',
     title: '某有名な地下通路',
     category: '3DCG / BACKGROUND',
@@ -195,6 +255,14 @@ export const works: Work[] = [
   },
   {
     id: 'avatar-world',
+    en: {
+      title: 'Avatar Showcase World',
+      description: 'A floating sky-garden world for showcasing avatars',
+      body: [
+        'A VRChat avatar showcase world themed around “a sky garden where you can take a break.” I wanted a world where you do more than just try on avatars.',
+        'It has a video player, pedestals for one-click avatar changes, and mirrors for checking how you look.',
+      ],
+    },
     genre: 'vr',
     title: 'アバター展示ワールド',
     category: 'VRCHAT / WORLD',
@@ -217,6 +285,14 @@ export const works: Work[] = [
   },
   {
     id: 'characters',
+    en: {
+      title: 'Characters 2023–2025',
+      description: 'The 3D characters I’ve made so far',
+      body: [
+        'I keep making 3D characters with two goals: learning design and improving my 3D skills. Most are avatars for VRChat, and I’ve released many of them for free.',
+        'You can see the 3D models of Quiple, Coflet, and Timi in the Avatars room.',
+      ],
+    },
     genre: 'vr',
     title: '歴代キャラクター 2023–2025',
     category: '3DCG / CHARACTER',
@@ -231,6 +307,14 @@ export const works: Work[] = [
   },
   {
     id: 'kcs-cg-movie',
+    en: {
+      title: 'KCS CG Team Film',
+      description: 'Characters, motion, and production management',
+      body: [
+        '“Door Open” (about 6 minutes), the 2023 film by the KCS 3DCG team.',
+      ],
+      links: ['Watch on YouTube'],
+    },
     genre: 'movie',
     title: 'KCS CG班映像制作',
     category: 'CG MOVIE',
@@ -248,6 +332,17 @@ export const works: Work[] = [
   },
   {
     id: 'chara-modeling-book',
+    en: {
+      title: 'Character Modeling Even If You Can’t Draw',
+      description:
+        'A technical zine — Excellence Award at the Gishohaku Awards',
+      body: [
+        'A 243-page technical zine I wrote on my own, distributed at Techbookfest 15 and the 9th Technical Book Doujinshi Expo (Gishohaku). It received an Excellence Award at the Gishohaku Awards.',
+        'I wrote it for my past self, who once gave up after hearing that “you can’t do character modeling if you can’t draw.” It’s written carefully so you won’t get lost even without knowledge of human anatomy.',
+        'It covers everything in one book: Blender basics, character modeling, preparing what VRChat needs, setting things up in Unity, and uploading.',
+      ],
+      links: ['View on BOOTH'],
+    },
     genre: 'book',
     title: '絵が描けなくてもキャラモデリング',
     category: 'WRITING',
@@ -285,6 +380,21 @@ export const works: Work[] = [
   },
   {
     id: 'techbookfest',
+    en: {
+      title: 'Techbookfest Circle Exhibits',
+      description:
+        'Writing, typesetting, and cover art for our club’s technical zines',
+      body: [
+        'Our club has exhibited at every Techbookfest since Techbookfest 14 (spring 2023). Here is what I worked on:',
+        'Techbookfest 14: Wrote “Schools of Variation in Character Modeling” (my first writing)',
+        'Techbookfest 15: Wrote and typeset “Character Modeling Even If You Can’t Draw” (solo)',
+        'Techbookfest 16: Wrote and typeset “An Intro to Deep Learning, Just for the Vibe”',
+        'Techbookfest 17: Wrote and drew the cover for “A Local Voice-Chat AI with VOICEVOX”',
+        'Techbookfest 18: Wrote “Naming Methods Faithful to the Story”',
+        'Techbookfest 19: Cover illustration',
+      ],
+      links: ['Circle page on Techbookfest'],
+    },
     genre: 'book',
     title: '技術書典 サークル出展',
     category: 'WRITING / CIRCLE',
@@ -309,6 +419,14 @@ export const works: Work[] = [
   },
   {
     id: 'starry-sky',
+    en: {
+      description: 'A procedural starry-sky shader and a video explaining it',
+      body: [
+        'A procedural starry-sky shader based on an existing one (by Joey Carlino), with nebulae, colors, and bright stars added. Like the original, its look can be adjusted with parameters.',
+        'I also made and published a video explaining how it’s built.',
+      ],
+      links: ['Watch the explainer on YouTube'],
+    },
     genre: 'tool',
     title: 'Starry Sky',
     category: 'SHADER / BLENDER',
@@ -330,6 +448,13 @@ export const works: Work[] = [
   },
   {
     id: 'simple-apartment',
+    en: {
+      description: 'A world made for VRChat',
+      body: [
+        'A world I made for VRChat. It’s currently published as an alpha version.',
+      ],
+      links: ['View in VRChat'],
+    },
     genre: 'vr',
     title: 'SimpleApartment',
     category: '3DCG / WORLD',

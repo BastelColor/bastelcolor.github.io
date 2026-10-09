@@ -70,6 +70,27 @@ GitHub の `BastelColor/bastelcolor.github.io` の `main` ブランチに push �
 - 各項目の意味は `content/types.ts` にもコメントで書いてあります。
 - VS Code で開くと、書き間違いに赤い波線が出ます。
 
+
+### 英語の表示（日本語 / EN）
+
+右上の「日本語 / EN」で、サイトの言葉を英語に切りかえられます。ブラウザの言語が日本語でない人には、最初から英語で表示します（切りかえると、そのブラウザに覚えておきます）。
+
+- ボタンや見出しなど、サイトの部品の言葉は、それぞれの部品の中に `t('日本語', 'English')` の形で書いてあります。
+- 自分で書く文章の英語は、`content/` のそれぞれに `en` として書きます。書いていないものは、英語のときも日本語のまま出ます。
+
+| 書く場所 | 英語にするもの |
+|---|---|
+| `content/pages.ts` の `en` | 雲・部屋の名前（`menuLabel`）と、その下の一言（`note`）。必ず書きます |
+| `content/profile.ts` の `en` | プロフィールの文章・つかっているもの・資格。必ず書きます（リンクは日本語版と共通） |
+| `content/works.ts` の各作品の `en` | `title`（日本語の題名だけ）・`description`・`body`・`links`（ボタンの文字だけを上から順に） |
+| `content/works.ts` の `workGenres` の `labelEn` | ジャンルの名前 |
+| `content/avatars.ts` の各アバターの `en` | ひとこと紹介（`description`）と目印（`badge`） |
+| `content/booth.ts` の `titleEn` | 日本語の商品名の英語（`price` の「無料」は自動で Free になります） |
+| `content/motions.ts` | 表情のボタン（`labelEn`）、モーションのクレジット（`creditEn`） |
+
+- ブログの記事は日本語だけです。英語で見ているときは、一覧の上に「Blog posts are written in Japanese.」と出ます。
+- いまの英語は Claude が下書きしたものです。言い回しを変えたいところは、上の場所を書き換えてください。
+
 ---
 
 ## 3. サイト名・役職

@@ -134,3 +134,8 @@
     rotate: calc(var(--tilt) * -0.6);
   }
 }
+
+/* 英語の「Not found」の、単語のあいだ */
+.not-found-letters > .is-space {
+  width: 0.4em;
+}

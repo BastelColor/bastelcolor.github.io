@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useLang, useT } from '@/components/lang';
 import { site } from '@/content/site';
 import { formatPostDate, type Post } from '@/lib/post-meta';
 import { rememberPostOrigin } from '@/lib/post-origin';
@@ -9,8 +10,14 @@ import { rememberPostOrigin } from '@/lib/post-origin';
 /** 記事の一覧。押すと、その位置から記事（/blog/<slug>）が膨らんで開く */
 export function LogRoom({ posts }: { posts: Post[] }) {
   const [category, setCategory] = useState<string | null>(null);
+  const lang = useLang();
+  const t = useT();
   if (posts.length === 0) {
-    return <p className="log-empty">まだ記事はありません。</p>;
+    return (
+      <p className="log-empty">
+        {t('まだ記事はありません。', 'No posts yet.')}
+      </p>
+    );
   }
 
   // カテゴリが2つ以上あるときだけ、絞り込みのボタンを出す
@@ -26,7 +33,7 @@ export function LogRoom({ posts }: { posts: Post[] }) {
       {categories.length > 1 && (
         <ul
           className="works-genres log-categories"
-          aria-label="カテゴリで絞り込む"
+          aria-label={t('カテゴリで絞り込む', 'Filter by category')}
         >
           {[null, ...categories].map((item) => (
             <li key={item ?? 'all'}>
@@ -35,11 +42,15 @@ export function LogRoom({ posts }: { posts: Post[] }) {
                 aria-pressed={category === item}
                 onClick={() => setCategory(item)}
               >
-                {item ?? 'すべて'}
+                {item ?? t('すべて', 'All')}
               </button>
             </li>
           ))}
         </ul>
+      )}
+      {/* 記事は日本語だけなので、英語のときはそう伝える */}
+      {lang === 'en' && (
+        <p className="log-lang-note">Blog posts are written in Japanese.</p>
       )}
       <ul className="log">
         {listed.map((post) => (
@@ -79,7 +90,9 @@ export function LogRoom({ posts }: { posts: Post[] }) {
       </ul>
       {/* RSS リーダーで更新を受け取るためのリンク（scripts/write-feed.mjs が作る） */}
       <p className="log-feed">
-        <a href={`${site.url}/feed.xml`}>RSS で更新を受け取る</a>
+        <a href={`${site.url}/feed.xml`}>
+          {t('RSS で更新を受け取る', 'Subscribe via RSS')}
+        </a>
       </p>
     </>
   );

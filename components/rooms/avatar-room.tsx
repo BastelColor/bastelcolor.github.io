@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import modelStats from 'virtual:model-stats';
+import { useLang, useT } from '@/components/lang';
 import { ShareButtons } from '@/components/share-buttons';
 import { preloadVrmStage, type VrmStage } from '@/components/vrm/vrm-stage';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
@@ -9,6 +10,7 @@ import { avatars } from '@/content/avatars';
 import { avatarExpressions, avatarMotion } from '@/content/motions';
 import { site } from '@/content/site';
 import { readLayers, replaceLayers } from '@/lib/history-layers';
+import { localizeAvatar } from '@/lib/localize';
 
 /** 選ぶボタンにも目印を出す badge（まだ配布していない子だと、ひと目で分かるように） */
 const WIP_BADGE = '制作中';
@@ -20,9 +22,9 @@ const ORBIT_STEP = Math.PI / 4;
 
 /** モデルのうしろの背景。空はいつもの部屋の色のまま */
 const BACKDROPS = [
-  { id: 'sky', label: '空' },
-  { id: 'white', label: '白' },
-  { id: 'night', label: '夜' },
+  { id: 'sky', label: '空', labelEn: 'sky' },
+  { id: 'white', label: '白', labelEn: 'white' },
+  { id: 'night', label: '夜', labelEn: 'night' },
 ] as const;
 type Backdrop = (typeof BACKDROPS)[number]['id'];
 
@@ -42,26 +44,32 @@ function usePrefersReducedMotion() {
 /**
  * 「モデルの情報」に出す項目。数は公開のたびに VRM から数える（scripts/vite-model-stats.ts）
  */
-function specRows(modelUrl: string): [string, string][] {
+function specRows(
+  modelUrl: string,
+  t: (ja: string, en: string) => string,
+): [string, string][] {
   const stats = modelStats[modelUrl];
   if (!stats) return [];
   const count = (value: number) => value.toLocaleString('ja-JP');
-  return [
-    ...(stats.eyeHeight
-      ? [
-          ['目の高さ', `${Math.round(stats.eyeHeight * 100)}cm`] as [
-            string,
-            string,
-          ],
-        ]
-      : []),
-    ['ポリゴン', `${count(stats.triangles)}`],
-    ['マテリアル', `${stats.materials}`],
-    ['ボーン', `${stats.bones}`],
-    ['揺れもの', `${stats.springs}`],
-    ['表情', `${stats.expressions}`],
-    ['データ量', `${(stats.fileSize / 1024 / 1024).toFixed(1)}MB`],
-  ];
+  const rows: [string, string][] = [];
+  if (stats.eyeHeight) {
+    rows.push([
+      t('目の高さ', 'Eye height'),
+      `${Math.round(stats.eyeHeight * 100)}cm`,
+    ]);
+  }
+  rows.push(
+    [t('ポリゴン', 'Polygons'), count(stats.triangles)],
+    [t('マテリアル', 'Materials'), `${stats.materials}`],
+    [t('ボーン', 'Bones'), `${stats.bones}`],
+    [t('揺れもの', 'Springs'), `${stats.springs}`],
+    [t('表情', 'Expressions'), `${stats.expressions}`],
+    [
+      t('データ量', 'File size'),
+      `${(stats.fileSize / 1024 / 1024).toFixed(1)}MB`,
+    ],
+  );
+  return rows;
 }
 
 /** URL（/avatar/quiple）で選ばれているアバター。無い・知らない子なら最初の1体 */
@@ -92,14 +100,19 @@ export function preloadAvatarRoom() {
  */
 export function AvatarRoom() {
   const [selectedId, setSelectedId] = useState(linkedAvatarId);
-  const selected =
-    avatars.find((avatar) => avatar.id === selectedId) ?? avatars[0];
+  const lang = useLang();
+  const t = useT();
+  // 英語のときは、ひとこと紹介と目印を content/avatars.ts の en で置きかえる
+  const selected = localizeAvatar(
+    avatars.find((avatar) => avatar.id === selectedId) ?? avatars[0],
+    lang,
+  );
   // 表示できたモデルの舞台。読み込み中は null（表情のボタンは押せない）
   const [stage, setStage] = useState<VrmStage | null>(null);
   const [backdrop, setBackdrop] = useState<Backdrop>('sky');
   // 動きを減らす設定の人には、くるっと回るループのモーションは流さない（その場で小さく揺れるだけ）
   const reduceMotion = usePrefersReducedMotion();
-  const spec = specRows(selected.modelUrl);
+  const spec = specRows(selected.modelUrl, t);
 
   const select = (id: string) => {
     setSelectedId(id);
@@ -130,7 +143,7 @@ export function AvatarRoom() {
         <VrmViewer
           key={selected.id}
           modelUrl={selected.modelUrl}
-          modelName={selected.name}
+          modelName={t(selected.name, selected.nameEn)}
           motionId={reduceMotion ? undefined : avatarMotion.id}
           brightness={selected.brightness}
           liltoon={selected.liltoon}
@@ -141,10 +154,13 @@ export function AvatarRoom() {
         />
         {/* 向きと背景のボタン。モデルの足元の左右に置く */}
         <div className="avatar-room-tools">
-          <fieldset className="avatar-room-turn" aria-label="向きを変える">
+          <fieldset
+            className="avatar-room-turn"
+            aria-label={t('向きを変える', 'Turn the model')}
+          >
             <button
               type="button"
-              aria-label="左へまわりこむ"
+              aria-label={t('左へまわりこむ', 'Turn left')}
               disabled={!stage}
               onClick={() => stage?.orbit(-ORBIT_STEP)}
             >
@@ -155,26 +171,32 @@ export function AvatarRoom() {
               disabled={!stage}
               onClick={() => stage?.front()}
             >
-              正面
+              {t('正面', 'Front')}
             </button>
             <button
               type="button"
-              aria-label="右へまわりこむ"
+              aria-label={t('右へまわりこむ', 'Turn right')}
               disabled={!stage}
               onClick={() => stage?.orbit(ORBIT_STEP)}
             >
               <TurnArrow flip />
             </button>
           </fieldset>
-          <fieldset className="avatar-room-backdrops" aria-label="背景">
+          <fieldset
+            className="avatar-room-backdrops"
+            aria-label={t('背景', 'Background')}
+          >
             {BACKDROPS.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 className={`is-${item.id}`}
                 aria-pressed={backdrop === item.id}
-                aria-label={`背景を${item.label}にする`}
-                title={item.label}
+                aria-label={t(
+                  `背景を${item.label}にする`,
+                  `Use the ${item.labelEn} background`,
+                )}
+                title={t(item.label, item.labelEn)}
                 onClick={() => setBackdrop(item.id)}
               />
             ))}
@@ -196,13 +218,14 @@ export function AvatarRoom() {
                   <img src={avatar.icon.normal} alt="" />
                   <img className="is-happy" src={avatar.icon.happy} alt="" />
                 </span>
+                {/* 英語のときは、英語の名前を大きく */}
                 <span className="avatar-room-choice-text">
-                  {avatar.name}
-                  <small>{avatar.nameEn}</small>
+                  {t(avatar.name, avatar.nameEn)}
+                  <small>{t(avatar.nameEn, avatar.name)}</small>
                 </span>
                 {avatar.badge === WIP_BADGE && (
                   <span className="avatar-room-badge is-small">
-                    {avatar.badge}
+                    {localizeAvatar(avatar, lang).badge}
                   </span>
                 )}
               </button>
@@ -218,7 +241,9 @@ export function AvatarRoom() {
         </div>
         {/* 表情のボタン。読み込み中は全部を押せない状態で出し、表示できたらその子に無い表情を隠す */}
         <div className="avatar-room-play">
-          <p className="avatar-room-play-title">表情をかえてみる</p>
+          <p className="avatar-room-play-title">
+            {t('表情をかえてみる', 'Try an expression')}
+          </p>
           <div className="avatar-room-play-buttons">
             {avatarExpressions
               .filter(
@@ -238,7 +263,7 @@ export function AvatarRoom() {
                     })
                   }
                 >
-                  {expression.label}
+                  {t(expression.label, expression.labelEn)}
                 </button>
               ))}
           </div>
@@ -246,7 +271,9 @@ export function AvatarRoom() {
         {/* モデルの情報（ポリゴン数など） */}
         {spec.length > 0 && (
           <div className="avatar-room-spec">
-            <p className="avatar-room-play-title">モデルの情報</p>
+            <p className="avatar-room-play-title">
+              {t('モデルの情報', 'Model info')}
+            </p>
             <dl>
               {spec.map(([label, value]) => (
                 <div key={label}>
@@ -256,19 +283,25 @@ export function AvatarRoom() {
               ))}
             </dl>
             <p className="avatar-room-spec-note">
-              目の高さは VRChat
-              などで視点になる高さ、ポリゴンは三角形の数、表情は口の形・まばたきを含む数、データ量はサイトで表示する用に軽くしたものです。
+              {t(
+                '目の高さは VRChat などで視点になる高さ、ポリゴンは三角形の数、表情は口の形・まばたきを含む数、データ量はサイトで表示する用に軽くしたものです。',
+                'Eye height is the viewpoint height in VRChat and similar apps. Polygons are triangles, expressions include mouth shapes and blinking, and file size is for the lightened version shown on this site.',
+              )}
             </p>
           </div>
         )}
-        <p className="avatar-room-hint">ドラッグでまわせます</p>
+        <p className="avatar-room-hint">
+          {t('ドラッグでまわせます', 'Drag to rotate')}
+        </p>
         {/* BOOTH にまだ商品ページが無い子（制作中など）は、リンクにせず「準備中」と出す */}
         {selected.booth ? (
           <a href={selected.booth} target="_blank" rel="noreferrer">
-            BOOTHで見る
+            {t('BOOTHで見る', 'View on BOOTH')}
           </a>
         ) : (
-          <span className="avatar-room-booth-soon">BOOTH（準備中）</span>
+          <span className="avatar-room-booth-soon">
+            {t('BOOTH（準備中）', 'BOOTH (coming soon)')}
+          </span>
         )}
         <div className="avatar-room-share">
           <ShareButtons
@@ -276,7 +309,9 @@ export function AvatarRoom() {
             title={`${selected.name} / ${selected.nameEn}`}
           />
         </div>
-        <p className="avatar-room-credit">{avatarMotion.credit}</p>
+        <p className="avatar-room-credit">
+          {t(avatarMotion.credit, avatarMotion.creditEn)}
+        </p>
       </div>
     </div>
   );

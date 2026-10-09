@@ -108,3 +108,11 @@
     width: 100%;
   }
 }
+
+/* 英語で見ているときの「記事は日本語です」 */
+.log-lang-note {
+  margin: 0 0 18px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}

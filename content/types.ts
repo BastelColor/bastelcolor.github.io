@@ -12,6 +12,8 @@ export type SitePage = {
   note: string;
   /** 雲のうしろから顔を出すキャラクター（public/characters/、VRM から描画した画像） */
   mascot?: Mascot;
+  /** 英語で表示するときの文言 */
+  en: { menuLabel: string; note: string };
 };
 
 export type Mascot = {
@@ -41,6 +43,8 @@ export type Profile = {
   /** 「資格」。1要素が1行。無ければ空の [ ] にすると、行ごと出なくなる */
   certifications: string[];
   links: ExternalLink[];
+  /** 英語で表示するときの文章（links はそのまま使う） */
+  en: Omit<Profile, 'links' | 'en'>;
 };
 
 export type SkillGroup = {
@@ -80,6 +84,16 @@ export type Work = {
   images?: WorkImage[];
   /** 本文の下にボタンで出す外部リンク（BOOTH、配布ページ、記事など）。無ければボタンは出ない */
   links?: ExternalLink[];
+  /**
+   * 英語で表示するときの文章。書いたものだけが英語になる（無いものは日本語のまま）。
+   * links は、ボタンの文字だけを上から順に書く
+   */
+  en?: {
+    title?: string;
+    description?: string;
+    body?: string[];
+    links?: string[];
+  };
 };
 
 export type WorkGenre = 'game' | 'movie' | 'book' | 'vr' | 'tool';
@@ -118,6 +132,8 @@ export type Avatar = {
    * （ふつうの VRM は MToon で表示する）
    */
   liltoon?: boolean;
+  /** 英語で表示するときの、ひとこと紹介と目印 */
+  en?: { description?: string; badge?: string };
 };
 
 /** プロフィールの部屋の「BOOTH」に並べる1つ（content/booth.ts） */
@@ -128,6 +144,8 @@ export type BoothItem = {
   url: string;
   /** 商品の画像（BOOTH の画像の住所） */
   image: string;
-  /** 値段の表示（'無料'、'¥2,500' など） */
+  /** 値段の表示（'無料'、'¥2,500' など。'無料' は英語では Free と出る） */
   price: string;
+  /** 英語で表示するときの商品名（省略すると title のまま） */
+  titleEn?: string;
 };

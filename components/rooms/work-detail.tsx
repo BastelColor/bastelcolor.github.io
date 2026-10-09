@@ -1,3 +1,6 @@
+'use client';
+
+import { useT } from '@/components/lang';
 import { PuniButton } from '@/components/puni-button';
 import { WorkImageViewer } from '@/components/rooms/work-image-viewer';
 import { WorkThumbnail } from '@/components/rooms/work-thumbnail';
@@ -28,6 +31,7 @@ export function WorkDetail({
   onSwitch,
   onClose,
 }: WorkDetailProps) {
+  const t = useT();
   return (
     <article className="work-detail">
       <WorkMedia work={work} />
@@ -66,7 +70,10 @@ export function WorkDetail({
 
       {/* 一覧にもどらずに、となりの作品へ */}
       {(previous || next) && (
-        <nav className="work-detail-pager" aria-label="ほかの作品">
+        <nav
+          className="work-detail-pager"
+          aria-label={t('ほかの作品', 'More works')}
+        >
           {previous && (
             <button
               type="button"
@@ -75,7 +82,7 @@ export function WorkDetail({
             >
               <WorkThumbnail work={previous} />
               <span>
-                <small>前の作品</small>
+                <small>{t('前の作品', 'Previous')}</small>
                 {previous.title}
               </span>
             </button>
@@ -88,7 +95,7 @@ export function WorkDetail({
             >
               <WorkThumbnail work={next} />
               <span>
-                <small>次の作品</small>
+                <small>{t('次の作品', 'Next')}</small>
                 {next.title}
               </span>
             </button>
@@ -104,7 +111,7 @@ export function WorkDetail({
         <PuniButton
           tone="white"
           size="small"
-          label="もどる"
+          label={t('もどる', 'Back')}
           onPress={onClose}
         />
       </footer>
@@ -114,12 +121,13 @@ export function WorkDetail({
 
 /** 詳細のいちばん上: 動画 → cover → サムネイルの順に、あるものを出す */
 function WorkMedia({ work }: { work: Work }) {
+  const t = useT();
   if (work.youtubeId) {
     return (
       <div className="work-detail-video">
         <iframe
           src={`https://www.youtube-nocookie.com/embed/${work.youtubeId}`}
-          title={`${work.title}の動画`}
+          title={t(`${work.title}の動画`, `Video: ${work.title}`)}
           allow="encrypted-media; picture-in-picture; fullscreen"
           loading="lazy"
         />
