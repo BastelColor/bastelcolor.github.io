@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
+import modelStats from 'virtual:model-stats';
 import { ShareButtons } from '@/components/share-buttons';
 import type { VrmStage } from '@/components/vrm/vrm-stage';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
@@ -27,6 +28,23 @@ function usePrefersReducedMotion() {
   );
 }
 
+/**
+ * 「モデルの情報」に出す項目。数は公開のたびに VRM から数える（scripts/vite-model-stats.ts）
+ */
+function specRows(modelUrl: string): [string, string][] {
+  const stats = modelStats[modelUrl];
+  if (!stats) return [];
+  const count = (value: number) => value.toLocaleString('ja-JP');
+  return [
+    ['ポリゴン', `${count(stats.triangles)}`],
+    ['マテリアル', `${stats.materials}`],
+    ['ボーン', `${stats.bones}`],
+    ['揺れもの', `${stats.springs}`],
+    ['表情', `${stats.expressions}`],
+    ['データ量', `${(stats.fileSize / 1024 / 1024).toFixed(1)}MB`],
+  ];
+}
+
 /** URL（/avatar/quiple）で選ばれているアバター。無い・知らない子なら最初の1体 */
 function linkedAvatarId() {
   const { avatar } = readLayers();
@@ -46,6 +64,7 @@ export function AvatarRoom() {
   const [stage, setStage] = useState<VrmStage | null>(null);
   // 動きを減らす設定の人には、くるっと回るループのモーションは流さない（その場で小さく揺れるだけ）
   const reduceMotion = usePrefersReducedMotion();
+  const spec = specRows(selected.modelUrl);
 
   const select = (id: string) => {
     setSelectedId(id);
@@ -142,6 +161,23 @@ export function AvatarRoom() {
               ))}
           </div>
         </div>
+        {/* モデルの情報（ポリゴン数など） */}
+        {spec.length > 0 && (
+          <div className="avatar-room-spec">
+            <p className="avatar-room-play-title">モデルの情報</p>
+            <dl>
+              {spec.map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="avatar-room-spec-note">
+              ポリゴンは三角形の数、表情は口の形・まばたきを含む数、データ量はサイトで表示する用に軽くしたものです。
+            </p>
+          </div>
+        )}
         <p className="avatar-room-hint">ドラッグでまわせます</p>
         {/* BOOTH にまだ商品ページが無い子（制作中など）は、リンクにせず「準備中」と出す */}
         {selected.booth ? (

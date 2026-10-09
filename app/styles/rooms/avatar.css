@@ -251,6 +251,50 @@
   cursor: default;
 }
 
+/* ---- モデルの情報（ポリゴン数など） ---- */
+
+.avatar-room-spec {
+  margin: 14px 0 0;
+  padding: 14px 18px 14px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.avatar-room-spec dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 16px;
+  margin: 10px 0 0;
+}
+
+.avatar-room-spec dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px dashed color-mix(in srgb, var(--edge) 30%, transparent);
+  padding-bottom: 3px;
+}
+
+.avatar-room-spec dt {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.avatar-room-spec dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.avatar-room-spec-note {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
 .avatar-room-booth-soon {
   color: var(--ink-soft);
 }
@@ -332,6 +376,7 @@
   }
 
   .avatar-room-about,
+  .avatar-room-spec,
   .avatar-room-hint,
   .avatar-room-side > a,
   .avatar-room-booth-soon,
