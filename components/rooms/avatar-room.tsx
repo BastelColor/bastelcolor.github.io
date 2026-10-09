@@ -36,6 +36,14 @@ function specRows(modelUrl: string): [string, string][] {
   if (!stats) return [];
   const count = (value: number) => value.toLocaleString('ja-JP');
   return [
+    ...(stats.eyeHeight
+      ? [
+          ['目の高さ', `${Math.round(stats.eyeHeight * 100)}cm`] as [
+            string,
+            string,
+          ],
+        ]
+      : []),
     ['ポリゴン', `${count(stats.triangles)}`],
     ['マテリアル', `${stats.materials}`],
     ['ボーン', `${stats.bones}`],
@@ -174,7 +182,8 @@ export function AvatarRoom() {
               ))}
             </dl>
             <p className="avatar-room-spec-note">
-              ポリゴンは三角形の数、表情は口の形・まばたきを含む数、データ量はサイトで表示する用に軽くしたものです。
+              目の高さは VRChat
+              などで視点になる高さ、ポリゴンは三角形の数、表情は口の形・まばたきを含む数、データ量はサイトで表示する用に軽くしたものです。
             </p>
           </div>
         )}

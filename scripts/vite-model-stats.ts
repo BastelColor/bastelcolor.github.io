@@ -18,6 +18,8 @@ export type ModelStats = {
   expressions: number;
   /** 表示用 VRM のファイルの大きさ（バイト） */
   fileSize: number;
+  /** 目の高さ（m）。両目のボーンの高さの平均。目のボーンが無ければ null */
+  eyeHeight: number | null;
 };
 
 type Gltf = {
@@ -29,11 +31,12 @@ type Gltf = {
       mode?: number;
     }[];
   }[];
-  nodes?: { mesh?: number }[];
+  nodes?: GltfNode[];
   materials?: unknown[];
   skins?: { joints: number[] }[];
   extensions?: {
     VRMC_vrm?: {
+      humanoid?: { humanBones?: Record<string, { node: number }> };
       expressions?: {
         preset?: Record<string, ExpressionDef>;
         custom?: Record<string, ExpressionDef>;
@@ -41,6 +44,14 @@ type Gltf = {
     };
     VRMC_springBone?: { springs?: unknown[] };
   };
+};
+type GltfNode = {
+  mesh?: number;
+  children?: number[];
+  matrix?: number[];
+  translation?: number[];
+  rotation?: number[];
+  scale?: number[];
 };
 type ExpressionDef = {
   morphTargetBinds?: unknown[];
@@ -109,6 +120,7 @@ function countStats(gltf: Gltf, fileSize: number): ModelStats {
       0,
   ).length;
   return {
+    eyeHeight: measureEyeHeight(gltf),
     triangles,
     materials: gltf.materials?.length ?? 0,
     bones,
@@ -116,4 +128,64 @@ function countStats(gltf: Gltf, fileSize: number): ModelStats {
     expressions,
     fileSize,
   };
+}
+
+/** 両目のボーンの、いちばん元の形（T ポーズ）での高さの平均 */
+function measureEyeHeight(gltf: Gltf) {
+  const nodes = gltf.nodes ?? [];
+  const bones = gltf.extensions?.VRMC_vrm?.humanoid?.humanBones ?? {};
+  const eyes = [bones.leftEye, bones.rightEye].filter(
+    (bone): bone is { node: number } => bone !== undefined,
+  );
+  if (eyes.length === 0) return null;
+  const parents = new Map<number, number>();
+  nodes.forEach((node, index) =>
+    node.children?.forEach((child) => parents.set(child, index)),
+  );
+  const worldY = (index: number) => {
+    let matrix = localMatrix(nodes[index]);
+    for (let p = parents.get(index); p !== undefined; p = parents.get(p)) {
+      matrix = multiply(localMatrix(nodes[p]), matrix);
+    }
+    return matrix[13];
+  };
+  return eyes.reduce((sum, eye) => sum + worldY(eye.node), 0) / eyes.length;
+}
+
+/** 列ごとに並んだ 4×4 行列（glTF と同じ並び） */
+function localMatrix(node: GltfNode): number[] {
+  if (node.matrix) return node.matrix;
+  const [x, y, z, w] = node.rotation ?? [0, 0, 0, 1];
+  const [sx, sy, sz] = node.scale ?? [1, 1, 1];
+  const [tx, ty, tz] = node.translation ?? [0, 0, 0];
+  return [
+    (1 - 2 * (y * y + z * z)) * sx,
+    2 * (x * y + z * w) * sx,
+    2 * (x * z - y * w) * sx,
+    0,
+    2 * (x * y - z * w) * sy,
+    (1 - 2 * (x * x + z * z)) * sy,
+    2 * (y * z + x * w) * sy,
+    0,
+    2 * (x * z + y * w) * sz,
+    2 * (y * z - x * w) * sz,
+    (1 - 2 * (x * x + y * y)) * sz,
+    0,
+    tx,
+    ty,
+    tz,
+    1,
+  ];
+}
+
+function multiply(a: number[], b: number[]) {
+  const result = Array.from({ length: 16 }, () => 0);
+  for (let col = 0; col < 4; col++) {
+    for (let row = 0; row < 4; row++) {
+      for (let k = 0; k < 4; k++) {
+        result[col * 4 + row] += a[k * 4 + row] * b[col * 4 + k];
+      }
+    }
+  }
+  return result;
 }
