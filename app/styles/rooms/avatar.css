@@ -20,7 +20,10 @@
   height: min(68svh, 720px);
   min-height: 380px;
   border-radius: 36px;
-  transition: background-color 0.3s ease;
+  /* 中の重なり（ライト・展示台・モデル・ボタン）を、この枠の中だけで決める。
+     枠の外へはみ出して描くモデルの canvas が、部屋の見出し（もどるボタン）や
+     右の列より手前に出て、押せなくしてしまわないように */
+  isolation: isolate;
 }
 
 /* モデルは展示台・ライトより手前、ボタンより奥 */
@@ -58,12 +61,85 @@
   pointer-events: none;
 }
 
-/* ---- 背景の切りかえ ---- */
+/* ---- 背景の切りかえ ----
+   部屋ぜんたいの背景（.avatar-backdrop）を、画面いっぱいに敷く。
+   部屋の色の上、うかぶ小物（z-index: -1）より奥。切りかえたときは、新しい背景（.is-wave）が
+   モデルのところから円く広がる */
+
+.avatar-backdrop {
+  position: fixed;
+  z-index: -2;
+  inset: 0;
+  pointer-events: none;
+}
+
+.avatar-backdrop[data-backdrop='sky'] {
+  background: var(--tint);
+}
+
+.avatar-backdrop[data-backdrop='white'] {
+  background: #fbfdff;
+}
+
+.avatar-backdrop[data-backdrop='night'] {
+  background:
+    radial-gradient(circle at 12% 18%, #fff 0 1.4px, transparent 2px),
+    radial-gradient(
+      circle at 34% 9%,
+      rgba(255, 255, 255, 0.8) 0 1px,
+      transparent 1.6px
+    ),
+    radial-gradient(circle at 58% 24%, #fff 0 1.2px, transparent 1.8px),
+    radial-gradient(
+      circle at 76% 12%,
+      rgba(255, 255, 255, 0.85) 0 1.6px,
+      transparent 2.2px
+    ),
+    radial-gradient(circle at 90% 34%, #fff 0 1px, transparent 1.6px),
+    radial-gradient(
+      circle at 22% 52%,
+      rgba(255, 255, 255, 0.7) 0 1px,
+      transparent 1.6px
+    ),
+    radial-gradient(
+      circle at 66% 62%,
+      rgba(255, 255, 255, 0.6) 0 1.2px,
+      transparent 1.8px
+    ),
+    radial-gradient(
+      circle at 44% 80%,
+      rgba(255, 255, 255, 0.6) 0 1px,
+      transparent 1.6px
+    ),
+    linear-gradient(#18213d, #33426b);
+}
+
+.avatar-backdrop.is-wave {
+  clip-path: circle(0 at var(--wave-x) var(--wave-y));
+  animation: avatar-backdrop-wave 0.7s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+@keyframes avatar-backdrop-wave {
+  to {
+    clip-path: circle(150vmax at var(--wave-x) var(--wave-y));
+  }
+}
+
+/* 夜の背景では、部屋の見出しの下の一言と、カードの外の文字を明るくする
+   （カードの中は白っぽいままなので、文字の色はそのまま） */
+.room:has(.avatar-room[data-backdrop='night']) .room-head p,
+.avatar-room[data-backdrop='night'] .avatar-room-hint,
+.avatar-room[data-backdrop='night'] .avatar-room-credit,
+.avatar-room[data-backdrop='night'] .avatar-room-booth-soon,
+.avatar-room[data-backdrop='night'] .avatar-room-side > a,
+.avatar-room[data-backdrop='night'] .share-label,
+.avatar-room[data-backdrop='night'] .share-status {
+  color: #dbe4f3;
+}
 
 .avatar-room-stage[data-backdrop='white'] {
   --stage-glow: rgba(214, 233, 252, 0.8);
   --stage-side: #e8eef5;
-  background: #ffffff;
 }
 
 .avatar-room-stage[data-backdrop='night'] {
@@ -71,23 +147,6 @@
   --stage-top: #46587a;
   --stage-side: #2f3e5c;
   --stage-rim: rgba(0, 0, 0, 0.3);
-  background:
-    radial-gradient(
-      circle at 20% 18%,
-      rgba(255, 255, 255, 0.5) 0 1.5px,
-      transparent 2px
-    ),
-    radial-gradient(
-      circle at 78% 30%,
-      rgba(255, 255, 255, 0.45) 0 1.5px,
-      transparent 2px
-    ),
-    radial-gradient(
-      circle at 64% 12%,
-      rgba(255, 255, 255, 0.35) 0 1px,
-      transparent 1.5px
-    ),
-    linear-gradient(#1d2a44, #2c3d5e);
 }
 
 .avatar-room-stage[data-backdrop='night'] .vrm-loading {
@@ -588,4 +647,15 @@
   .avatar-room-credit {
     margin-top: 16px;
   }
+}
+
+/* 夜の背景の上では、カードを白くはっきりさせる（選んでいる子のボタンは、部屋の色のまま） */
+.avatar-room[data-backdrop='night']
+  :is(
+    .avatar-room-choice:not([aria-pressed='true']),
+    .avatar-room-about,
+    .avatar-room-play,
+    .avatar-room-spec
+  ) {
+  background-color: rgba(255, 255, 255, 0.88);
 }

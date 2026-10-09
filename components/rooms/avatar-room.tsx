@@ -1,6 +1,12 @@
 'use client';
 
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+} from 'react';
 import modelStats from 'virtual:model-stats';
 import { useLang, useT } from '@/components/lang';
 import { ShareButtons } from '@/components/share-buttons';
@@ -110,6 +116,28 @@ export function AvatarRoom() {
   // 表示できたモデルの舞台。読み込み中は null（表情のボタンは押せない）
   const [stage, setStage] = useState<VrmStage | null>(null);
   const [backdrop, setBackdrop] = useState<Backdrop>('sky');
+  // 背景を切りかえた瞬間の「波」。モデルのところから新しい背景がぶわっと広がる
+  const [wave, setWave] = useState<{
+    from: Backdrop;
+    x: number;
+    y: number;
+    key: number;
+  } | null>(null);
+  const stageElement = useRef<HTMLDivElement>(null);
+  // 波を作り直すための番号（続けて押したときも、最初から広げ直す）
+  const waveCount = useRef(0);
+  const changeBackdrop = (next: Backdrop) => {
+    if (next === backdrop) return;
+    const rect = stageElement.current?.getBoundingClientRect();
+    setWave({
+      from: backdrop,
+      // モデルの胸のあたりから広げる
+      x: rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
+      y: rect ? rect.top + rect.height * 0.45 : window.innerHeight / 2,
+      key: ++waveCount.current,
+    });
+    setBackdrop(next);
+  };
   // 動きを減らす設定の人には、くるっと回るループのモーションは流さない（その場で小さく揺れるだけ）
   const reduceMotion = usePrefersReducedMotion();
   const spec = specRows(selected.modelUrl, t);
@@ -138,8 +166,34 @@ export function AvatarRoom() {
   }, []);
 
   return (
-    <div className="avatar-room">
-      <div className="avatar-room-stage" data-backdrop={backdrop}>
+    <div className="avatar-room" data-backdrop={backdrop}>
+      {/* 部屋ぜんたいの背景（空はいつもの部屋の色）。切りかえたときは、前の背景の上に
+          新しい背景がモデルのところから広がる */}
+      <div
+        className="avatar-backdrop"
+        data-backdrop={wave ? wave.from : backdrop}
+        aria-hidden="true"
+      />
+      {wave && (
+        <div
+          key={wave.key}
+          className="avatar-backdrop is-wave"
+          data-backdrop={backdrop}
+          style={
+            {
+              '--wave-x': `${wave.x}px`,
+              '--wave-y': `${wave.y}px`,
+            } as CSSProperties
+          }
+          onAnimationEnd={() => setWave(null)}
+          aria-hidden="true"
+        />
+      )}
+      <div
+        ref={stageElement}
+        className="avatar-room-stage"
+        data-backdrop={backdrop}
+      >
         <VrmViewer
           key={selected.id}
           modelUrl={selected.modelUrl}
@@ -197,7 +251,7 @@ export function AvatarRoom() {
                   `Use the ${item.labelEn} background`,
                 )}
                 title={t(item.label, item.labelEn)}
-                onClick={() => setBackdrop(item.id)}
+                onClick={() => changeBackdrop(item.id)}
               />
             ))}
           </fieldset>
