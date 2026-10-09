@@ -13,6 +13,7 @@
 .home {
   position: absolute;
   inset: 0;
+  color: var(--sky-ink);
   display: flex;
   flex-direction: column;
   padding: clamp(40px, 10vh, 112px) var(--gutter) clamp(28px, 6vh, 64px);
@@ -38,7 +39,7 @@
   width: calc(100% + var(--tile));
   background: radial-gradient(
       circle at 50% 100%,
-      #eef6fc 64%,
+      var(--cloud-back) 64%,
       transparent 65%
     )
     120px 100% / var(--tile) 210px repeat-x;
@@ -48,8 +49,12 @@
 .home::after {
   --tile: 240px;
   width: calc(100% + var(--tile));
-  background: radial-gradient(circle at 50% 100%, #fff 64%, transparent 65%) 0
-    100% / var(--tile) 150px repeat-x;
+  background: radial-gradient(
+      circle at 50% 100%,
+      var(--cloud-front) 64%,
+      transparent 65%
+    )
+    0 100% / var(--tile) 150px repeat-x;
   animation-duration: 48s;
 }
 
@@ -114,7 +119,7 @@
   margin: 12px 0 0;
   font-size: 15px;
   font-weight: 700;
-  color: var(--ink-soft);
+  color: var(--sky-ink-soft);
 }
 
 /* いちばん新しい記事のお知らせ。押せるけれど雲ではない、小さなリンク */

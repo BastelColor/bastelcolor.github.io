@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
 import { PageCounter } from '@/components/page-counter';
+import { SkyClock } from '@/components/sky-clock';
 import { site } from '@/content/site';
+import { SKY_SCRIPT } from '@/lib/sky';
 import './globals.css';
 // サイト固有のスタイル（画面の構成順）
 import './styles/fonts.css';
 import './styles/base.css';
+import './styles/sky.css';
 import './styles/home.css';
 import './styles/floating-bits.css';
 import './styles/puni-button.css';
@@ -60,9 +63,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja">
+    // 空の色（data-sky）は、描く前に <head> のスクリプトが書き足すので、食い違いの警告は出さない
+    <html lang="ja" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SKY_SCRIPT }} />
+      </head>
       <body>
         {children}
+        <SkyClock />
         <PageCounter />
       </body>
     </html>

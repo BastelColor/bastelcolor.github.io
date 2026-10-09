@@ -20,6 +20,7 @@
   padding: 24px var(--side) 40px;
   overflow: clip;
   text-align: center;
+  color: var(--sky-ink);
 }
 
 /* 画面下の雲の海（トップの .home::before / ::after と同じく、2段でゆっくり流れる） */
@@ -40,7 +41,7 @@
   width: calc(100% + var(--tile));
   background: radial-gradient(
       circle at 50% 100%,
-      #eef6fc 64%,
+      var(--cloud-back) 64%,
       transparent 65%
     )
     120px 100% / var(--tile) 210px repeat-x;
@@ -50,8 +51,12 @@
 .not-found::after {
   --tile: 240px;
   width: calc(100% + var(--tile));
-  background: radial-gradient(circle at 50% 100%, #fff 64%, transparent 65%) 0
-    100% / var(--tile) 150px repeat-x;
+  background: radial-gradient(
+      circle at 50% 100%,
+      var(--cloud-front) 64%,
+      transparent 65%
+    )
+    0 100% / var(--tile) 150px repeat-x;
   animation-duration: 48s;
 }
 
@@ -59,7 +64,7 @@
   font-family: var(--display);
   font-size: clamp(20px, 2.4vw, 28px);
   letter-spacing: 0.3em;
-  color: var(--ink-soft);
+  color: var(--sky-ink-soft);
 }
 
 .not-found-title {
@@ -109,7 +114,7 @@
   font-size: 15px;
   font-weight: 700;
   line-height: 1.8;
-  color: var(--ink-soft);
+  color: var(--sky-ink-soft);
 }
 
 /* 雲のボタン。うしろから顔を出す子のぶん、上をあけておく */

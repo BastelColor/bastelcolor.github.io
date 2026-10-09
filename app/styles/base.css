@@ -43,7 +43,8 @@ body {
   --body: 'Zen Maru Gothic', sans-serif;
 
   margin: 0;
-  background: var(--sky);
+  /* 空の色は時間帯で変わる（app/styles/sky.css） */
+  background: linear-gradient(var(--sky-top), var(--sky-bottom)) fixed;
   color: var(--ink);
   font-family: var(--body);
   font-weight: 500;

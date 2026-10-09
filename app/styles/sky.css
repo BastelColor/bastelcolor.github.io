@@ -1,0 +1,99 @@
+/* ============================================================
+   空の色の時間帯（lib/sky.ts が <html data-sky="..."> を書く）
+   トップと 404 の空・雲の海・文字の色だけを変える。部屋の中（屋内）は変えない
+   ============================================================ */
+
+/* 昼（いつもの空）。data-sky が無いとき（スクリプトが動かないときなど）もこの色 */
+:root {
+  --sky-top: #c9e2f5;
+  --sky-bottom: #c9e2f5;
+  --cloud-back: #eef6fc;
+  --cloud-front: #ffffff;
+  --sky-ink: var(--ink);
+  --sky-ink-soft: var(--ink-soft);
+  --stars: 0;
+}
+
+/* 朝: 地平線のあたりが、ほんのり桃色 */
+:root[data-sky='morning'] {
+  --sky-top: #cde3f6;
+  --sky-bottom: #fbe2d9;
+  --cloud-back: #fff3ee;
+}
+
+/* 夕方: 上は薄むらさき、地平線は夕焼けのだいだい */
+:root[data-sky='evening'] {
+  --sky-top: #c3c9ec;
+  --sky-bottom: #ffcfb0;
+  --cloud-back: #ffe2d2;
+  --cloud-front: #fff6f1;
+}
+
+/* 夜: 紺色の星空。雲は月明かりの青。文字は白く */
+:root[data-sky='night'] {
+  --sky-top: #18213d;
+  --sky-bottom: #33426b;
+  --cloud-back: #4a5a85;
+  --cloud-front: #6a7ba6;
+  --sky-ink: #eef3fb;
+  --sky-ink-soft: #c2cee3;
+  --stars: 1;
+}
+
+/* 星。トップと 404 の空に散らばる点（夜だけ見える） */
+.site::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 12% 18%, #fff 0 1.4px, transparent 2px),
+    radial-gradient(
+      circle at 28% 9%,
+      rgba(255, 255, 255, 0.8) 0 1px,
+      transparent 1.6px
+    ),
+    radial-gradient(circle at 46% 22%, #fff 0 1.2px, transparent 1.8px),
+    radial-gradient(
+      circle at 63% 12%,
+      rgba(255, 255, 255, 0.85) 0 1.6px,
+      transparent 2.2px
+    ),
+    radial-gradient(circle at 81% 26%, #fff 0 1px, transparent 1.6px),
+    radial-gradient(
+      circle at 92% 8%,
+      rgba(255, 255, 255, 0.7) 0 1.3px,
+      transparent 1.9px
+    ),
+    radial-gradient(
+      circle at 7% 42%,
+      rgba(255, 255, 255, 0.7) 0 1px,
+      transparent 1.6px
+    ),
+    radial-gradient(circle at 37% 38%, #fff 0 1.1px, transparent 1.7px),
+    radial-gradient(
+      circle at 72% 44%,
+      rgba(255, 255, 255, 0.8) 0 1.3px,
+      transparent 1.9px
+    ),
+    radial-gradient(
+      circle at 55% 52%,
+      rgba(255, 255, 255, 0.6) 0 1px,
+      transparent 1.6px
+    );
+  opacity: var(--stars);
+  pointer-events: none;
+  transition: opacity 1s ease;
+  animation: sky-twinkle 4s ease-in-out infinite alternate;
+}
+
+@keyframes sky-twinkle {
+  to {
+    filter: brightness(0.75);
+  }
+}
+
+/* 夜は、白いお知らせが灰色に沈まないよう、白を濃くする */
+:root[data-sky='night'] .home-news {
+  background: rgba(255, 255, 255, 0.92);
+}
