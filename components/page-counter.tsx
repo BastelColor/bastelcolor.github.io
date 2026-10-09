@@ -8,14 +8,16 @@ import { LAYERS_CHANGE_EVENT } from '@/lib/history-layers';
 declare global {
   interface Window {
     goatcounter?: {
-      path?: () => string;
-      count?: () => void;
+      count?: (vars?: { path?: string }) => void;
     };
   }
 }
 
 /** 画面が変わってから数えるまでの待ち時間。開いてすぐ別の画面へ移ったものは数えない */
 const SETTLE_MS = 1000;
+/** GoatCounter の読み込みを待つ回数と間隔（合わせて20秒） */
+const READY_TRIES = 40;
+const READY_INTERVAL_MS = 500;
 
 /** いまの画面の住所。部屋は # で表しているので、# も含める */
 function currentPath() {
@@ -23,22 +25,36 @@ function currentPath() {
   return pathname + search + hash;
 }
 
+/** GoatCounter が読み込まれるのを待ってから、path を1回数える */
+function countWhenReady(path: string, tries = READY_TRIES) {
+  const count = window.goatcounter?.count;
+  if (count) {
+    count({ path });
+    return;
+  }
+  if (tries > 0) {
+    window.setTimeout(
+      () => countWhenReady(path, tries - 1),
+      READY_INTERVAL_MS,
+    );
+  }
+}
+
 /**
  * GoatCounter（Cookie を使わないアクセス解析）で、見られた画面を数える。
  * content/site.ts の goatcounter が空なら何もしない。
  *
- * 最初に開いたページは GoatCounter が読み込まれたときに数える。
- * そのあと部屋・作品・アバター・記事を移ったときは、ここで数える。
+ * GoatCounter が自分で数えるのは止めて（no_onload）、最初のページも
+ * そのあと部屋・作品・アバター・記事を移ったときも、ここで # 付きの住所を数える。
  * 自分のパソコン（localhost）で開いたときは、GoatCounter が数えない。
  */
 export function PageCounter() {
   const pathname = usePathname();
-  // 最後に数えた画面。最初に開いたページは GoatCounter が数えるので、それを入れておく
+  // 最後に数えた画面
   const lastPath = useRef<string | null>(null);
 
   useEffect(() => {
     if (!site.goatcounter) return;
-    lastPath.current ??= currentPath();
     let timer: number | undefined;
     const schedule = () => {
       window.clearTimeout(timer);
@@ -46,13 +62,13 @@ export function PageCounter() {
         const path = currentPath();
         if (path === lastPath.current) return;
         lastPath.current = path;
-        window.goatcounter?.count?.();
+        countWhenReady(path);
       }, SETTLE_MS);
     };
     window.addEventListener(LAYERS_CHANGE_EVENT, schedule);
     window.addEventListener('popstate', schedule);
     window.addEventListener('hashchange', schedule);
-    // 記事のページへ移ったときなど（pathname が変わる）
+    // 最初に開いたページと、記事のページへ移ったとき（pathname が変わる）
     schedule();
     return () => {
       window.clearTimeout(timer);
@@ -64,19 +80,11 @@ export function PageCounter() {
 
   if (!site.goatcounter) return null;
   return (
-    <>
-      {/* 数える住所に # も含める（GoatCounter の設定。読み込みより先に置く） */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html:
-            'window.goatcounter={path:function(){return location.pathname+location.search+location.hash}}',
-        }}
-      />
-      <script
-        async
-        data-goatcounter={`https://${site.goatcounter}.goatcounter.com/count`}
-        src="https://gc.zgo.at/count.js"
-      />
-    </>
+    <script
+      async
+      data-goatcounter={`https://${site.goatcounter}.goatcounter.com/count`}
+      data-goatcounter-settings='{"no_onload": true}'
+      src="https://gc.zgo.at/count.js"
+    />
   );
 }

@@ -3,7 +3,7 @@ import type { MotionId } from '@/components/vrm/motions';
 /**
  * アバターのビューアでループ再生するモーション。
  *
- * モーションはどれも、VRMアニメーション7種セット（VRoid Project）のもの。ループは VRMA_01「全身を見せる」。
+ * VRMアニメーション7種セット（VRoid Project）の VRMA_01「全身を見せる」。
  * 利用規約: https://booth.pm/ja/items/5512385
  *   - 取り出せる状態での二次配布は禁止 → .vrma は配信せず、
  *     scripts/encode-motion.mjs で変換した埋め込みデータを使う
@@ -15,26 +15,13 @@ export const avatarMotion: { id: MotionId; credit: string } = {
 };
 
 /**
- * アバターの部屋の「うごかしてみる」のボタン。
- *
- * - expressions: 表情。id は VRM の表情の名前（happy・angry・sad・surprised・relaxed など）。
- *   押すと数秒だけその顔になる。その子の VRM に無い表情のボタンは押せない
- * - gestures: しぐさ。id は components/vrm/motions/index.ts に登録したモーション。
- *   押すと1回だけ再生して、いつものモーションにもどる。expression を書くと、そのあいだその顔になる
+ * アバターの部屋の「表情をかえてみる」のボタン。
+ * id は VRM の表情の名前（happy・angry・sad・surprised・relaxed など）。押すと数秒だけその顔になる。
+ * その子の VRM に無い表情のボタンは出さない
  */
 export const avatarExpressions: { id: string; label: string }[] = [
   { id: 'happy', label: 'にっこり' },
   { id: 'surprised', label: 'びっくり' },
   { id: 'angry', label: 'ぷんぷん' },
   { id: 'sad', label: 'しょんぼり' },
-];
-
-export const avatarGestures: {
-  id: MotionId;
-  label: string;
-  expression?: string;
-}[] = [
-  { id: 'greeting', label: 'あいさつ', expression: 'happy' },
-  { id: 'peace', label: 'ピース', expression: 'happy' },
-  { id: 'spin', label: 'くるっ' },
 ];

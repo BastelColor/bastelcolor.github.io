@@ -4,11 +4,7 @@ import { useEffect, useState } from 'react';
 import type { VrmStage } from '@/components/vrm/vrm-stage';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
 import { avatars } from '@/content/avatars';
-import {
-  avatarExpressions,
-  avatarGestures,
-  avatarMotion,
-} from '@/content/motions';
+import { avatarExpressions, avatarMotion } from '@/content/motions';
 import { site } from '@/content/site';
 import { readLayers, replaceLayers } from '@/lib/history-layers';
 
@@ -30,7 +26,7 @@ export function AvatarRoom() {
   const [selectedId, setSelectedId] = useState(linkedAvatarId);
   const selected =
     avatars.find((avatar) => avatar.id === selectedId) ?? avatars[0];
-  // 表示できたモデルの舞台。読み込み中は null（「うごかしてみる」のボタンは押せない）
+  // 表示できたモデルの舞台。読み込み中は null（表情のボタンは押せない）
   const [stage, setStage] = useState<VrmStage | null>(null);
 
   const select = (id: string) => {
@@ -107,51 +103,26 @@ export function AvatarRoom() {
           )}
           <p>{selected.description}</p>
         </div>
-        {/* 表情・しぐさのボタン */}
+        {/* 表情のボタン。読み込み中は全部を押せない状態で出し、表示できたらその子に無い表情を隠す */}
         <div className="avatar-room-play">
-          <p className="avatar-room-play-title">うごかしてみる</p>
-          <dl>
-            <div>
-              <dt>表情</dt>
-              <dd>
-                {avatarExpressions.map((expression) => (
-                  <button
-                    key={expression.id}
-                    type="button"
-                    disabled={!stage?.expressionNames.includes(expression.id)}
-                    onClick={() => stage?.showExpression(expression.id)}
-                  >
-                    {expression.label}
-                  </button>
-                ))}
-              </dd>
-            </div>
-            <div>
-              <dt>しぐさ</dt>
-              <dd>
-                {avatarGestures.map((gesture) => (
-                  <button
-                    key={gesture.id}
-                    type="button"
-                    disabled={!stage}
-                    onClick={() => {
-                      if (!stage) return;
-                      stage
-                        .playGesture(gesture.id)
-                        .then((seconds) => {
-                          if (gesture.expression) {
-                            stage.showExpression(gesture.expression, seconds);
-                          }
-                        })
-                        .catch((error: unknown) => console.error(error));
-                    }}
-                  >
-                    {gesture.label}
-                  </button>
-                ))}
-              </dd>
-            </div>
-          </dl>
+          <p className="avatar-room-play-title">表情をかえてみる</p>
+          <div className="avatar-room-play-buttons">
+            {avatarExpressions
+              .filter(
+                (expression) =>
+                  !stage || stage.expressionNames.includes(expression.id),
+              )
+              .map((expression) => (
+                <button
+                  key={expression.id}
+                  type="button"
+                  disabled={!stage}
+                  onClick={() => stage?.showExpression(expression.id)}
+                >
+                  {expression.label}
+                </button>
+              ))}
+          </div>
         </div>
         <p className="avatar-room-hint">ドラッグでまわせます</p>
         {/* BOOTH にまだ商品ページが無い子（制作中など）は、リンクにせず「準備中」と出す */}

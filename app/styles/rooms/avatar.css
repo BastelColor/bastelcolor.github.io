@@ -183,7 +183,7 @@
   font-size: 11px;
 }
 
-/* ---- うごかしてみる（表情・しぐさのボタン） ----
+/* ---- 表情をかえてみる ----
    さくひんのジャンルと同じ、控えめでぷっくりしたボタンを小さめに */
 
 .avatar-room-play {
@@ -199,29 +199,11 @@
   font-weight: 900;
 }
 
-.avatar-room-play dl {
-  display: grid;
-  gap: 10px;
-  margin: 10px 0 0;
-}
-
-.avatar-room-play dl > div {
-  display: grid;
-  grid-template-columns: 3.5em minmax(0, 1fr);
-  align-items: baseline;
-}
-
-.avatar-room-play dt {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-soft);
-}
-
-.avatar-room-play dd {
+.avatar-room-play-buttons {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 0;
+  margin: 10px 0 0;
 }
 
 .avatar-room-play button {
@@ -263,7 +245,7 @@
   outline-offset: 3px;
 }
 
-/* モデルの読み込み中や、その子に無い表情 */
+/* モデルの読み込み中 */
 .avatar-room-play button:disabled {
   opacity: 0.45;
   cursor: default;
@@ -344,7 +326,7 @@
     font-size: 10px;
   }
 
-  /* モデルのすぐ下に「うごかしてみる」、そのあとに紹介など */
+  /* モデルのすぐ下に表情のボタン、そのあとに紹介など */
   .avatar-room-play {
     margin-top: 4px;
   }

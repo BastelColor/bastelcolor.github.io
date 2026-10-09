@@ -15,11 +15,6 @@ import { loadMotion, type MotionId } from '@/components/vrm/motions';
 export type VrmStage = {
   setAutoRotate: (enabled: boolean) => void;
   /**
-   * しぐさ（埋め込みモーション）を1回だけ再生し、終わったらいつものモーションへもどる。
-   * しぐさの長さ（秒）を返す
-   */
-  playGesture: (id: MotionId) => Promise<number>;
-  /**
    * 表情（VRM の happy・angry など）を seconds 秒だけ見せて、ふだんの顔にもどす。
    * モデルに無い表情なら何もしない
    */
@@ -385,11 +380,6 @@ export async function createVrmStage({
     return {
       setAutoRotate: (enabled) => {
         controls.autoRotate = enabled;
-      },
-      playGesture: async (id) => {
-        const animation = await loadMotion(id, THREE, modules.VRMAnimation);
-        if (!disposed) player.playOnce(animation);
-        return animation.duration;
       },
       showExpression: (name, seconds = EXPRESSION_SECONDS) => {
         if (!expressionNames.includes(name)) return;

@@ -12,9 +12,6 @@ type VRMAnimationClass =
  */
 const sources = {
   'show-full-body': () => import('./generated/show-full-body'),
-  greeting: () => import('./generated/greeting'),
-  peace: () => import('./generated/peace'),
-  spin: () => import('./generated/spin'),
 } satisfies Record<string, () => Promise<{ default: EncodedMotion }>>;
 
 export type MotionId = keyof typeof sources;

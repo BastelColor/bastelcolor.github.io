@@ -1,6 +1,4 @@
 {
   "happy": { "shapes": { "笑い": 1, "口角上げ": 0.6 }, "overrideBlink": "block" },
-  "surprised": { "shapes": { "瞳小": 1, "mouth_o": 1 }, "overrideBlink": "block" },
-  "angry": { "shapes": { "怒り": 1, "じと目": 0.4, "口角下げ": 0.8 } },
-  "sad": { "shapes": { "困る": 1, "eyelids_worry": 1, "口角下げ": 0.8 } }
+  "angry": { "shapes": { "怒り": 1, "じと目": 0.4, "口角下げ": 0.8 } }
 }
