@@ -1,4 +1,4 @@
-import type { Material, Object3D, Texture } from 'three';
+import type { Material, Object3D, Spherical, Texture, Vector3 } from 'three';
 import type { VRM } from '@pixiv/three-vrm';
 import modelSizes from 'virtual:model-sizes';
 import { createIdleMotion } from '@/components/vrm/idle-motion';
@@ -16,9 +16,16 @@ export type VrmStage = {
   setAutoRotate: (enabled: boolean) => void;
   /**
    * 表情（VRM の happy・angry など）を seconds 秒だけ見せて、ふだんの顔にもどす。
-   * モデルに無い表情なら何もしない
+   * focusFace なら、そのあいだカメラが顔に寄る。モデルに無い表情なら何もしない
    */
-  showExpression: (name: string, seconds?: number) => void;
+  showExpression: (
+    name: string,
+    options?: { seconds?: number; focusFace?: boolean },
+  ) => void;
+  /** カメラをモデルのまわりに angle（ラジアン、正で左へ）だけ、なめらかにまわす */
+  orbit: (angle: number) => void;
+  /** カメラをなめらかに正面へもどす */
+  front: () => void;
   /** モデルが持っている表情の名前 */
   expressionNames: string[];
   resetView: () => void;
@@ -66,6 +73,10 @@ const BLEED_BOTTOM = 0.2;
 const EXPRESSION_SECONDS = 2.5;
 /** 表情を切りかえるのにかける時間（秒） */
 const EXPRESSION_FADE = 0.2;
+/** カメラがねらいの位置へ近づく速さ（大きいほど速い） */
+const CAMERA_EASE = 7;
+/** 顔に寄ったとき、枠の高さに映す範囲（背丈に対する割合） */
+const FACE_VIEW = 0.34;
 
 // three.js 一式は重いので、アバターの部屋を開くとき（か、その雲にふれたとき）に初めて読み込む。
 // 一度読み込んだものは使い回す
@@ -387,6 +398,90 @@ export async function createVrmStage({
     // 枠の大きさが変わったら合わせ直す
     onFrameChange = resetView;
 
+    // --- カメラをなめらかに動かす（まわすボタン・正面・表情のアップ） ---
+    // ねらいの位置（注視点と、そこからのカメラの向き・距離）へ、毎フレーム少しずつ近づける。
+    // 動かしているあいだは、ドラッグでの操作を止める
+    type CameraView = { target: Vector3; offset: Spherical };
+    const controlsAllowed = controls.enabled;
+    const offsetNow = new THREE.Spherical();
+    const scratch = new THREE.Vector3();
+    let cameraGoal: (() => CameraView) | null = null;
+    let goalEndsOnArrival = false;
+    // 顔に寄っているあいだは、顔の向きに合わせて回り込み続ける
+    let faceUntil = -1;
+    let viewBeforeFace: CameraView | null = null;
+
+    const viewNow = (): CameraView => ({
+      target: controls.target.clone(),
+      offset: new THREE.Spherical().setFromVector3(
+        scratch.copy(camera.position).sub(controls.target),
+      ),
+    });
+    const frontView = (): CameraView => ({
+      target: pivot.clone(),
+      offset: new THREE.Spherical(
+        (size.y / 2 / TAN_HALF_FOV) * 1.06 + frontDepth,
+        Math.PI / 2,
+        0,
+      ),
+    });
+    const head = vrm.humanoid.getNormalizedBoneNode('head');
+    const headQuaternion = new THREE.Quaternion();
+    const faceView = (): CameraView => {
+      if (!head) return frontView();
+      const target = head.getWorldPosition(new THREE.Vector3());
+      target.y += modelHeight * 0.03;
+      // 顔の正面の向き（VRM 1.0 は +Z が正面）
+      const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(
+        head.getWorldQuaternion(headQuaternion),
+      );
+      return {
+        target,
+        offset: new THREE.Spherical(
+          (modelHeight * FACE_VIEW) / 2 / TAN_HALF_FOV,
+          Math.PI / 2 - 0.08,
+          Math.atan2(forward.x, forward.z),
+        ),
+      };
+    };
+    const setGoal = (goal: () => CameraView, endsOnArrival: boolean) => {
+      cameraGoal = goal;
+      goalEndsOnArrival = endsOnArrival;
+      controls.enabled = false;
+    };
+
+    const moveCamera = (elapsed: number, delta: number) => {
+      // 顔のアップが終わったら、寄る前の位置へもどる
+      if (faceUntil >= 0 && elapsed >= faceUntil) {
+        faceUntil = -1;
+        const back = viewBeforeFace ?? frontView();
+        viewBeforeFace = null;
+        setGoal(() => back, true);
+      }
+      if (!cameraGoal) return;
+      const goal = cameraGoal();
+      const k = 1 - Math.exp(-delta * CAMERA_EASE);
+      offsetNow.setFromVector3(
+        scratch.copy(camera.position).sub(controls.target),
+      );
+      // 角度はいちばん近い回り方で
+      let turn = goal.offset.theta - offsetNow.theta;
+      turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+      offsetNow.theta += turn * k;
+      offsetNow.phi += (goal.offset.phi - offsetNow.phi) * k;
+      offsetNow.radius += (goal.offset.radius - offsetNow.radius) * k;
+      controls.target.lerp(goal.target, k);
+      camera.position.setFromSpherical(offsetNow).add(controls.target);
+      const arrived =
+        Math.abs(turn) < 0.002 &&
+        Math.abs(goal.offset.radius - offsetNow.radius) < modelHeight * 0.002 &&
+        controls.target.distanceTo(goal.target) < modelHeight * 0.002;
+      if (arrived && goalEndsOnArrival) {
+        cameraGoal = null;
+        controls.enabled = controlsAllowed;
+      }
+    };
+
     const player = createMotionPlayer({ ...modules, vrm });
     motionPlayer = player;
     // モーションが読めなくても待機モーションで表示は続ける
@@ -433,6 +528,7 @@ export async function createVrmStage({
       updateExpressions(timer.getElapsed(), delta);
       player.update(delta);
       currentVrm.update(delta);
+      moveCamera(timer.getElapsed(), delta);
       controls.update();
       renderer.render(scene, camera);
     });
@@ -441,10 +537,43 @@ export async function createVrmStage({
       setAutoRotate: (enabled) => {
         controls.autoRotate = enabled;
       },
-      showExpression: (name, seconds = EXPRESSION_SECONDS) => {
+      showExpression: (
+        name,
+        { seconds = EXPRESSION_SECONDS, focusFace = false } = {},
+      ) => {
         if (!expressionNames.includes(name)) return;
-        shownExpression = { name, until: timer.getElapsed() + seconds };
+        const until = timer.getElapsed() + seconds;
+        shownExpression = { name, until };
         if (!expressionWeights.has(name)) expressionWeights.set(name, 0);
+        if (focusFace) {
+          // 寄る前の位置を覚えておく（まわしている途中なら、まわし終わりの位置）
+          if (faceUntil < 0) {
+            viewBeforeFace =
+              cameraGoal && goalEndsOnArrival ? cameraGoal() : viewNow();
+          }
+          faceUntil = until;
+          setGoal(faceView, false);
+        }
+      },
+      orbit: (angle) => {
+        // 顔に寄っているあいだは、まわさない
+        if (faceUntil >= 0) return;
+        const base = cameraGoal && goalEndsOnArrival ? cameraGoal() : viewNow();
+        const goal: CameraView = {
+          target: base.target,
+          offset: new THREE.Spherical(
+            base.offset.radius,
+            base.offset.phi,
+            base.offset.theta + angle,
+          ),
+        };
+        setGoal(() => goal, true);
+      },
+      front: () => {
+        faceUntil = -1;
+        viewBeforeFace = null;
+        const goal = frontView();
+        setGoal(() => goal, true);
       },
       expressionNames,
       resetView,

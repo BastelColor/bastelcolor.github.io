@@ -10,10 +10,198 @@
 }
 
 .avatar-room-stage {
+  --stage-glow: rgba(255, 255, 255, 0.55);
+  --stage-top: #ffffff;
+  --stage-side: color-mix(in srgb, var(--tone) 40%, #fff);
+  --stage-rim: color-mix(in srgb, var(--edge) 22%, transparent);
+  position: relative;
   /* 中の canvas は枠の外へ広げて置くので、枠の幅はここで決める */
   width: 100%;
   height: min(68svh, 720px);
   min-height: 380px;
+  border-radius: 36px;
+  transition: background-color 0.3s ease;
+}
+
+/* モデルは展示台・ライトより手前、ボタンより奥 */
+.avatar-room .vrm-viewer {
+  z-index: 1;
+}
+
+/* ふんわりしたライト（モデルのうしろの、やわらかい光） */
+.avatar-room-stage::before {
+  content: '';
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  top: 4%;
+  height: 70%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, var(--stage-glow), transparent 68%);
+  pointer-events: none;
+}
+
+/* 足元の展示台。上の面と、ぷっくりした側面 */
+.avatar-room-stage::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -1%;
+  width: min(62%, 340px);
+  aspect-ratio: 5 / 1;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: linear-gradient(var(--stage-top) 45%, var(--stage-side));
+  box-shadow:
+    0 7px 0 var(--stage-rim),
+    0 14px 24px rgba(47, 69, 88, 0.12);
+  pointer-events: none;
+}
+
+/* ---- 背景の切りかえ ---- */
+
+.avatar-room-stage[data-backdrop='white'] {
+  --stage-glow: rgba(214, 233, 252, 0.8);
+  --stage-side: #e8eef5;
+  background: #ffffff;
+}
+
+.avatar-room-stage[data-backdrop='night'] {
+  --stage-glow: rgba(140, 170, 230, 0.35);
+  --stage-top: #46587a;
+  --stage-side: #2f3e5c;
+  --stage-rim: rgba(0, 0, 0, 0.3);
+  background:
+    radial-gradient(
+      circle at 20% 18%,
+      rgba(255, 255, 255, 0.5) 0 1.5px,
+      transparent 2px
+    ),
+    radial-gradient(
+      circle at 78% 30%,
+      rgba(255, 255, 255, 0.45) 0 1.5px,
+      transparent 2px
+    ),
+    radial-gradient(
+      circle at 64% 12%,
+      rgba(255, 255, 255, 0.35) 0 1px,
+      transparent 1.5px
+    ),
+    linear-gradient(#1d2a44, #2c3d5e);
+}
+
+.avatar-room-stage[data-backdrop='night'] .vrm-loading {
+  color: #ffffff;
+}
+
+/* ---- 向きと背景のボタン ---- */
+
+.avatar-room-tools {
+  position: absolute;
+  z-index: 2;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.avatar-room-tools > * {
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  pointer-events: auto;
+}
+
+.avatar-room-turn {
+  display: flex;
+  gap: 6px;
+  padding: 0;
+}
+
+.avatar-room-turn button {
+  --thickness: 3px;
+  display: grid;
+  place-items: center;
+  min-width: 36px;
+  height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow:
+    inset 0 -3px 0 color-mix(in srgb, var(--edge) 8%, transparent),
+    0 var(--thickness) 0 color-mix(in srgb, var(--edge) 22%, transparent);
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--ink);
+  cursor: pointer;
+  transition: translate 0.15s ease;
+}
+
+.avatar-room-turn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.avatar-room-backdrops {
+  display: flex;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.avatar-room-backdrops button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 2px solid rgba(47, 69, 88, 0.25);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.avatar-room-backdrops .is-sky {
+  background: color-mix(in srgb, var(--tone) 55%, #fff);
+}
+
+.avatar-room-backdrops .is-white {
+  background: #ffffff;
+}
+
+.avatar-room-backdrops .is-night {
+  background: #24334f;
+}
+
+.avatar-room-backdrops button[aria-pressed='true'] {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px #fff;
+}
+
+@media (hover: hover) {
+  .avatar-room-turn button:not(:disabled):hover {
+    translate: 0 -2px;
+  }
+}
+
+.avatar-room-turn button:not(:disabled):active {
+  translate: 0 2px;
+  --thickness: 1px;
+}
+
+.avatar-room-turn button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.avatar-room-turn button:focus-visible,
+.avatar-room-backdrops button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
 }
 
 /* ---- VRM ビューアを部屋の色になじませる ---- */

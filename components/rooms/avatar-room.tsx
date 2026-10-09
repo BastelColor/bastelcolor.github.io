@@ -15,6 +15,17 @@ const WIP_BADGE = '制作中';
 
 const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 
+/** まわすボタン1回で回り込む角度（45°） */
+const ORBIT_STEP = Math.PI / 4;
+
+/** モデルのうしろの背景。空はいつもの部屋の色のまま */
+const BACKDROPS = [
+  { id: 'sky', label: '空' },
+  { id: 'white', label: '白' },
+  { id: 'night', label: '夜' },
+] as const;
+type Backdrop = (typeof BACKDROPS)[number]['id'];
+
 /** 「視差効果を減らす」など、動きを減らす設定にしているか */
 function usePrefersReducedMotion() {
   return useSyncExternalStore(
@@ -85,6 +96,7 @@ export function AvatarRoom() {
     avatars.find((avatar) => avatar.id === selectedId) ?? avatars[0];
   // 表示できたモデルの舞台。読み込み中は null（表情のボタンは押せない）
   const [stage, setStage] = useState<VrmStage | null>(null);
+  const [backdrop, setBackdrop] = useState<Backdrop>('sky');
   // 動きを減らす設定の人には、くるっと回るループのモーションは流さない（その場で小さく揺れるだけ）
   const reduceMotion = usePrefersReducedMotion();
   const spec = specRows(selected.modelUrl);
@@ -114,7 +126,7 @@ export function AvatarRoom() {
 
   return (
     <div className="avatar-room">
-      <div className="avatar-room-stage">
+      <div className="avatar-room-stage" data-backdrop={backdrop}>
         <VrmViewer
           key={selected.id}
           modelUrl={selected.modelUrl}
@@ -127,6 +139,47 @@ export function AvatarRoom() {
           bleedTo=".room-inner"
           onStage={setStage}
         />
+        {/* 向きと背景のボタン。モデルの足元の左右に置く */}
+        <div className="avatar-room-tools">
+          <fieldset className="avatar-room-turn" aria-label="向きを変える">
+            <button
+              type="button"
+              aria-label="左へまわりこむ"
+              disabled={!stage}
+              onClick={() => stage?.orbit(-ORBIT_STEP)}
+            >
+              <TurnArrow />
+            </button>
+            <button
+              type="button"
+              disabled={!stage}
+              onClick={() => stage?.front()}
+            >
+              正面
+            </button>
+            <button
+              type="button"
+              aria-label="右へまわりこむ"
+              disabled={!stage}
+              onClick={() => stage?.orbit(ORBIT_STEP)}
+            >
+              <TurnArrow flip />
+            </button>
+          </fieldset>
+          <fieldset className="avatar-room-backdrops" aria-label="背景">
+            {BACKDROPS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`is-${item.id}`}
+                aria-pressed={backdrop === item.id}
+                aria-label={`背景を${item.label}にする`}
+                title={item.label}
+                onClick={() => setBackdrop(item.id)}
+              />
+            ))}
+          </fieldset>
+        </div>
       </div>
 
       <div className="avatar-room-side">
@@ -177,7 +230,13 @@ export function AvatarRoom() {
                   key={expression.id}
                   type="button"
                   disabled={!stage}
-                  onClick={() => stage?.showExpression(expression.id)}
+                  // 表情が見やすいよう、カメラが顔に寄る
+                  onClick={() =>
+                    stage?.showExpression(expression.id, {
+                      seconds: 3,
+                      focusFace: true,
+                    })
+                  }
                 >
                   {expression.label}
                 </button>
@@ -220,5 +279,26 @@ export function AvatarRoom() {
         <p className="avatar-room-credit">{avatarMotion.credit}</p>
       </div>
     </div>
+  );
+}
+
+/** まわすボタンの矢印（flip で右向き） */
+function TurnArrow({ flip = false }: { flip?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      focusable="false"
+      style={flip ? { scale: '-1 1' } : undefined}
+    >
+      <path
+        d="M10 3 5 8l5 5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
