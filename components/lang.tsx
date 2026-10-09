@@ -64,7 +64,7 @@ export function LangToggle() {
     document.documentElement.lang = lang;
   }, [lang]);
   return (
-    <fieldset className="lang-toggle" aria-label="Language / 言語">
+    <nav className="lang-toggle" aria-label="Language / 言語">
       <button
         type="button"
         lang="ja"
@@ -81,6 +81,6 @@ export function LangToggle() {
       >
         EN
       </button>
-    </fieldset>
+    </nav>
   );
 }

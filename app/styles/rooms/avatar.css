@@ -580,6 +580,13 @@
     display: contents;
   }
 
+  /* 右の列をばらして並べるので、中身それぞれを、上下にはみ出して描くモデルの canvas より手前に置く
+    （置かないと、モデルのすぐ下の表情のボタンなどの上半分が押せなくなる） */
+  .avatar-room-side > * {
+    position: relative;
+    z-index: 1;
+  }
+
   /* 何体あっても1列に、同じ幅で並べる */
   .avatar-room-choices {
     order: -1;
