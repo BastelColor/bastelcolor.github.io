@@ -8,6 +8,11 @@ type WorkDetailProps = {
   work: Work;
   /** ダイアログの見出しとして読み上げる要素の id */
   titleId: string;
+  /** 一覧で1つ前・1つ後の作品（端なら無し） */
+  previous?: Work;
+  next?: Work;
+  /** となりの作品へ切りかえる */
+  onSwitch: (id: string) => void;
   onClose: () => void;
 };
 
@@ -15,7 +20,14 @@ type WorkDetailProps = {
  * 作品の詳細。上にサムネイル（動画があれば動画）を大きく出し、
  * content/works.ts に書いた項目だけを並べる。外部リンクはボタンにし、もどるボタンは下に固定する。
  */
-export function WorkDetail({ work, titleId, onClose }: WorkDetailProps) {
+export function WorkDetail({
+  work,
+  titleId,
+  previous,
+  next,
+  onSwitch,
+  onClose,
+}: WorkDetailProps) {
   return (
     <article className="work-detail">
       <WorkMedia work={work} />
@@ -50,6 +62,38 @@ export function WorkDetail({ work, titleId, onClose }: WorkDetailProps) {
       {/* 画像は押すと大きく見られる */}
       {work.images && work.images.length > 0 && (
         <WorkImageViewer images={work.images} />
+      )}
+
+      {/* 一覧にもどらずに、となりの作品へ */}
+      {(previous || next) && (
+        <nav className="work-detail-pager" aria-label="ほかの作品">
+          {previous && (
+            <button
+              type="button"
+              className="is-previous"
+              onClick={() => onSwitch(previous.id)}
+            >
+              <WorkThumbnail work={previous} />
+              <span>
+                <small>前の作品</small>
+                {previous.title}
+              </span>
+            </button>
+          )}
+          {next && (
+            <button
+              type="button"
+              className="is-next"
+              onClick={() => onSwitch(next.id)}
+            >
+              <WorkThumbnail work={next} />
+              <span>
+                <small>次の作品</small>
+                {next.title}
+              </span>
+            </button>
+          )}
+        </nav>
       )}
 
       <div className="work-detail-share">

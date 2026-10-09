@@ -248,6 +248,82 @@
   margin-inline: var(--pad);
 }
 
+/* ---- 前の作品・次の作品 ----
+   小さなサムネイルとタイトルの、控えめなカード。次の作品は右に寄せる */
+
+.work-detail-pager {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 36px;
+}
+
+.work-detail-pager button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 0;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--tone) 22%, #fff);
+  font-family: var(--body);
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    translate 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.work-detail-pager .is-next {
+  grid-column: 2;
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.work-detail-pager .work-thumbnail {
+  flex: none;
+  width: 88px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+.work-detail-pager span {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.work-detail-pager small {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+@media (hover: hover) {
+  .work-detail-pager button:hover {
+    translate: 0 -2px;
+    background-color: color-mix(in srgb, var(--tone) 38%, #fff);
+  }
+}
+
+.work-detail-pager button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .work-detail-pager .work-thumbnail {
+    width: 64px;
+  }
+
+  .work-detail-pager span {
+    font-size: 13px;
+  }
+}
+
 /* もどるボタンは、本文が長くても常に見えるよう下に固定する */
 .work-detail-footer {
   position: sticky;

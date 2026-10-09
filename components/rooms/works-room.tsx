@@ -104,6 +104,20 @@ export function WorksRoom() {
   const listed =
     genre === 'all' ? works : works.filter((work) => work.genre === genre);
 
+  // 詳細の「前の作品・次の作品」。いま一覧に出ている順（絞り込み中ならその中）でたどる
+  const shownIndex = listed.findIndex((work) => work.id === shownId);
+  const previous = shownIndex > 0 ? listed[shownIndex - 1] : undefined;
+  const next =
+    shownIndex >= 0 && shownIndex < listed.length - 1
+      ? listed[shownIndex + 1]
+      : undefined;
+  // 詳細を開いたまま、となりの作品へ切りかえる（履歴は積まず、URL だけ変える）
+  const switchTo = (id: string) => {
+    setShownId(id);
+    replaceLayers({ room: 'works', work: id });
+    dialog.current?.scrollTo({ top: 0 });
+  };
+
   return (
     <>
       <ul className="works-genres" aria-label="ジャンルで絞り込む">
@@ -147,6 +161,9 @@ export function WorksRoom() {
           <WorkDetail
             work={shown}
             titleId="work-dialog-title"
+            previous={previous}
+            next={next}
+            onSwitch={switchTo}
             onClose={() => dialog.current?.close()}
           />
         )}
