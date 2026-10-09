@@ -8,6 +8,9 @@
  * - VRM のサムネイル画像（表示には使わない）は小さくする
  * - ポリゴン・ボーン・揺れもの・表情などは変えない
  *
+ * - models/<名前>.expressions.json があれば、その表情（happy など）を足す
+ *   （VRChat 用のモデルを書き出したときなど、表情が入っていない VRM のため）
+ *
  * 元の VRM（models/）は書き換えない。書き出し先が元より新しければ、作り直さない。
  */
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
@@ -37,8 +40,16 @@ for (const name of await readdir(sourceDir)) {
   if (!name.toLowerCase().endsWith('.vrm')) continue;
   const input = path.join(sourceDir, name);
   const output = path.join(outputDir, name);
+  const expressionsPath = input.replace(/\.vrm$/i, '.expressions.json');
+  const expressions = await readFile(expressionsPath, 'utf8').then(
+    (text) => JSON.parse(text),
+    () => null,
+  );
 
-  const inputTime = (await stat(input)).mtimeMs;
+  const inputTime = Math.max(
+    (await stat(input)).mtimeMs,
+    expressions ? (await stat(expressionsPath)).mtimeMs : 0,
+  );
   const outputTime = await stat(output).then(
     (s) => s.mtimeMs,
     () => 0,
@@ -46,15 +57,16 @@ for (const name of await readdir(sourceDir)) {
   if (outputTime > inputTime && outputTime > scriptTime) continue;
 
   const source = await readFile(input);
-  const optimized = await optimize(source);
+  const optimized = await optimize(source, expressions);
   await writeFile(output, optimized);
   console.log(
     `[models] ${name}: ${toMB(source.length)} → ${toMB(optimized.length)}`,
   );
 }
 
-async function optimize(glb) {
+async function optimize(glb, expressions) {
   const { json, bin } = readGlb(glb);
+  if (expressions) addExpressions(json, expressions);
 
   const thumbnail = json.extensions?.VRMC_vrm?.meta?.thumbnailImage;
   const images = json.images ?? [];
@@ -114,6 +126,39 @@ async function optimize(glb) {
   json.buffers[0].byteLength = newBin.length;
 
   return writeGlb(json, newBin);
+}
+
+/**
+ * 表情を足す。expressions は次の形（シェイプキーの名前と、かける量 0〜1）:
+ *   { "happy": { "shapes": { "笑い": 1, "口角上げ": 0.5 }, "overrideBlink": "block" } }
+ * overrideBlink を "block" にすると、その表情のあいだはまばたきしない（目を閉じた笑顔など）
+ */
+function addExpressions(json, expressions) {
+  const preset = json.extensions?.VRMC_vrm?.expressions?.preset;
+  if (!preset) throw new Error('VRM 1.0 の表情の設定がありません');
+  for (const [name, { shapes, overrideBlink = 'none' }] of Object.entries(
+    expressions,
+  )) {
+    const morphTargetBinds = [];
+    for (const [shape, weight] of Object.entries(shapes)) {
+      const before = morphTargetBinds.length;
+      for (const [node, { mesh }] of json.nodes.entries()) {
+        if (mesh === undefined) continue;
+        const index = json.meshes[mesh].extras?.targetNames?.indexOf(shape);
+        if (index >= 0) morphTargetBinds.push({ node, index, weight });
+      }
+      if (morphTargetBinds.length === before) {
+        throw new Error(`シェイプキー「${shape}」が見つかりません（${name}）`);
+      }
+    }
+    preset[name] = {
+      isBinary: false,
+      morphTargetBinds,
+      overrideBlink,
+      overrideLookAt: 'none',
+      overrideMouth: 'none',
+    };
+  }
 }
 
 /** 白黒のマスク画像（名前に mask が付くもの、または色が1つだけの画像） */

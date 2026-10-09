@@ -1,4 +1,4 @@
-import type { Object3D } from 'three';
+import type { AnimationAction, Object3D } from 'three';
 import type { VRM } from '@pixiv/three-vrm';
 import type { VRMAnimation } from '@pixiv/three-vrm-animation';
 
@@ -16,7 +16,10 @@ type VrmModule = typeof import('@pixiv/three-vrm');
  *   3. vrm.update() で実際のボーン・揺れものに反映
  */
 export type MotionPlayer = {
+  /** ずっとくり返すモーション */
   play: (animation: VRMAnimation) => void;
+  /** 1回だけ再生し、終わったら play() のモーションへもどる（あいさつなどのしぐさ） */
+  playOnce: (animation: VRMAnimation) => void;
   update: (delta: number) => void;
   dispose: () => void;
 };
@@ -28,7 +31,7 @@ type MotionPlayerOptions = {
   vrm: VRM;
 };
 
-/** 待機 → VRMA、ループの終わり → 始まりをつなぐ時間（秒） */
+/** 待機 → VRMA、ループの終わり → 始まり、しぐさの前後をつなぐ時間（秒） */
 const BLEND_DURATION = 0.4;
 
 export function createMotionPlayer({
@@ -52,7 +55,12 @@ export function createMotionPlayer({
   const motionPose = new THREE.Quaternion();
   const motionHips = new THREE.Vector3();
 
-  let action: import('three').AnimationAction | null = null;
+  // 再生中のモーション。しぐさの再生中は action = onceAction
+  let action: AnimationAction | null = null;
+  let loopAction: AnimationAction | null = null;
+  let onceAction: AnimationAction | null = null;
+  // 同じモーションをくり返し使うので、作った AnimationAction を取っておく
+  const actions = new Map<VRMAnimation, AnimationAction>();
   let blendElapsed = BLEND_DURATION;
   let hasLastPose = false;
 
@@ -68,25 +76,54 @@ export function createMotionPlayer({
     blendElapsed = 0;
   };
 
+  const actionFor = (animation: VRMAnimation) => {
+    let found = actions.get(animation);
+    if (!found) {
+      found = mixer.clipAction(createVRMAnimationClip(animation, vrm));
+      actions.set(animation, found);
+    }
+    return found;
+  };
+
+  // 今のポーズから混ぜながら、next の頭から再生する
+  const switchTo = (next: AnimationAction | null) => {
+    action?.stop();
+    action = next;
+    action?.reset().play();
+    // モーションが読み込み済みだと、最初のフレームより先に再生が始まる。
+    // そのときは今のポーズ（待機ポーズ）から混ぜる
+    // （記録がないまま混ぜると、腰が原点＝床の高さから持ち上がって見える）
+    if (!hasLastPose) rememberPose();
+    startBlend();
+  };
+
   return {
     play: (animation) => {
-      action?.stop();
-      action = mixer.clipAction(createVRMAnimationClip(animation, vrm));
-      action.setLoop(THREE.LoopRepeat, Infinity);
-      action.play();
-      // モーションが読み込み済みだと、最初のフレームより先に再生が始まる。
-      // そのときは今のポーズ（待機ポーズ）から混ぜる
-      // （記録がないまま混ぜると、腰が原点＝床の高さから持ち上がって見える）
-      if (!hasLastPose) rememberPose();
-      startBlend();
+      loopAction = actionFor(animation);
+      loopAction.setLoop(THREE.LoopRepeat, Infinity);
+      // しぐさの最中なら、終わってから切りかえる
+      if (!onceAction) switchTo(loopAction);
+    },
+
+    playOnce: (animation) => {
+      onceAction = actionFor(animation);
+      onceAction.setLoop(THREE.LoopOnce, 1);
+      onceAction.clampWhenFinished = true;
+      switchTo(onceAction);
     },
 
     update: (delta) => {
       if (action) {
         const previousTime = action.time;
         mixer.update(delta);
-        // 再生位置が巻き戻った = ループの先頭に戻った
-        if (action.time < previousTime) startBlend();
+        if (action === onceAction && !action.isRunning()) {
+          // しぐさが終わった。くり返しのモーションへもどる
+          onceAction = null;
+          switchTo(loopAction);
+        } else if (action.time < previousTime) {
+          // 再生位置が巻き戻った = ループの先頭に戻った
+          startBlend();
+        }
 
         blendElapsed += delta;
         const weight = Math.min(1, blendElapsed / BLEND_DURATION);
@@ -111,7 +148,10 @@ export function createMotionPlayer({
     dispose: () => {
       mixer.stopAllAction();
       mixer.uncacheRoot(vrm.scene);
+      actions.clear();
       action = null;
+      loopAction = null;
+      onceAction = null;
     },
   };
 }

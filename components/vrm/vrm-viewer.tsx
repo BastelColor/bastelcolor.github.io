@@ -25,6 +25,11 @@ type VrmViewerProps = {
    * 指定すると、その要素の左右の端までモデルを描ける
    */
   bleedTo?: string;
+  /**
+   * 表示できたときに舞台（しぐさ・表情を動かす窓口）を渡す。片付けるときは null を渡す。
+   * 呼ばれる関数が変わっても作り直さない（いちばん新しいものを呼ぶ）
+   */
+  onStage?: (stage: VrmStage | null) => void;
 };
 
 /** モデルを差し替えるときは key を変えて作り直す前提 */
@@ -36,6 +41,7 @@ export function VrmViewer({
   liltoon,
   variant = 'full',
   bleedTo,
+  onStage,
 }: VrmViewerProps) {
   const isFull = variant === 'full';
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -44,6 +50,10 @@ export function VrmViewer({
   const [viewerState, setViewerState] = useState<ViewerState>('loading');
   const [progress, setProgress] = useState(0);
   const [autoRotate, setAutoRotate] = useState(isFull);
+  const onStageRef = useRef(onStage);
+  useEffect(() => {
+    onStageRef.current = onStage;
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -70,6 +80,7 @@ export function VrmViewer({
         // 中断済みなら stage は abort 時点で破棄されている
         if (controller.signal.aborted) return;
         stageRef.current = stage;
+        onStageRef.current?.(stage);
         setProgress(100);
         setViewerState('ready');
       })
@@ -82,6 +93,7 @@ export function VrmViewer({
     return () => {
       controller.abort();
       stageRef.current?.dispose();
+      if (stageRef.current) onStageRef.current?.(null);
       stageRef.current = null;
     };
   }, [modelUrl, motionId, brightness, liltoon, isFull, bleedTo]);

@@ -1,9 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import type { VrmStage } from '@/components/vrm/vrm-stage';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
 import { avatars } from '@/content/avatars';
-import { avatarMotion } from '@/content/motions';
+import {
+  avatarExpressions,
+  avatarGestures,
+  avatarMotion,
+} from '@/content/motions';
 import { site } from '@/content/site';
 import { readLayers, replaceLayers } from '@/lib/history-layers';
 
@@ -25,6 +30,8 @@ export function AvatarRoom() {
   const [selectedId, setSelectedId] = useState(linkedAvatarId);
   const selected =
     avatars.find((avatar) => avatar.id === selectedId) ?? avatars[0];
+  // 表示できたモデルの舞台。読み込み中は null（「うごかしてみる」のボタンは押せない）
+  const [stage, setStage] = useState<VrmStage | null>(null);
 
   const select = (id: string) => {
     setSelectedId(id);
@@ -62,6 +69,7 @@ export function AvatarRoom() {
           variant="bare"
           // Quiple の大きなしっぽなどが枠で切れないよう、部屋の左右の端まで描く
           bleedTo=".room-inner"
+          onStage={setStage}
         />
       </div>
 
@@ -98,6 +106,52 @@ export function AvatarRoom() {
             <span className="avatar-room-badge">{selected.badge}</span>
           )}
           <p>{selected.description}</p>
+        </div>
+        {/* 表情・しぐさのボタン */}
+        <div className="avatar-room-play">
+          <p className="avatar-room-play-title">うごかしてみる</p>
+          <dl>
+            <div>
+              <dt>表情</dt>
+              <dd>
+                {avatarExpressions.map((expression) => (
+                  <button
+                    key={expression.id}
+                    type="button"
+                    disabled={!stage?.expressionNames.includes(expression.id)}
+                    onClick={() => stage?.showExpression(expression.id)}
+                  >
+                    {expression.label}
+                  </button>
+                ))}
+              </dd>
+            </div>
+            <div>
+              <dt>しぐさ</dt>
+              <dd>
+                {avatarGestures.map((gesture) => (
+                  <button
+                    key={gesture.id}
+                    type="button"
+                    disabled={!stage}
+                    onClick={() => {
+                      if (!stage) return;
+                      stage
+                        .playGesture(gesture.id)
+                        .then((seconds) => {
+                          if (gesture.expression) {
+                            stage.showExpression(gesture.expression, seconds);
+                          }
+                        })
+                        .catch((error: unknown) => console.error(error));
+                    }}
+                  >
+                    {gesture.label}
+                  </button>
+                ))}
+              </dd>
+            </div>
+          </dl>
         </div>
         <p className="avatar-room-hint">ドラッグでまわせます</p>
         {/* BOOTH にまだ商品ページが無い子（制作中など）は、リンクにせず「準備中」と出す */}

@@ -14,6 +14,18 @@ import { loadMotion, type MotionId } from '@/components/vrm/motions';
  */
 export type VrmStage = {
   setAutoRotate: (enabled: boolean) => void;
+  /**
+   * しぐさ（埋め込みモーション）を1回だけ再生し、終わったらいつものモーションへもどる。
+   * しぐさの長さ（秒）を返す
+   */
+  playGesture: (id: MotionId) => Promise<number>;
+  /**
+   * 表情（VRM の happy・angry など）を seconds 秒だけ見せて、ふだんの顔にもどす。
+   * モデルに無い表情なら何もしない
+   */
+  showExpression: (name: string, seconds?: number) => void;
+  /** モデルが持っている表情の名前 */
+  expressionNames: string[];
   resetView: () => void;
   dispose: () => void;
 };
@@ -55,6 +67,10 @@ const TAN_HALF_FOV = Math.tan(((FOV / 2) * Math.PI) / 180);
 /** bleed を指定したとき、枠の上下へはみ出して描く量（枠の高さに対する割合） */
 const BLEED_TOP = 0.45;
 const BLEED_BOTTOM = 0.2;
+/** 表情を見せる時間の既定（秒） */
+const EXPRESSION_SECONDS = 2.5;
+/** 表情を切りかえるのにかける時間（秒） */
+const EXPRESSION_FADE = 0.2;
 
 // three.js 一式は重いので、アバターを選んだときに初めて読み込む
 async function loadThreeModules() {
@@ -325,6 +341,32 @@ export async function createVrmStage({
       })
       .catch((error: unknown) => console.error(error));
 
+    // --- 表情 ---
+    // 見せている表情と、見せ終わる時刻。ほかの表情はなめらかに 0 へもどす
+    const expressionManager = vrm.expressionManager;
+    const expressionNames = expressionManager
+      ? Object.keys(expressionManager.expressionMap)
+      : [];
+    const expressionWeights = new Map<string, number>();
+    let shownExpression: { name: string; until: number } | null = null;
+    const updateExpressions = (elapsed: number, delta: number) => {
+      if (!expressionManager) return;
+      if (shownExpression && elapsed >= shownExpression.until) {
+        shownExpression = null;
+      }
+      const step = delta / EXPRESSION_FADE;
+      for (const [name, weight] of expressionWeights) {
+        const target = shownExpression?.name === name ? 1 : 0;
+        const next =
+          target > weight
+            ? Math.min(target, weight + step)
+            : Math.max(target, weight - step);
+        expressionManager.setValue(name, next);
+        if (next === 0 && target === 0) expressionWeights.delete(name);
+        else expressionWeights.set(name, next);
+      }
+    };
+
     // --- 描画ループ ---
     const timer = new THREE.Timer();
     const currentVrm = vrm;
@@ -333,6 +375,7 @@ export async function createVrmStage({
       // タブ復帰直後などに揺れものが暴れないよう、経過時間に上限を設ける
       const delta = Math.min(timer.getDelta(), 0.05);
       idleMotion.update(timer.getElapsed());
+      updateExpressions(timer.getElapsed(), delta);
       player.update(delta);
       currentVrm.update(delta);
       controls.update();
@@ -343,6 +386,17 @@ export async function createVrmStage({
       setAutoRotate: (enabled) => {
         controls.autoRotate = enabled;
       },
+      playGesture: async (id) => {
+        const animation = await loadMotion(id, THREE, modules.VRMAnimation);
+        if (!disposed) player.playOnce(animation);
+        return animation.duration;
+      },
+      showExpression: (name, seconds = EXPRESSION_SECONDS) => {
+        if (!expressionNames.includes(name)) return;
+        shownExpression = { name, until: timer.getElapsed() + seconds };
+        if (!expressionWeights.has(name)) expressionWeights.set(name, 0);
+      },
+      expressionNames,
       resetView,
       dispose,
     };
