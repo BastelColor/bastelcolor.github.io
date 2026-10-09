@@ -67,8 +67,60 @@ const EXPRESSION_SECONDS = 2.5;
 /** 表情を切りかえるのにかける時間（秒） */
 const EXPRESSION_FADE = 0.2;
 
-// three.js 一式は重いので、アバターを選んだときに初めて読み込む
-async function loadThreeModules() {
+// three.js 一式は重いので、アバターの部屋を開くとき（か、その雲にふれたとき）に初めて読み込む。
+// 一度読み込んだものは使い回す
+let threeModules: ReturnType<typeof importThreeModules> | null = null;
+function loadThreeModules() {
+  threeModules ??= importThreeModules();
+  threeModules.catch(() => {
+    threeModules = null;
+  });
+  return threeModules;
+}
+
+/** 先読みしたモデルの URL（同じものを2回取りに行かない） */
+const preloadedModels = new Set<string>();
+
+/**
+ * アバターの部屋を開く前に、表示に使うものを読み込み始めておく（アバターの雲にふれたときなど）。
+ * three.js 一式・ループのモーション・最初に出すモデル（lilToon の子なら lilToon の部品も）。
+ * モデルはブラウザのキャッシュに入れておくだけで、表示するときにそこから読まれる。
+ * 通信量を抑える設定（データセーバー）の人には、モデルは先読みしない
+ */
+export function preloadVrmStage({
+  modelUrl,
+  motionId,
+  liltoon = false,
+}: {
+  modelUrl: string;
+  motionId?: MotionId;
+  liltoon?: boolean;
+}) {
+  const modules = loadThreeModules();
+  if (motionId) {
+    modules
+      .then(({ THREE, VRMAnimation }) =>
+        loadMotion(motionId, THREE, VRMAnimation),
+      )
+      .catch(() => {});
+  }
+  if (liltoon) {
+    Promise.all([
+      import('@mochiya/three-liltoon'),
+      import('@mochiya/three-liltoon/vrm'),
+    ]).catch(() => {});
+  }
+  const connection = (
+    navigator as Navigator & {
+      connection?: { saveData?: boolean };
+    }
+  ).connection;
+  if (preloadedModels.has(modelUrl) || connection?.saveData) return;
+  preloadedModels.add(modelUrl);
+  fetch(modelUrl).catch(() => preloadedModels.delete(modelUrl));
+}
+
+async function importThreeModules() {
   const [
     THREE,
     { GLTFLoader },

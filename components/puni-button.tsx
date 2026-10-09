@@ -14,6 +14,8 @@ type PuniButtonProps = {
   isPressed?: boolean;
   ref?: Ref<HTMLButtonElement>;
   onPress: (button: HTMLButtonElement) => void;
+  /** 押しそうなとき（カーソルを乗せた・フォーカスした・指でふれた）に呼ぶ。先読みに使う */
+  onIntent?: () => void;
 };
 
 /** キャラクター画像の基準の正方形の幅（px）。--mascot-width が 1 の子の画像の幅 */
@@ -50,6 +52,7 @@ export function PuniButton({
   isPressed = false,
   ref,
   onPress,
+  onIntent,
 }: PuniButtonProps) {
   return (
     <button
@@ -59,6 +62,9 @@ export function PuniButton({
       className={cn('puni', tone, size, isPressed && 'is-pressed')}
       style={{ '--i': index } as CSSProperties}
       onClick={(event) => onPress(event.currentTarget)}
+      onPointerEnter={onIntent}
+      onPointerDown={onIntent}
+      onFocus={onIntent}
     >
       <span className="puni-x">
         <span className="puni-y">

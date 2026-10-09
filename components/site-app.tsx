@@ -11,7 +11,7 @@ import {
 } from 'react';
 import { FloatingBits } from '@/components/floating-bits';
 import { PuniButton } from '@/components/puni-button';
-import { AvatarRoom } from '@/components/rooms/avatar-room';
+import { AvatarRoom, preloadAvatarRoom } from '@/components/rooms/avatar-room';
 import { LogRoom } from '@/components/rooms/log-room';
 import { ProfileRoom } from '@/components/rooms/profile-room';
 import { WorksRoom } from '@/components/rooms/works-room';
@@ -254,6 +254,8 @@ export function SiteApp({ posts, children }: SiteAppProps) {
               tone={item.tone}
               isPressed={room === item.id && !isExpanded}
               onPress={(button) => open(item.id, button)}
+              // アバターの部屋は 3D の表示に時間がかかるので、雲にふれた時点で読み込み始める
+              onIntent={item.id === 'avatar' ? preloadAvatarRoom : undefined}
               label={item.menuLabel}
             />
           ))}

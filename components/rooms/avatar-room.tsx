@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import modelStats from 'virtual:model-stats';
 import { ShareButtons } from '@/components/share-buttons';
-import type { VrmStage } from '@/components/vrm/vrm-stage';
+import { preloadVrmStage, type VrmStage } from '@/components/vrm/vrm-stage';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
 import { avatars } from '@/content/avatars';
 import { avatarExpressions, avatarMotion } from '@/content/motions';
@@ -57,6 +57,21 @@ function specRows(modelUrl: string): [string, string][] {
 function linkedAvatarId() {
   const { avatar } = readLayers();
   return avatars.some((item) => item.id === avatar) ? avatar! : avatars[0].id;
+}
+
+/**
+ * 部屋を開く前に、最初に出す子のモデルなどを読み込み始めておく（トップのアバターの雲にふれたとき）
+ */
+export function preloadAvatarRoom() {
+  const id = linkedAvatarId();
+  const avatar = avatars.find((item) => item.id === id) ?? avatars[0];
+  preloadVrmStage({
+    modelUrl: avatar.modelUrl,
+    motionId: window.matchMedia(REDUCED_MOTION).matches
+      ? undefined
+      : avatarMotion.id,
+    liltoon: avatar.liltoon,
+  });
 }
 
 /**
