@@ -251,6 +251,9 @@ export const scenarios = [
   {
     name: 'アバター: どの子も、目線が自然で、表情のボタンで顔が変わる',
     run: async (page, base, { avatarIds }) => {
+      // 踊り（くるっと回る）のあいだは顔が向こうを向くので、数字を読む時間しだいで結果が変わってしまう。
+      // 動きを減らした状態（その場で小さく揺れるだけ）で確かめる
+      await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
       for (const id of avatarIds) {
         // ?check を付けると、目線と表情の数字が読める（components/vrm/vrm-stage.ts）
         await page.goto(`${base}/avatar/${id}?check`, { waitUntil: 'load' });
