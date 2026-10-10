@@ -117,6 +117,23 @@ async function openPage({ allow404 = false } = {}) {
 }
 
 const failures = [];
+
+/**
+ * GitHub Actions で動いているときは、失敗した項目を「注釈」（annotation）としても出す。
+ * 注釈は、GitHub にログインしていなくても、実行の結果の画面や API で読める
+ */
+function annotate(title, errors) {
+  if (!process.env.GITHUB_ACTIONS) return;
+  // 注釈の文字の中では、改行と % は決まった書き方にする
+  const encode = (text) =>
+    String(text)
+      .replace(/%/g, '%25')
+      .replace(/\r/g, '%0D')
+      .replace(/\n/g, '%0A');
+  const name = encode(`smoke: ${title}`).replace(/[:,]/g, ' ');
+  console.log(`::error title=${name}::${encode(errors.join('\n'))}`);
+}
+
 for (const check of checks) {
   const { page, errors } = await openPage({ allow404: check.expect404 });
   const started = Date.now();
@@ -138,6 +155,7 @@ for (const check of checks) {
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
   if (errors.length) {
     failures.push({ path: check.path, errors });
+    annotate(check.path, errors);
     console.log(`✗ ${check.path}（${seconds}秒）`);
     for (const error of errors) console.log(`    ${error}`);
   } else {
@@ -162,6 +180,7 @@ for (const scenario of scenarios) {
   const seconds = ((Date.now() - started) / 1000).toFixed(1);
   if (errors.length) {
     failures.push({ path: scenario.name, errors });
+    annotate(scenario.name, errors);
     console.log(`✗ ${scenario.name}（${seconds}秒）`);
     for (const error of errors) console.log(`    ${error}`);
   } else {
