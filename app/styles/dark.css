@@ -65,7 +65,7 @@
 }
 
 /* アバターの台: 暗い部屋の中では、白い台を少し落とす */
-:root[data-theme='dark'] .avatar-room-stage[data-backdrop='sky'] {
+:root[data-theme='dark'] .avatar-room-podium[data-backdrop='sky'] {
   --stage-glow: rgba(160, 190, 240, 0.22);
   --stage-top: #4a5878;
 }
@@ -81,7 +81,7 @@
   --paper: #fff;
 }
 
-:root[data-theme='dark'] .avatar-room-stage[data-backdrop='white'] {
+:root[data-theme='dark'] .avatar-room-podium[data-backdrop='white'] {
   --stage-glow: rgba(214, 233, 252, 0.8);
   --stage-top: #ffffff;
 }

@@ -10,10 +10,6 @@
 }
 
 .avatar-room-stage {
-  --stage-glow: rgba(255, 255, 255, 0.55);
-  --stage-top: #ffffff;
-  --stage-side: color-mix(in srgb, var(--tone) 40%, var(--paper));
-  --stage-rim: color-mix(in srgb, var(--edge) 22%, transparent);
   position: relative;
   /* 中の canvas は枠の外へ広げて置くので、枠の幅はここで決める */
   width: 100%;
@@ -31,8 +27,33 @@
   z-index: 1;
 }
 
+/* ライトと展示台をのせる板（枠と同じ大きさ）。色は背景ごとに下で決める。
+   背景を切りかえたときは、新しい色の板（.is-wave）が、背景の波と同じ円・同じ速さで広がる
+   （円の中心は、avatar-room.tsx で波を出す位置と同じ、枠の横の真ん中・上から 45%） */
+.avatar-room-podium {
+  --stage-glow: rgba(255, 255, 255, 0.55);
+  --stage-top: #ffffff;
+  --stage-side: color-mix(in srgb, var(--tone) 40%, var(--paper));
+  --stage-rim: color-mix(in srgb, var(--edge) 22%, transparent);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.avatar-room-podium.is-wave {
+  clip-path: circle(0 at 50% 45%);
+  animation: avatar-room-podium-wave 0.7s cubic-bezier(0.65, 0, 0.35, 1)
+    forwards;
+}
+
+@keyframes avatar-room-podium-wave {
+  to {
+    clip-path: circle(150vmax at 50% 45%);
+  }
+}
+
 /* ふんわりしたライト（モデルのうしろの、やわらかい光） */
-.avatar-room-stage::before {
+.avatar-room-podium::before {
   content: '';
   position: absolute;
   left: 18%;
@@ -45,7 +66,7 @@
 }
 
 /* 足元の展示台。上の面と、ぷっくりした側面 */
-.avatar-room-stage::after {
+.avatar-room-podium::after {
   content: '';
   position: absolute;
   left: 50%;
@@ -137,12 +158,12 @@
   color: #dbe4f3;
 }
 
-.avatar-room-stage[data-backdrop='white'] {
+.avatar-room-podium[data-backdrop='white'] {
   --stage-glow: rgba(214, 233, 252, 0.8);
   --stage-side: #e8eef5;
 }
 
-.avatar-room-stage[data-backdrop='night'] {
+.avatar-room-podium[data-backdrop='night'] {
   --stage-glow: rgba(140, 170, 230, 0.35);
   --stage-top: #46587a;
   --stage-side: #2f3e5c;

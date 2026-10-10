@@ -194,6 +194,20 @@ export function AvatarRoom() {
         className="avatar-room-stage"
         data-backdrop={backdrop}
       >
+        {/* ライトと展示台。背景を切りかえたときは、背景と同じ円で新しい色の台が広がる */}
+        <div
+          className="avatar-room-podium"
+          data-backdrop={wave ? wave.from : backdrop}
+          aria-hidden="true"
+        />
+        {wave && (
+          <div
+            key={wave.key}
+            className="avatar-room-podium is-wave"
+            data-backdrop={backdrop}
+            aria-hidden="true"
+          />
+        )}
         <VrmViewer
           key={selected.id}
           modelUrl={selected.modelUrl}
