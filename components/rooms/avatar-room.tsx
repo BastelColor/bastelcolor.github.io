@@ -22,6 +22,7 @@ import { site } from '@/content/site';
 import { readLayers, replaceLayers } from '@/lib/history-layers';
 import { localizeAvatar } from '@/lib/localize';
 import { playSound } from '@/lib/sound';
+import { cn } from '@/lib/utils';
 
 /** 選ぶボタンにも目印を出す badge（まだ配布していない子だと、ひと目で分かるように） */
 const WIP_BADGE = '制作中';
@@ -154,29 +155,49 @@ export function AvatarRoom() {
   const [flash, setFlash] = useState(0);
   const podiumElement = useRef<HTMLDivElement>(null);
   const backdropElement = useRef<HTMLDivElement>(null);
-  // 背景を切りかえた瞬間の「波」。モデルのところから新しい背景がぶわっと広がる
-  const [wave, setWave] = useState<{
-    from: Backdrop;
-    x: number;
-    y: number;
-    key: number;
-  } | null>(null);
+  // 背景を切りかえた瞬間の「波」。モデルのところから新しい背景がぶわっと広がる。
+  // base は、いちばん下に敷いてある（広がりきった）背景。広がっている途中の波は waves に順に重ねる
+  // （広がりきる前に続けて押しても、まだ変わっていないところは前の背景のまま、その上に次の波が広がる）
+  // key は、展示台の層を作り直さないための名前（広がりきった波の層を、そのまま下の層として使い続ける）
+  const [base, setBase] = useState<{ backdrop: Backdrop; key: string }>({
+    backdrop: 'sky',
+    key: 'base',
+  });
+  const [waves, setWaves] = useState<
+    { backdrop: Backdrop; x: number; y: number; key: number }[]
+  >([]);
   const stageElement = useRef<HTMLDivElement>(null);
-  // 波を作り直すための番号（続けて押したときも、最初から広げ直す）
+  // 波ごとの番号（重ねた順。作り直さないための key にも使う）
   const waveCount = useRef(0);
   const changeBackdrop = (next: Backdrop) => {
     if (next === backdrop) return;
     const rect = stageElement.current?.getBoundingClientRect();
-    setWave({
-      from: backdrop,
-      // モデルの胸のあたりから広げる
-      x: rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
-      y: rect ? rect.top + rect.height * 0.45 : window.innerHeight / 2,
-      key: ++waveCount.current,
-    });
+    setWaves((current) => [
+      ...current,
+      {
+        backdrop: next,
+        // モデルの胸のあたりから広げる
+        x: rect ? rect.left + rect.width / 2 : window.innerWidth / 2,
+        y: rect ? rect.top + rect.height * 0.45 : window.innerHeight / 2,
+        key: ++waveCount.current,
+      },
+    ]);
     setBackdrop(next);
     playSound('whoosh');
   };
+  // 波が広がりきったら、それを下に敷き、それより下の波は片付ける
+  const finishWave = (key: number) => {
+    const index = waves.findIndex((item) => item.key === key);
+    if (index < 0) return;
+    setBase({ backdrop: waves[index].backdrop, key: String(key) });
+    setWaves(waves.slice(index + 1));
+  };
+  // 展示台とライトの層（下から順）。それぞれ、次の波の円の内側は隠す
+  // （ライトは半分すけているので、隠さないと前の背景のライトが重なって明るく見えてしまう）
+  const podiumLayers = [
+    { key: base.key, backdrop: base.backdrop, isWave: false },
+    ...waves.map((item) => ({ ...item, key: String(item.key), isWave: true })),
+  ];
   // 動きを減らす設定の人には、くるっと回るループのモーションは流さない（その場で小さく揺れるだけ）
   const reduceMotion = usePrefersReducedMotion();
   const spec = specRows(selected.modelUrl, t);
@@ -261,51 +282,63 @@ export function AvatarRoom() {
       className="avatar-room"
       data-backdrop={backdrop}
       data-backdrop-tone={backdropTone}
+      // 背景の波が広がっているあいだ（文字やカードの色を、波がとどくころに合わせて変える）
+      data-switching={waves.length > 0 || undefined}
       data-mode={mode}
     >
       {/* 部屋ぜんたいの背景（空はいつもの部屋の色）。切りかえたときは、前の背景の上に
           新しい背景がモデルのところから広がる */}
       <div
-        ref={backdropElement}
+        ref={waves.length === 0 ? backdropElement : undefined}
         className="avatar-backdrop"
-        data-backdrop={wave ? wave.from : backdrop}
+        data-backdrop={base.backdrop}
         aria-hidden="true"
       />
-      {wave && (
+      {waves.map((item, i) => (
         <div
-          key={wave.key}
+          key={item.key}
+          // いちばん上の波が、いま選んでいる背景（写真の空の色はここから読む）
+          ref={i === waves.length - 1 ? backdropElement : undefined}
           className="avatar-backdrop is-wave"
-          data-backdrop={backdrop}
+          data-backdrop={item.backdrop}
           style={
             {
-              '--wave-x': `${wave.x}px`,
-              '--wave-y': `${wave.y}px`,
+              '--wave-x': `${item.x}px`,
+              '--wave-y': `${item.y}px`,
             } as CSSProperties
           }
-          onAnimationEnd={() => setWave(null)}
+          onAnimationEnd={() => finishWave(item.key)}
           aria-hidden="true"
         />
-      )}
+      ))}
       <div
         ref={stageElement}
         className="avatar-room-stage"
         data-backdrop={backdrop}
       >
-        {/* ライトと展示台。背景を切りかえたときは、背景と同じ円で新しい色の台が広がる */}
-        <div
-          ref={podiumElement}
-          className="avatar-room-podium"
-          data-backdrop={wave ? wave.from : backdrop}
-          aria-hidden="true"
-        />
-        {wave && (
-          <div
-            key={wave.key}
-            className="avatar-room-podium is-wave"
-            data-backdrop={backdrop}
-            aria-hidden="true"
-          />
-        )}
+        {/* ライトと展示台。背景を切りかえたときは、背景と同じ円で新しい色の台が広がる。
+            外側の層が自分の円で切り抜き（.is-wave）、内側の層が次の波の円の内側を隠す（.is-covered） */}
+        {podiumLayers.map((layer, i) => {
+          const above = podiumLayers[i + 1];
+          return (
+            <div
+              key={layer.key}
+              className={cn(
+                'avatar-room-podium-clip',
+                layer.isWave && 'is-wave',
+              )}
+              aria-hidden="true"
+            >
+              <div
+                // 次の波が来たら作り直して、その波と同時に隠し始める
+                key={above ? `under-${above.key}` : 'top'}
+                ref={above ? undefined : podiumElement}
+                className={cn('avatar-room-podium', above && 'is-covered')}
+                data-backdrop={layer.backdrop}
+              />
+            </div>
+          );
+        })}
         {mode === 'single' ? (
           <VrmViewer
             key={selected.id}

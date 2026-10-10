@@ -40,7 +40,14 @@
   pointer-events: none;
 }
 
-.avatar-room-podium.is-wave {
+/* 波の層（.avatar-room-podium-clip）: 自分の円で切り抜いて広げる */
+.avatar-room-podium-clip {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.avatar-room-podium-clip.is-wave {
   clip-path: circle(0 at 50% 45%);
   animation: avatar-room-podium-wave 0.7s cubic-bezier(0.65, 0, 0.35, 1)
     forwards;
@@ -49,6 +56,34 @@
 @keyframes avatar-room-podium-wave {
   to {
     clip-path: circle(150vmax at 50% 45%);
+  }
+}
+
+/* 上に次の波が来た層は、その波と同じ円の内側を隠す（ライトが2重に重ならないように）。
+   円の大きさ（--wave-r）を、波と同じ速さで動かす。--wave-r を動かすには @property が要る
+   （使えない古いブラウザでは、途中でいっぺんに隠れる） */
+@property --wave-r {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+.avatar-room-podium.is-covered {
+  mask-image: radial-gradient(
+    circle at 50% 45%,
+    transparent var(--wave-r),
+    #000 var(--wave-r)
+  );
+  animation: avatar-room-podium-cover 0.7s cubic-bezier(0.65, 0, 0.35, 1)
+    forwards;
+}
+
+@keyframes avatar-room-podium-cover {
+  from {
+    --wave-r: 0px;
+  }
+  to {
+    --wave-r: 150vmax;
   }
 }
 
@@ -165,6 +200,17 @@
   to {
     clip-path: circle(150vmax at var(--wave-x) var(--wave-y));
   }
+}
+
+/* 背景を切りかえているあいだ（波が広がっているあいだ）は、文字やカードの色を、
+   押した瞬間ではなく、波がとどくころに合わせて少し遅れて変える */
+.room:has(.avatar-room[data-switching])
+  :is(.room-head p, .avatar-room-side, .avatar-room-side *),
+:root:has(.avatar-room[data-switching]) .corner-tools :is(button, .lang-toggle) {
+  transition:
+    color 0.3s ease 0.25s,
+    background-color 0.3s ease 0.25s,
+    border-color 0.3s ease 0.25s;
 }
 
 /* 夜の背景では、部屋の見出しの下の一言と、カードの外の文字を明るくする
