@@ -287,22 +287,32 @@ export const scenarios = [
           [...(cards[0]?.querySelectorAll('button') ?? [])].map((button) => button.textContent),
         );
         failIf(labels.length === 0, `${id}: 表情のボタンがありません`);
+        // 表情は少しずつ変わるので、新しい表情（前のものとは別の表情）がはっきり出るまで待つ。
+        // GitHub の確認の機械では 3D の描画がとても遅く、1秒たっても変わりきらないことがある
+        let previous = null;
         for (const label of labels) {
           await page.evaluate((text) => {
             const card = document.querySelectorAll('.avatar-room-play')[0];
             [...card.querySelectorAll('button')].find((button) => button.textContent === text)?.click();
           }, label);
-          await sleep(900);
-          const shown = await page.evaluate(() => window.__yzmoCheck?.().expressions ?? {});
-          failIf(
-            !Object.values(shown).some((value) => value > 0.8),
-            `${id}: 「${label}」を押しても、顔が変わりません`,
-          );
+          const shown = await waitFor(
+            page,
+            (before) => {
+              const strong = Object.entries(window.__yzmoCheck?.().expressions ?? {})
+                .filter(([, value]) => value > 0.8)
+                .map(([name]) => name);
+              return strong.length === 1 && strong[0] !== before ? strong[0] : false;
+            },
+            8_000,
+            previous,
+          ).catch(() => null);
+          failIf(!shown, `${id}: 「${label}」を押しても、顔が変わりません`);
+          previous = await shown.jsonValue();
         }
         await waitFor(
           page,
           () => Object.values(window.__yzmoCheck?.().expressions ?? {}).every((value) => value < 0.05),
-          6_000,
+          12_000,
         ).catch(() => {
           throw new Error(`${id}: 表情が、ふだんの顔にもどりません`);
         });

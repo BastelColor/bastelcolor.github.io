@@ -90,6 +90,11 @@ const browser = await puppeteer.launch({
 async function openPage({ allow404 = false } = {}) {
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 800 });
+  // SMOKE_SLOW=4 などとすると、ブラウザをその倍だけ遅くして確かめる
+  // （GitHub の確認の機械は 3D の描画がとても遅いので、手元でも同じような遅さで試せるように）
+  if (process.env.SMOKE_SLOW) {
+    await page.emulateCPUThrottling(Number(process.env.SMOKE_SLOW));
+  }
   await page.evaluateOnNewDocument(() => {
     try {
       window.localStorage.setItem('yzmo-lang', 'ja');
