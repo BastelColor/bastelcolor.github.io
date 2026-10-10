@@ -93,3 +93,54 @@
     transform: translateY(-10px) rotate(calc(var(--tilt) * -1));
   }
 }
+
+/* ---- 季節の形（content/seasons.ts、components/floating-bits.tsx）----
+   線（かぼちゃの筋・あめのしま・リボン・雪の結晶）は、縁取りと同じ濃い色で描く */
+.floating-bit-line {
+  fill: none;
+  stroke: var(--edge);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.floating-bit-line.is-bold {
+  stroke-width: 4;
+}
+
+/* おばけの目 */
+.floating-bit-eye {
+  fill: var(--ink-on-light);
+}
+
+/* トップのかぼちゃは、雲の色ではなく、かぼちゃの色にする */
+.floating-bits.is-home .is-pumpkin .floating-bit-body {
+  fill: #ffb878;
+  stroke: #e0802f;
+}
+
+.floating-bits.is-home .is-pumpkin .floating-bit-line {
+  stroke: #c86a1c;
+}
+
+/* トップのおばけは白く */
+.floating-bits.is-home .is-ghost .floating-bit-body {
+  fill: #ffffff;
+}
+
+/* トップのこうもりは、夜の色 */
+.floating-bits.is-home .is-bat .floating-bit-body {
+  fill: #5d5a86;
+  stroke: #3c3a63;
+}
+
+/* 雪の結晶は、線をうすい色にして、縁取りの線を重ねない */
+.floating-bits.is-home .is-snow .floating-bit-line {
+  stroke: color-mix(in srgb, var(--tone) 60%, #fff);
+}
+
+/* 夜の空では、こうもりが空にとけないよう、明るめにする */
+:root[data-sky='night'] .floating-bits.is-home .is-bat .floating-bit-body {
+  fill: #a7a3dc;
+  stroke: #e9e7ff;
+}

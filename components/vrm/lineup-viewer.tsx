@@ -16,6 +16,8 @@ type LineupViewerProps = {
   models: (LineupModel & { name: string })[];
   /** みんなでループ再生するモーション（省略時は、その場で小さく揺れるだけ） */
   motionId?: MotionId;
+  /** 見ている人が入れた身長の線（「わたし 160cm」）。省略時は出さない */
+  mark?: { label: string; meters: number };
   /** 表示できたときに舞台を渡す。片付けるときは null を渡す */
   onStage?: (stage: LineupStage | null) => void;
 };
@@ -27,6 +29,7 @@ type LineupViewerProps = {
 export function LineupViewer({
   models,
   motionId,
+  mark,
   onStage,
 }: LineupViewerProps) {
   const t = useT();
@@ -105,6 +108,19 @@ export function LineupViewer({
           `Height comparison of ${models.map((model) => model.name).join(', ')}`,
         )}
       />
+      {/* 見ている人の身長の線 */}
+      {viewerState === 'ready' && layout && mark && (
+        <span
+          className="lineup-mark"
+          style={
+            {
+              '--y': `${layout.groundY - mark.meters * layout.pixelsPerMeter}px`,
+            } as CSSProperties
+          }
+        >
+          {mark.label} {Math.round(mark.meters * 100)}cm
+        </span>
+      )}
       {/* 頭の上の、名前と背丈の札 */}
       {viewerState === 'ready' && layout && (
         <ul className="lineup-tags">

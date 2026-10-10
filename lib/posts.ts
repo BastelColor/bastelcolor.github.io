@@ -46,6 +46,7 @@ function parsePost(path: string, source: string): PostWithBody | null {
     category: meta.category,
     summary: meta.summary,
     thumbnail: meta.thumbnail,
+    thumbnailAlt: meta.thumbnailAlt,
     html: toHtml(body),
   };
 }

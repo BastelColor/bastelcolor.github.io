@@ -65,6 +65,11 @@ export type Work = {
   genre: WorkGenre;
   /** ジャンルより細かい分類（一覧と詳細に小さく表示） */
   category: string;
+  /**
+   * 作るのに使った道具（例: ['Blender', 'Unity']）。さくひんの部屋の「道具」のボタンで絞り込め、
+   * 詳細にも出る。名前は作品どうしでそろえる（同じ道具は同じ書き方に）。省略できる
+   */
+  tools?: string[];
   /** 一覧と詳細の冒頭に出す一言 */
   description: string;
   /** 一覧のサムネイル（横長 16:10 で切り抜いて表示）。無いときは分類名を色の上に表示する */
@@ -78,6 +83,11 @@ export type Work = {
    * （縦横比はそのまま表示。省略時はサムネイル）
    */
   cover?: string;
+  /**
+   * 詳細のいちばん上に大きく出す画像（cover か、なければサムネイル）の説明（読み上げ用）。
+   * 省略すると「（作品名）のメイン画像」
+   */
+  imageAlt?: string;
   /** 詳細のいちばん上に埋め込む YouTube 動画の ID（URL の v= のあと）。cover より優先 */
   youtubeId?: string;
   /** 詳細に並べる画像 */
@@ -93,6 +103,7 @@ export type Work = {
     description?: string;
     body?: string[];
     links?: string[];
+    imageAlt?: string;
   };
 };
 
@@ -148,4 +159,30 @@ export type BoothItem = {
   price: string;
   /** 英語で表示するときの商品名（省略すると title のまま） */
   titleEn?: string;
+};
+
+/** 浮かぶ小物の形（components/floating-bits.tsx）。いつもの4つと、季節の形 */
+export type BitShape =
+  | 'star'
+  | 'drop'
+  | 'heart'
+  | 'dot'
+  | 'pumpkin'
+  | 'ghost'
+  | 'bat'
+  | 'candy'
+  | 'snow'
+  | 'present';
+
+/** 季節のかざり（content/seasons.ts） */
+export type Season = {
+  /** 英数字とハイフン */
+  id: string;
+  /** 名前（説明用。画面には出ない） */
+  label: string;
+  /** 期間（「月-日」。例: '10-01'）。end の日もふくむ。年をまたぐときは start より end を前の日付にする */
+  start: string;
+  end: string;
+  /** いつもの形 → この期間の形。書かなかった形はそのまま */
+  shapes: Partial<Record<'star' | 'drop' | 'heart' | 'dot', BitShape>>;
 };

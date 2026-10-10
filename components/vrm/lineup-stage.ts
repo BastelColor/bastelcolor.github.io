@@ -3,11 +3,17 @@ import type { VRM } from '@pixiv/three-vrm';
 import modelSizes from 'virtual:model-sizes';
 import { createIdleMotion, type IdleMotion } from '@/components/vrm/idle-motion';
 import { createLightRig, type Lighting } from '@/components/vrm/lighting';
+import { createPointerLook, type PointerLook } from '@/components/vrm/look-at';
 import {
   createMotionPlayer,
   type MotionPlayer,
 } from '@/components/vrm/motion-player';
 import { loadMotion, type MotionId } from '@/components/vrm/motions';
+import {
+  createViewModes,
+  type ViewMode,
+  type ViewModes,
+} from '@/components/vrm/view-modes';
 import {
   captureFrame,
   disposeObject,
@@ -34,6 +40,9 @@ export type LineupLayout = {
   models: { id: string; x: number; top: number; height: number }[];
   /** 目もりの線（m）と、その高さ */
   rulers: { meters: number; y: number }[];
+  /** 足元の高さ（枠の上からの px）と、1m が何 px か（「わたし」の線など、ほかの高さを出すため） */
+  groundY: number;
+  pixelsPerMeter: number;
 };
 
 export type LineupStage = {
@@ -44,6 +53,7 @@ export type LineupStage = {
   /** だれかが持っている表情の名前 */
   expressionNames: string[];
   setLighting: (lighting: Lighting, instant?: boolean) => void;
+  setViewMode: (mode: ViewMode) => void;
   capture: () => StageShot;
   dispose: () => void;
 };
@@ -127,6 +137,8 @@ export async function createLineupStage({
   };
   const placed: Placed[] = [];
   let releaseLilToon: (() => void) | null = null;
+  let viewModes: ViewModes | null = null;
+  let pointerLook: PointerLook | null = null;
   let disposed = false;
   let resizeFrame = 0;
   let resizeObserver: ResizeObserver | null = null;
@@ -137,6 +149,8 @@ export async function createLineupStage({
     cancelAnimationFrame(resizeFrame);
     resizeObserver?.disconnect();
     releaseLilToon?.();
+    viewModes?.dispose();
+    pointerLook?.dispose();
     for (const item of placed) {
       item.player.dispose();
       disposeObject(item.vrm.scene);
@@ -279,6 +293,8 @@ export async function createLineupStage({
           height: item.height,
         })),
         rulers,
+        groundY: height - ground,
+        pixelsPerMeter: scale,
       });
     };
     resizeObserver = new ResizeObserver(() => {
@@ -295,6 +311,21 @@ export async function createLineupStage({
         for (const item of placed) item.player.play(animation);
       })
       .catch((error: unknown) => console.error(error));
+
+    // --- 表示の切りかえ（中身を見る）と、みんながマウスのほうを見る動き ---
+    viewModes = createViewModes(
+      THREE,
+      scene,
+      placed.map((item) => item.vrm.scene),
+    );
+    const look = createPointerLook(
+      THREE,
+      scene,
+      camera,
+      canvas,
+      placed.map((item) => item.vrm),
+    );
+    pointerLook = look;
 
     // --- まわす ---
     let turnGoal = 0;
@@ -334,8 +365,9 @@ export async function createLineupStage({
         }
         item.group.rotation.y += (turnGoal - item.group.rotation.y) * k;
         item.player.update(delta);
-        item.vrm.update(delta);
       });
+      look.update(delta);
+      for (const item of placed) item.vrm.update(delta);
       lights.update(delta);
       renderer.render(scene, camera);
     });
@@ -360,6 +392,7 @@ export async function createLineupStage({
       },
       expressionNames,
       setLighting: lights.set,
+      setViewMode: (mode) => viewModes?.set(mode),
       capture: () => {
         // 上のあきすぎた空は写さない（いちばん背の高い子の少し上から）
         const top = Math.max(

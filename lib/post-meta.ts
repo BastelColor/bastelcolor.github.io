@@ -13,6 +13,8 @@ export type Post = {
   summary?: string;
   /** 一覧と記事の上に出す画像、SNS で共有したときの画像 */
   thumbnail?: string;
+  /** thumbnail の説明（読み上げ用）。記事のいちばん上の画像に付ける */
+  thumbnailAlt?: string;
 };
 
 export type PostWithBody = Post & {

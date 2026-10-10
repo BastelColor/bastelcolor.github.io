@@ -1,4 +1,6 @@
 import type { CSSProperties } from 'react';
+import type { BitShape as Shape } from '@/content/types';
+import { useSeason } from '@/lib/season';
 import { cn } from '@/lib/utils';
 
 /**
@@ -7,12 +9,13 @@ import { cn } from '@/lib/utils';
  * 見た目は app/styles/floating-bits.css。
  *
  * 位置は画面に対する % で決め打ちにしている（毎回同じ場所に出るように）。
+ * 季節のかざりの期間（content/seasons.ts）は、形だけをその季節のものに変える。
  */
-type Shape = 'star' | 'drop' | 'heart' | 'dot';
+type BaseShape = 'star' | 'drop' | 'heart' | 'dot';
 type Tone = 'pink' | 'mint' | 'blue' | 'yellow';
 
 type Bit = {
-  shape: Shape;
+  shape: BaseShape;
   /** 画面の左上からの位置（%） */
   x: number;
   y: number;
@@ -180,6 +183,7 @@ type FloatingBitsProps = {
 
 export function FloatingBits({ variant }: FloatingBitsProps) {
   const bits = variant === 'home' ? HOME_BITS : ROOM_BITS;
+  const season = useSeason();
   return (
     <div className={cn('floating-bits', `is-${variant}`)} aria-hidden="true">
       {bits.map((bit, i) => (
@@ -201,7 +205,7 @@ export function FloatingBits({ variant }: FloatingBitsProps) {
             } as CSSProperties
           }
         >
-          <BitShape shape={bit.shape} />
+          <BitShape shape={season?.shapes[bit.shape] ?? bit.shape} />
         </span>
       ))}
     </div>
@@ -211,8 +215,10 @@ export function FloatingBits({ variant }: FloatingBitsProps) {
 const STAR_PATH = starPath(20, 21, 15, 7.5);
 
 function BitShape({ shape }: { shape: Shape }) {
+  // 線だけの形（雪の結晶）には、つやを付けない
+  const hasGloss = shape !== 'snow';
   return (
-    <svg viewBox="0 0 40 40">
+    <svg viewBox="0 0 40 40" className={`is-${shape}`}>
       {shape === 'star' && <path className="floating-bit-body" d={STAR_PATH} />}
       {shape === 'heart' && (
         <path
@@ -229,14 +235,71 @@ function BitShape({ shape }: { shape: Shape }) {
       {shape === 'dot' && (
         <circle className="floating-bit-body" cx="20" cy="20" r="12" />
       )}
+      {/* ---- 季節の形（content/seasons.ts）---- */}
+      {shape === 'pumpkin' && (
+        <>
+          <path
+            className="floating-bit-body"
+            d="M20 12 C30 12 35 17 35 24 C35 31 29 35 20 35 C11 35 5 31 5 24 C5 17 10 12 20 12 Z"
+          />
+          <path
+            className="floating-bit-line"
+            d="M14.5 13.5 C11 19 11 29 14.5 34.5 M25.5 13.5 C29 19 29 29 25.5 34.5 M19.5 12.5 C19 9 20.5 6.5 24 5.5"
+          />
+        </>
+      )}
+      {shape === 'ghost' && (
+        <>
+          <path
+            className="floating-bit-body"
+            d="M20 5 C28 5 32 11 32 19 L32 33 L28 30 L24 34 L20 30 L16 34 L12 30 L8 33 L8 19 C8 11 12 5 20 5 Z"
+          />
+          <circle className="floating-bit-eye" cx="16" cy="18" r="1.8" />
+          <circle className="floating-bit-eye" cx="24" cy="18" r="1.8" />
+        </>
+      )}
+      {shape === 'bat' && (
+        <path
+          className="floating-bit-body"
+          d="M20 15 L18 11 L17 15 C14 13 10 12 5 14 C8 16 9 19 8 22 C11 21 14 22 15 25 C17 24 19 25 20 28 C21 25 23 24 25 25 C26 22 29 21 32 22 C31 19 32 16 35 14 C30 12 26 13 23 15 L22 11 Z"
+        />
+      )}
+      {shape === 'candy' && (
+        <>
+          <path
+            className="floating-bit-body"
+            d="M13 20 L5 14 L6 26 Z M27 20 L35 14 L34 26 Z"
+          />
+          <circle className="floating-bit-body" cx="20" cy="20" r="8" />
+          <path className="floating-bit-line" d="M15 16 C18 19 22 21 25 24" />
+        </>
+      )}
+      {shape === 'snow' && (
+        <path
+          className="floating-bit-line is-bold"
+          d="M20 6 V34 M7.9 13 L32.1 27 M7.9 27 L32.1 13 M16 8.5 L20 12 L24 8.5 M16 31.5 L20 28 L24 31.5"
+        />
+      )}
+      {shape === 'present' && (
+        <>
+          <path className="floating-bit-body" d="M9 18 H31 V34 H9 Z" />
+          <path className="floating-bit-body" d="M7 13 H33 V19 H7 Z" />
+          <path
+            className="floating-bit-line"
+            d="M20 13 V34 M20 13 C17 8 12 8 13 12 C14 14 18 13 20 13 C22 13 26 14 27 12 C28 8 23 8 20 13"
+          />
+        </>
+      )}
       {/* 左上のつや */}
-      <ellipse
-        className="floating-bit-gloss"
-        cx="15"
-        cy="16"
-        rx="3.4"
-        ry="2.2"
-      />
+      {hasGloss && (
+        <ellipse
+          className="floating-bit-gloss"
+          cx="15"
+          cy="16"
+          rx="3.4"
+          ry="2.2"
+        />
+      )}
     </svg>
   );
 }

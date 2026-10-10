@@ -1,6 +1,6 @@
 [
-  { "source": "ZenMaruGothic-Medium.woff2", "name": "zen-maru-gothic-500" },
-  { "source": "ZenMaruGothic-Bold.woff2", "name": "zen-maru-gothic-700" },
-  { "source": "ZenMaruGothic-Black.woff2", "name": "zen-maru-gothic-900" },
-  { "source": "CherryBombOne-Regular.woff2", "name": "cherry-bomb-one-400" }
+  { "source": "ZenMaruGothic-Medium.woff2", "name": "zen-maru-gothic-500", "family": "Zen Maru Gothic", "weight": 500 },
+  { "source": "ZenMaruGothic-Bold.woff2", "name": "zen-maru-gothic-700", "family": "Zen Maru Gothic", "weight": 700 },
+  { "source": "ZenMaruGothic-Black.woff2", "name": "zen-maru-gothic-900", "family": "Zen Maru Gothic", "weight": 900 },
+  { "source": "CherryBombOne-Regular.woff2", "name": "cherry-bomb-one-400", "family": "Cherry Bomb One", "weight": 400 }
 ]

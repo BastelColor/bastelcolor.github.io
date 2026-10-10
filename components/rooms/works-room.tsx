@@ -61,6 +61,8 @@ function groupByYear(list: Work[]) {
 
 export function WorksRoom() {
   const [genre, setGenre] = useState<WorkGenre | 'all'>('all');
+  // 使った道具での絞り込み（ジャンルと組み合わせられる）
+  const [tool, setTool] = useState<string>('all');
   const [view, setView] = useState<WorkView>('grid');
   const lang = useLang();
   const t = useT();
@@ -139,8 +141,22 @@ export function WorksRoom() {
     };
   }, [shown]);
 
-  const listed =
-    genre === 'all' ? works : works.filter((work) => work.genre === genre);
+  // 道具のボタン。作品で使っている数の多い順（同じ数なら名前の順）
+  const toolCounts = new Map<string, number>();
+  for (const work of works) {
+    for (const name of work.tools ?? []) {
+      toolCounts.set(name, (toolCounts.get(name) ?? 0) + 1);
+    }
+  }
+  const tools = [...toolCounts]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([name]) => name);
+
+  const listed = works.filter(
+    (work) =>
+      (genre === 'all' || work.genre === genre) &&
+      (tool === 'all' || (work.tools ?? []).includes(tool)),
+  );
   // 年表で見るときは、作り始めた年ごとにまとめる
   const yearGroups = view === 'timeline' ? groupByYear(listed) : [];
   const ordered =
@@ -202,6 +218,31 @@ export function WorksRoom() {
             </li>
           ))}
         </ul>
+        {/* 使った道具で絞り込む */}
+        {tools.length > 0 && (
+          <ul
+            className="works-genres works-tools"
+            aria-label={t('使った道具で絞り込む', 'Filter by tool')}
+          >
+            <li className="works-tools-label" aria-hidden="true">
+              {t('道具', 'Tools')}
+            </li>
+            {['all', ...tools].map((item) => (
+              <li key={item}>
+                <button
+                  type="button"
+                  aria-pressed={tool === item}
+                  onClick={() => {
+                    playSound('pop');
+                    setTool(item);
+                  }}
+                >
+                  {item === 'all' ? t('すべて', 'All') : item}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         {/* 並べ方: 一覧（いつもの）か、年ごとの年表か */}
         <fieldset className="works-view" aria-label={t('並べ方', 'Layout')}>
           {VIEWS.map((item) => (
@@ -220,7 +261,14 @@ export function WorksRoom() {
         </fieldset>
       </div>
 
-      {view === 'grid' ? (
+      {listed.length === 0 ? (
+        <p className="works-empty">
+          {t(
+            'この組み合わせの作品はまだありません。',
+            'No works match this combination yet.',
+          )}
+        </p>
+      ) : view === 'grid' ? (
         <ul className="works">{listed.map(renderItem)}</ul>
       ) : (
         <ol className="works-timeline">

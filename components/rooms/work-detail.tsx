@@ -41,6 +41,13 @@ export function WorkDetail({
         {work.category}
         {work.year && <span>{work.year}</span>}
       </p>
+      {work.tools && work.tools.length > 0 && (
+        <ul className="work-detail-tools" aria-label={t('使った道具', 'Tools')}>
+          {work.tools.map((tool) => (
+            <li key={tool}>{tool}</li>
+          ))}
+        </ul>
+      )}
       <p className="work-detail-lead">{work.description}</p>
 
       {work.body?.map((paragraph) => (
@@ -134,10 +141,14 @@ function WorkMedia({ work }: { work: Work }) {
       </div>
     );
   }
+  // 詳細のいちばん上の画像は中身なので、説明を付ける（書いていなければ作品名から）
+  const alt =
+    work.imageAlt ??
+    t(`${work.title}のメイン画像`, `Main image of ${work.title}`);
   if (work.cover) {
-    return <img className="work-detail-cover" src={work.cover} alt="" />;
+    return <img className="work-detail-cover" src={work.cover} alt={alt} />;
   }
-  return <WorkThumbnail work={work} large />;
+  return <WorkThumbnail work={work} large alt={alt} />;
 }
 
 /** 別のタブで開くことを示す矢印 */

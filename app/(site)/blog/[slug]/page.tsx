@@ -69,7 +69,12 @@ export default async function PostPage({ params }: PostPageProps) {
     <PostLayer>
       <article className="post">
         {post.thumbnail && (
-          <img className="post-thumbnail" src={post.thumbnail} alt="" />
+          <img
+            className="post-thumbnail"
+            src={post.thumbnail}
+            // 説明（thumbnailAlt）が無いときは、タイトルのすぐ上の飾りとして読み上げない
+            alt={post.thumbnailAlt ?? ''}
+          />
         )}
         <p className="post-meta">
           <time dateTime={post.date}>{formatPostDate(post.date)}</time>

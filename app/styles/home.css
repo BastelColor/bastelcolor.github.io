@@ -291,3 +291,79 @@
     opacity: 0;
   }
 }
+
+/* ---- 隠しコマンド（lib/secret-party.ts）----
+   雲のうしろの子がぴょんぴょん跳ね、雲がはずみ、「Yzmo」の文字が1つずつ跳ねる。
+   data-party は 0 と 1 を交互にとるので、続けて出したときも動きが最初から流れる */
+.home.is-party .puni-mascot {
+  animation: party-hop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) 5 alternate;
+  animation-delay: calc(var(--i, 0) * 0.08s);
+}
+
+.home.is-party[data-party='1'] .puni-mascot {
+  animation-name: party-hop-again;
+}
+
+.home-menu > .puni:nth-child(1) .puni-mascot {
+  --i: 0;
+}
+
+.home-menu > .puni:nth-child(2) .puni-mascot {
+  --i: 1;
+}
+
+.home-menu > .puni:nth-child(3) .puni-mascot {
+  --i: 2;
+}
+
+.home-menu > .puni:nth-child(4) .puni-mascot {
+  --i: 3;
+}
+
+.home.is-party .puni-mascot .is-happy {
+  opacity: 1;
+}
+
+.home.is-party .home-name-letters > span {
+  animation: party-letter 0.45s ease-in-out 4 alternate;
+}
+
+.home.is-party[data-party='1'] .home-name-letters > span {
+  animation-name: party-letter-again;
+}
+
+.home.is-party .home-name-letters > span:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.home.is-party .home-name-letters > span:nth-child(3) {
+  animation-delay: 0.16s;
+}
+
+.home.is-party .home-name-letters > span:nth-child(4) {
+  animation-delay: 0.24s;
+}
+
+@keyframes party-hop {
+  to {
+    transform: translateY(-22%);
+  }
+}
+
+@keyframes party-hop-again {
+  to {
+    transform: translateY(-22%);
+  }
+}
+
+@keyframes party-letter {
+  to {
+    transform: translateY(-0.18em) scale(1.08);
+  }
+}
+
+@keyframes party-letter-again {
+  to {
+    transform: translateY(-0.18em) scale(1.08);
+  }
+}

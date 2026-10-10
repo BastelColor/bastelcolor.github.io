@@ -6,15 +6,30 @@ import {
   useState,
   useSyncExternalStore,
   type CSSProperties,
+  type ReactNode,
 } from 'react';
 import modelStats from 'virtual:model-stats';
 import { useLang, useT } from '@/components/lang';
 import { countEvent } from '@/components/page-counter';
-import { composePhoto, savePhoto } from '@/components/rooms/avatar-photo';
+import {
+  composePhoto,
+  PHOTO_SHAPES,
+  savePhoto,
+  type PhotoShape,
+} from '@/components/rooms/avatar-photo';
 import { ShareButtons } from '@/components/share-buttons';
 import { LIGHTINGS, type Lighting } from '@/components/vrm/lighting';
 import { LineupViewer } from '@/components/vrm/lineup-viewer';
-import { preloadVrmStage, type VrmStage } from '@/components/vrm/vrm-stage';
+import {
+  VIEW_MODES,
+  type ViewMode as DisplayMode,
+} from '@/components/vrm/view-modes';
+import {
+  FRAMINGS,
+  preloadVrmStage,
+  type Framing,
+  type VrmStage,
+} from '@/components/vrm/vrm-stage';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
 import { avatars } from '@/content/avatars';
 import { avatarExpressions, avatarMotion } from '@/content/motions';
@@ -64,8 +79,37 @@ type RoomStage = Pick<
   | 'front'
   | 'expressionNames'
   | 'setLighting'
+  | 'setViewMode'
   | 'capture'
->;
+> &
+  // 写す範囲は、ひとりずつのときだけ
+  Partial<Pick<VrmStage, 'setFraming'>>;
+
+/** 写す範囲の名前（components/vrm/vrm-stage.ts） */
+const FRAMING_LABELS: Record<Framing, [string, string]> = {
+  full: ['全身', 'Full body'],
+  upper: ['上半身', 'Upper body'],
+  face: ['顔', 'Face'],
+};
+
+/** 表示の名前（components/vrm/view-modes.ts） */
+const VIEW_MODE_LABELS: Record<DisplayMode, [string, string]> = {
+  normal: ['ふつう', 'Normal'],
+  wireframe: ['ワイヤー', 'Wireframe'],
+  texture: ['テクスチャ', 'Texture'],
+  bones: ['ボーン', 'Bones'],
+};
+
+/** 写真の形の名前（components/rooms/avatar-photo.ts） */
+const PHOTO_SHAPE_LABELS: Record<PhotoShape, [string, string]> = {
+  stage: ['そのまま', 'As shown'],
+  square: ['正方形', 'Square'],
+  portrait: ['縦長', 'Portrait'],
+};
+
+/** 背丈くらべに足せる「わたし」の高さ（cm）の範囲 */
+const MY_HEIGHT_MIN = 50;
+const MY_HEIGHT_MAX = 250;
 
 /** 「視差効果を減らす」など、動きを減らす設定にしているか */
 function usePrefersReducedMotion() {
@@ -151,6 +195,19 @@ export function AvatarRoom() {
   const [mode, setMode] = useState<ViewMode>('single');
   const [backdrop, setBackdrop] = useState<Backdrop>('sky');
   const [lighting, setLighting] = useState<Lighting>('day');
+  const [framing, setFraming] = useState<Framing>('full');
+  const [viewMode, setViewMode] = useState<DisplayMode>('normal');
+  const [photoShape, setPhotoShape] = useState<PhotoShape>('stage');
+  const [photoTransparent, setPhotoTransparent] = useState(false);
+  // 背丈くらべの「わたし」の身長（入力のまま。数字として読めて、範囲の中のときだけ線を出す）
+  const [myHeight, setMyHeight] = useState('');
+  const myHeightCm = Number(myHeight);
+  const myHeightMeters =
+    myHeight !== '' &&
+    myHeightCm >= MY_HEIGHT_MIN &&
+    myHeightCm <= MY_HEIGHT_MAX
+      ? myHeightCm / 100
+      : undefined;
   // 写真を撮った瞬間の、白く光る演出（撮るたびに作り直す）
   const [flash, setFlash] = useState(0);
   const podiumElement = useRef<HTMLDivElement>(null);
@@ -227,6 +284,21 @@ export function AvatarRoom() {
     litStage.current = stage;
   }, [stage, lighting]);
 
+  // 表示（中身を見る）も、選んだままにする
+  useEffect(() => {
+    stage?.setViewMode(viewMode);
+  }, [stage, viewMode]);
+
+  // 写す範囲も、別の子を選んだあとまで選んだままにする。
+  // ボタンを押したときは直接変えるので、ここでは新しい子を表示したときだけ合わせる
+  const framingRef = useRef(framing);
+  useEffect(() => {
+    framingRef.current = framing;
+  });
+  useEffect(() => {
+    if (framingRef.current !== 'full') stage?.setFraming?.(framingRef.current);
+  }, [stage]);
+
   const takePhoto = () => {
     if (!stage) return;
     playSound('shutter');
@@ -243,6 +315,8 @@ export function AvatarRoom() {
       backdropElement: backdropElement.current,
       wide: mode === 'lineup',
       caption: `${name} · Yzmo`,
+      shape: photoShape,
+      transparent: photoTransparent,
     });
     void savePhoto(
       photo,
@@ -355,6 +429,11 @@ export function AvatarRoom() {
         ) : (
           <LineupViewer
             models={lineupModels}
+            mark={
+              myHeightMeters === undefined
+                ? undefined
+                : { label: t('わたし', 'Me'), meters: myHeightMeters }
+            }
             // ひとりずつのときと同じく、動きを減らす設定の人には、くるっと回るモーションは流さない
             motionId={reduceMotion ? undefined : avatarMotion.id}
             onStage={setStage}
@@ -537,27 +616,92 @@ export function AvatarRoom() {
               ))}
           </div>
         </div>
-        {/* ライトの組み合わせ */}
-        <div className="avatar-room-play">
+        {/* 見せ方: 写す範囲・ライト・表示（中身を見る）・写真の形 */}
+        <div className="avatar-room-play avatar-room-look">
           <p className="avatar-room-play-title">
-            {t('ライトをかえる', 'Change the lighting')}
+            {t('見せ方をかえる', 'Presentation')}
           </p>
-          <div className="avatar-room-play-buttons">
-            {LIGHTINGS.map((item) => (
-              <button
-                key={item}
-                type="button"
-                aria-pressed={lighting === item}
-                onClick={() => {
-                  playSound('pop');
-                  setLighting(item);
-                }}
-              >
-                {t(...LIGHTING_LABELS[item])}
-              </button>
-            ))}
-          </div>
+          {mode === 'single' && (
+            <OptionRow
+              label={t('カメラ', 'Camera')}
+              options={FRAMINGS.map((item) => ({
+                id: item,
+                label: t(...FRAMING_LABELS[item]),
+              }))}
+              value={framing}
+              disabled={!stage}
+              onChange={(item) => {
+                setFraming(item);
+                stage?.setFraming?.(item);
+              }}
+            />
+          )}
+          <OptionRow
+            label={t('ライト', 'Light')}
+            options={LIGHTINGS.map((item) => ({
+              id: item,
+              label: t(...LIGHTING_LABELS[item]),
+            }))}
+            value={lighting}
+            onChange={setLighting}
+          />
+          <OptionRow
+            label={t('表示', 'Display')}
+            options={VIEW_MODES.map((item) => ({
+              id: item,
+              label: t(...VIEW_MODE_LABELS[item]),
+            }))}
+            value={viewMode}
+            onChange={setViewMode}
+          />
+          <OptionRow
+            label={t('写真', 'Photo')}
+            options={PHOTO_SHAPES.map((item) => ({
+              id: item,
+              label: t(...PHOTO_SHAPE_LABELS[item]),
+            }))}
+            value={photoShape}
+            onChange={setPhotoShape}
+          >
+            <button
+              type="button"
+              aria-pressed={photoTransparent}
+              onClick={() => {
+                playSound('pop');
+                setPhotoTransparent((value) => !value);
+              }}
+            >
+              {t('背景を透明に', 'Transparent')}
+            </button>
+          </OptionRow>
         </div>
+        {/* 背丈くらべに「わたし」の線を足す */}
+        {mode === 'lineup' && (
+          <div className="avatar-room-play avatar-room-me">
+            <label className="avatar-room-play-title" htmlFor="lineup-me">
+              {t('わたしの身長もならべる', 'Add your height')}
+            </label>
+            <div className="avatar-room-me-field">
+              <input
+                id="lineup-me"
+                type="number"
+                inputMode="numeric"
+                min={MY_HEIGHT_MIN}
+                max={MY_HEIGHT_MAX}
+                placeholder="160"
+                value={myHeight}
+                onChange={(event) => setMyHeight(event.target.value)}
+              />
+              <span>cm</span>
+            </div>
+            <p className="avatar-room-spec-note">
+              {t(
+                '入れた数字はこの画面の中だけで使い、どこにも送りません。',
+                'The number stays on this page and is never sent anywhere.',
+              )}
+            </p>
+          </div>
+        )}
         {/* モデルの情報（ポリゴン数など） */}
         {mode === 'single' && spec.length > 0 && (
           <div className="avatar-room-spec">
@@ -604,6 +748,51 @@ export function AvatarRoom() {
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * 見せ方のカードの1行（見出しと、1つだけ選べるボタンの並び）。
+ * children には、並びの最後に足すボタン（写真の「背景を透明に」など）を渡せる
+ */
+function OptionRow<Id extends string>({
+  label,
+  options,
+  value,
+  disabled = false,
+  onChange,
+  children,
+}: {
+  label: string;
+  options: { id: Id; label: string }[];
+  value: Id;
+  disabled?: boolean;
+  onChange: (id: Id) => void;
+  children?: ReactNode;
+}) {
+  return (
+    <fieldset className="avatar-room-option" aria-label={label}>
+      <span className="avatar-room-option-label" aria-hidden="true">
+        {label}
+      </span>
+      <div className="avatar-room-play-buttons">
+        {options.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            aria-pressed={value === option.id}
+            disabled={disabled}
+            onClick={() => {
+              playSound('pop');
+              onChange(option.id);
+            }}
+          >
+            {option.label}
+          </button>
+        ))}
+        {children}
+      </div>
+    </fieldset>
   );
 }
 

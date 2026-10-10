@@ -967,14 +967,41 @@
     aspect-ratio: 1 / 0.9;
   }
 
+  /* 細い画面では、まわすボタン・写真・背景の丸を1行に収めるよう、少し小さく詰める */
+  .avatar-room-tools {
+    left: 6px;
+    right: 6px;
+    gap: 4px;
+  }
+
+  .avatar-room-turn {
+    gap: 4px;
+  }
+
+  .avatar-room-turn button {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 9px;
+    white-space: nowrap;
+  }
+
+  .avatar-room-tools-end {
+    gap: 4px;
+  }
+
+  .avatar-room-photo {
+    width: 32px;
+    height: 32px;
+  }
+
   .avatar-room-backdrops {
-    gap: 6px;
-    padding: 6px;
+    gap: 5px;
+    padding: 5px 6px;
   }
 
   .avatar-room-backdrops button {
-    width: 20px;
-    height: 20px;
+    width: 19px;
+    height: 19px;
   }
 
   .lineup-tags li {
@@ -988,4 +1015,82 @@
   .lineup-tags span {
     font-size: 10px;
   }
+}
+
+/* ---- 見せ方（カメラ・ライト・表示・写真）---- */
+
+.avatar-room-option {
+  display: grid;
+  grid-template-columns: 4.2em minmax(0, 1fr);
+  align-items: start;
+  gap: 8px;
+  min-width: 0;
+  margin: 10px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.avatar-room-option-label {
+  padding-top: 6px;
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--ink-soft);
+}
+
+.avatar-room-option .avatar-room-play-buttons {
+  gap: 6px;
+  margin: 0;
+}
+
+.avatar-room-option button {
+  padding: 4px 10px 5px;
+  font-size: 12px;
+}
+
+/* ---- 背丈くらべの「わたし」 ---- */
+
+.avatar-room-me-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.avatar-room-me-field input {
+  width: 6em;
+  padding: 6px 10px;
+  border: 2px solid color-mix(in srgb, var(--edge) 35%, transparent);
+  border-radius: 12px;
+  background: var(--surface-solid);
+  font: inherit;
+  color: var(--ink);
+}
+
+.avatar-room-me-field input:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* 見ている人の身長の線（目もりより目立つ、部屋の色の濃い線） */
+.lineup-mark {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  top: var(--y);
+  padding: 4px 0 0 4px;
+  border-top: 3px solid var(--edge);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--edge);
+  text-align: right;
+  pointer-events: none;
+}
+
+.avatar-room[data-backdrop='night'] .lineup-mark {
+  border-color: #ffd36e;
+  color: #ffd36e;
 }

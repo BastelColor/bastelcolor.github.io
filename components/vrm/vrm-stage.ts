@@ -10,6 +10,12 @@ import type { VRM } from '@pixiv/three-vrm';
 import modelSizes from 'virtual:model-sizes';
 import { createIdleMotion } from '@/components/vrm/idle-motion';
 import { createLightRig, type Lighting } from '@/components/vrm/lighting';
+import { createPointerLook, type PointerLook } from '@/components/vrm/look-at';
+import {
+  createViewModes,
+  type ViewMode,
+  type ViewModes,
+} from '@/components/vrm/view-modes';
 import {
   createMotionPlayer,
   type MotionPlayer,
@@ -32,8 +38,12 @@ export type VrmStage = {
   ) => void;
   /** カメラをモデルのまわりに angle（ラジアン、正で左へ）だけ、なめらかにまわす */
   orbit: (angle: number) => void;
-  /** カメラをなめらかに正面へもどす */
+  /** カメラをなめらかに正面へもどす（写す範囲は、いま選んでいるもののまま） */
   front: () => void;
+  /** 写す範囲（全身・上半身・顔）を選ぶ。向きはいまのまま */
+  setFraming: (framing: Framing) => void;
+  /** 表示（ふつう・ワイヤーフレーム・テクスチャ・ボーン）を切りかえる（components/vrm/view-modes.ts） */
+  setViewMode: (mode: ViewMode) => void;
   /** モデルが持っている表情の名前 */
   expressionNames: string[];
   /** ライトの組み合わせを切りかえる（components/vrm/lighting.ts） */
@@ -43,6 +53,10 @@ export type VrmStage = {
   resetView: () => void;
   dispose: () => void;
 };
+
+/** カメラが写す範囲 */
+export const FRAMINGS = ['full', 'upper', 'face'] as const;
+export type Framing = (typeof FRAMINGS)[number];
 
 /** 写真（capture）。画像と、画像の中での枠（container）の位置（画像のピクセル） */
 export type StageShot = {
@@ -95,6 +109,8 @@ const EXPRESSION_FADE = 0.2;
 const CAMERA_EASE = 7;
 /** 顔に寄ったとき、枠の高さに映す範囲（背丈に対する割合） */
 const FACE_VIEW = 0.34;
+/** 上半身を写すとき、枠の高さに映す範囲（背丈に対する割合） */
+const UPPER_VIEW = 0.6;
 /** 写真の、枠より下に広げる量（枠の高さに対する割合） */
 const PHOTO_BOTTOM = 0.06;
 /** 写真の高さ（ピクセル）。画面の大きさにかかわらず、だいたいこの大きさで撮る */
@@ -303,6 +319,8 @@ export async function createVrmStage({
   // --- 後片付け（何度呼ばれても1回だけ実行） ---
   let vrm: VRM | null = null;
   let motionPlayer: MotionPlayer | null = null;
+  let viewModes: ViewModes | null = null;
+  let pointerLook: PointerLook | null = null;
   let releaseLilToon: (() => void) | null = null;
   let disposed = false;
   const dispose = () => {
@@ -314,6 +332,8 @@ export async function createVrmStage({
     resizeObserver.disconnect();
     controls.dispose();
     motionPlayer?.dispose();
+    viewModes?.dispose();
+    pointerLook?.dispose();
     if (vrm) disposeObject(vrm.scene);
     renderer.dispose();
   };
@@ -430,16 +450,63 @@ export async function createVrmStage({
         scratch.copy(camera.position).sub(controls.target),
       ),
     });
-    const frontView = (): CameraView => ({
+    const head = vrm.humanoid.getNormalizedBoneNode('head');
+    // 写す範囲（全身・上半身・顔）。全身は止まったカメラ、上半身と顔は、モデルの体（顔）の向きに
+    // ついていくカメラ（踊ってくるっと回っても、正面から写し続ける）。framingYaw は、まわすボタンで
+    // ずらした角度（体の正面から、どれだけ回り込んで写すか）
+    const headQuaternion = new THREE.Quaternion();
+    let framing: Framing = 'full';
+    let framingYaw = 0;
+    const chest =
+      vrm.humanoid.getNormalizedBoneNode('upperChest') ??
+      vrm.humanoid.getNormalizedBoneNode('chest') ??
+      vrm.humanoid.getNormalizedBoneNode('spine');
+    const facingOf = (bone: Object3D) => {
+      // VRM 1.0 は +Z が正面
+      const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(
+        bone.getWorldQuaternion(headQuaternion),
+      );
+      return Math.atan2(forward.x, forward.z);
+    };
+    const followView = (): CameraView => {
+      const bone = framing === 'face' ? head : chest;
+      if (!bone) return framedView(0);
+      const target = bone.getWorldPosition(new THREE.Vector3());
+      // 向きは、顔のアップでも胸の向きにあわせる（頭はマウスのほうを向くので、頭にあわせると
+      // カメラが頭を追い、頭がまたマウスを追って、カメラが回り続けてしまう）
+      const facing = facingOf(chest ?? bone);
+      if (framing === 'face') {
+        // 帽子や耳まで入るよう、頭の少し上をねらい、少し引く
+        target.y += modelHeight * 0.06;
+        return {
+          target,
+          offset: new THREE.Spherical(
+            (modelHeight * FACE_VIEW * 1.25) / 2 / TAN_HALF_FOV,
+            Math.PI / 2 - 0.05,
+            facing + framingYaw,
+          ),
+        };
+      }
+      target.y += modelHeight * 0.05;
+      return {
+        target,
+        offset: new THREE.Spherical(
+          (modelHeight * UPPER_VIEW) / 2 / TAN_HALF_FOV + frontDepth * 0.4,
+          Math.PI / 2 - 0.03,
+          facing + framingYaw,
+        ),
+      };
+    };
+    /** 全身のときの、止まったカメラ（theta はまわした角度） */
+    const framedView = (theta: number): CameraView => ({
       target: pivot.clone(),
       offset: new THREE.Spherical(
         (size.y / 2 / TAN_HALF_FOV) * 1.06 + frontDepth,
         Math.PI / 2,
-        0,
+        theta,
       ),
     });
-    const head = vrm.humanoid.getNormalizedBoneNode('head');
-    const headQuaternion = new THREE.Quaternion();
+    const frontView = () => framedView(0);
     const faceView = (): CameraView => {
       if (!head) return frontView();
       const target = head.getWorldPosition(new THREE.Vector3());
@@ -467,9 +534,15 @@ export async function createVrmStage({
       // 顔のアップが終わったら、寄る前の位置へもどる
       if (faceUntil >= 0 && elapsed >= faceUntil) {
         faceUntil = -1;
-        const back = viewBeforeFace ?? frontView();
-        viewBeforeFace = null;
-        setGoal(() => back, true);
+        // 上半身・顔を写しているときは、また体についていく
+        if (framing !== 'full') {
+          viewBeforeFace = null;
+          setGoal(followView, false);
+        } else {
+          const back = viewBeforeFace ?? frontView();
+          viewBeforeFace = null;
+          setGoal(() => back, true);
+        }
       }
       if (!cameraGoal) return;
       const goal = cameraGoal();
@@ -497,6 +570,10 @@ export async function createVrmStage({
 
     const player = createMotionPlayer({ ...modules, vrm });
     motionPlayer = player;
+    // 表示の切りかえ（中身を見る）と、マウスのほうを見る動き
+    viewModes = createViewModes(THREE, scene, [vrm.scene]);
+    const look = createPointerLook(THREE, scene, camera, canvas, [vrm]);
+    pointerLook = look;
     // モーションが読めなくても待機モーションで表示は続ける
     motion
       ?.then((animation) => {
@@ -540,6 +617,7 @@ export async function createVrmStage({
       idleMotion.update(timer.getElapsed());
       updateExpressions(timer.getElapsed(), delta);
       player.update(delta);
+      look.update(delta);
       currentVrm.update(delta);
       moveCamera(timer.getElapsed(), delta);
       lights.update(delta);
@@ -572,6 +650,11 @@ export async function createVrmStage({
       orbit: (angle) => {
         // 顔に寄っているあいだは、まわさない
         if (faceUntil >= 0) return;
+        // 体についていくカメラは、回り込む角度だけずらす
+        if (framing !== 'full') {
+          framingYaw += angle;
+          return;
+        }
         const base = cameraGoal && goalEndsOnArrival ? cameraGoal() : viewNow();
         const goal: CameraView = {
           target: base.target,
@@ -586,9 +669,28 @@ export async function createVrmStage({
       front: () => {
         faceUntil = -1;
         viewBeforeFace = null;
+        framingYaw = 0;
+        if (framing !== 'full') {
+          setGoal(followView, false);
+          return;
+        }
         const goal = frontView();
         setGoal(() => goal, true);
       },
+      setFraming: (next) => {
+        framing = next;
+        faceUntil = -1;
+        viewBeforeFace = null;
+        framingYaw = 0;
+        if (next !== 'full') {
+          setGoal(followView, false);
+          return;
+        }
+        // 全身にもどすときは、正面から
+        const goal = frontView();
+        setGoal(() => goal, true);
+      },
+      setViewMode: (mode) => viewModes?.set(mode),
       expressionNames,
       setLighting: lights.set,
       capture: () => {

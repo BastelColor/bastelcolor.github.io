@@ -148,3 +148,111 @@
 .not-found-letters > .is-space {
   width: 0.4em;
 }
+
+/* ---- 星をつかまえる（components/star-catch.tsx）----
+   空から星が降ってくるので、押してつかまえる。外側（.star-catch-star）が落ちる動き、
+   中の星（svg）が、つかまえたときに弾ける動き */
+.star-catch {
+  margin-top: 28px;
+}
+
+.star-catch-button {
+  padding: 7px 16px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  box-shadow: 0 3px 0 rgba(47, 69, 88, 0.12);
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.star-catch-button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.star-catch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.star-catch-score {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--sky-ink);
+}
+
+.star-catch-score small {
+  font-size: 12px;
+  color: var(--sky-ink-soft);
+}
+
+/* 星が降る空。画面いっぱい、文字やボタンより手前（押すのは星だけ） */
+.star-catch-sky {
+  position: fixed;
+  z-index: 5;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.star-catch-star {
+  position: absolute;
+  top: 0;
+  width: 54px;
+  height: 54px;
+  margin-left: -27px;
+  padding: 6px;
+  cursor: pointer;
+  pointer-events: auto;
+  touch-action: none;
+  animation: star-catch-fall var(--fall) linear forwards;
+}
+
+.star-catch-star.is-caught {
+  pointer-events: none;
+  animation-play-state: paused;
+}
+
+.star-catch-star svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: var(--tone);
+  stroke: var(--edge);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  animation: star-catch-spin 2.4s linear infinite;
+}
+
+.star-catch-star.is-caught svg {
+  animation: star-catch-pop 0.35s ease-out forwards;
+}
+
+@keyframes star-catch-fall {
+  from {
+    transform: translateY(-60px);
+  }
+  to {
+    transform: translateY(calc(100vh + 20px));
+  }
+}
+
+@keyframes star-catch-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes star-catch-pop {
+  to {
+    scale: 1.8;
+    opacity: 0;
+  }
+}

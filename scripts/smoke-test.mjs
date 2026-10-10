@@ -1,5 +1,6 @@
 /**
  * 書き出したサイト（dist/client）を本物のブラウザで開いて、おもな画面がエラーなく動くかを確かめる。
+ * 画面を開けるかを確かめたあと、押したり切りかえたりする操作（scripts/smoke-scenarios.mjs）も確かめる。
  *   npm run build のあとに: npm run smoke
  * GitHub に送ったとき（.github/workflows/deploy.yml）にも、公開の前に実行される。
  * 1つでも失敗したら終了コード 1 で止まるので、壊れた状態では公開されない。
@@ -12,6 +13,7 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
 import { dist } from './built-posts.mjs';
+import { scenarios } from './smoke-scenarios.mjs';
 
 const CHROME_CANDIDATES = [
   process.env.CHROME_PATH,
@@ -95,11 +97,10 @@ const checks = [
   ...firstAvatars.map((id) => ({
     path: `/avatar/${id}`,
     // モデルを表示できなかったときも、待たずに次へ（下でエラーとして数える）
+    // （写真のボタンは、モデルを表示できるまで押せない）
     ready: () =>
       !!document.querySelector('.vrm-error') ||
-      [...document.querySelectorAll('.avatar-room-play button')].some(
-        (b) => !b.disabled,
-      ),
+      document.querySelector('.avatar-room-photo')?.disabled === false,
     timeout: 90_000,
   })),
   ...(firstPost
@@ -135,16 +136,27 @@ const browser = await puppeteer.launch({
   ],
 });
 
-const failures = [];
-for (const check of checks) {
+/**
+ * 確かめるためのタブを開く。言葉は日本語にそろえ（ブラウザの言語によって英語になるため）、
+ * はじまりの演出は出さない。エラーは errors に集める
+ */
+async function openPage({ allow404 = false } = {}) {
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 800 });
+  await page.evaluateOnNewDocument(() => {
+    try {
+      window.localStorage.setItem('yzmo-lang', 'ja');
+      window.sessionStorage.setItem('yzmo-intro', '1');
+    } catch {
+      // 保存できない画面（about:blank など）では何もしない
+    }
+  });
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   page.on('console', (message) => {
     if (message.type() !== 'error') return;
     // 存在しないページを開いたときの 404 は、確かめたいことそのものなので数えない
-    if (check.expect404 && /404/.test(message.text())) return;
+    if (allow404 && /404/.test(message.text())) return;
     errors.push(message.text());
   });
   page.on('requestfailed', (request) => {
@@ -152,6 +164,12 @@ for (const check of checks) {
     if (!request.url().startsWith(base)) return;
     errors.push(`読み込めませんでした: ${request.url()}`);
   });
+  return { page, errors };
+}
+
+const failures = [];
+for (const check of checks) {
+  const { page, errors } = await openPage({ allow404: check.expect404 });
   const started = Date.now();
   try {
     await page.goto(base + check.path, { waitUntil: 'load', timeout: 60_000 });
@@ -179,13 +197,37 @@ for (const check of checks) {
   await page.close();
 }
 
+// --- 操作の確認 ---
+for (const scenario of scenarios) {
+  const { page, errors } = await openPage({ allow404: true });
+  const started = Date.now();
+  try {
+    await scenario.run(page, base, { avatarId: firstAvatars[0] ?? 'quiple' });
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  } catch (error) {
+    errors.push(error.message.split('\n')[0]);
+  }
+  const seconds = ((Date.now() - started) / 1000).toFixed(1);
+  if (errors.length) {
+    failures.push({ path: scenario.name, errors });
+    console.log(`✗ ${scenario.name}（${seconds}秒）`);
+    for (const error of errors) console.log(`    ${error}`);
+  } else {
+    console.log(`✓ ${scenario.name}（${seconds}秒）`);
+  }
+  await page.close();
+}
+
 await browser.close();
 server.close();
+const total = checks.length + scenarios.length;
 if (failures.length) {
-  console.log(`[smoke] ${failures.length} 画面で問題がありました`);
+  console.log(`[smoke] ${total} 項目のうち ${failures.length} 項目で問題がありました`);
   process.exit(1);
 }
-console.log(`[smoke] ${checks.length} 画面すべて問題ありませんでした`);
+console.log(
+  `[smoke] ${checks.length} 画面と ${scenarios.length} 個の操作、すべて問題ありませんでした`,
+);
 
 /** dist/client/<folder>/ の .html の名前（拡張子なし）を返す */
 async function readdirSafe(folder) {

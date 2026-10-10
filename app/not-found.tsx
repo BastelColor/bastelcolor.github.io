@@ -1,5 +1,6 @@
 import { NotFoundBack, NotFoundTitle } from '@/components/not-found-back';
 import { ShootingStars } from '@/components/shooting-stars';
+import { StarCatch } from '@/components/star-catch';
 import { site } from '@/content/site';
 
 /**
@@ -16,6 +17,7 @@ export default function NotFound() {
       </p>
       <NotFoundTitle />
       <NotFoundBack />
+      <StarCatch />
     </main>
   );
 }

@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  lazy,
+  Suspense,
   useEffect,
   useRef,
   useState,
@@ -16,16 +18,13 @@ import { useT } from '@/components/lang';
 import { PuniButton } from '@/components/puni-button';
 import { RoomMascot } from '@/components/room-mascot';
 import { ShootingStars } from '@/components/shooting-stars';
-import { AvatarRoom, preloadAvatarRoom } from '@/components/rooms/avatar-room';
-import { LogRoom } from '@/components/rooms/log-room';
-import { ProfileRoom } from '@/components/rooms/profile-room';
-import { WorksRoom } from '@/components/rooms/works-room';
 import { findPage, pages } from '@/content/pages';
 import { site } from '@/content/site';
 import type { PageId } from '@/content/types';
 import { leaveLayer, pushLayers, readLayers } from '@/lib/history-layers';
 import { isNewPost, type Post } from '@/lib/post-meta';
 import { rememberPostOrigin } from '@/lib/post-origin';
+import { useSecretParty } from '@/lib/secret-party';
 import { cn } from '@/lib/utils';
 
 /** 雲を押してから部屋が膨らみ始めるまで（「ぷにっ」を見せる時間） */
@@ -43,12 +42,44 @@ type RoomProps = {
   posts: Post[];
 };
 
-const rooms: Record<PageId, ComponentType<RoomProps>> = {
-  profile: ProfileRoom,
-  works: WorksRoom,
-  avatar: AvatarRoom,
-  log: LogRoom,
+/**
+ * 部屋の中身。トップを開いたときには使わないので、最初には読み込まず、
+ * 雲にふれた（カーソルを乗せた・フォーカスした・指でふれた）ときか、部屋を開いたときに読み込む
+ * （トップの表示を軽くするため）
+ */
+const roomModules = {
+  profile: () => import('@/components/rooms/profile-room'),
+  works: () => import('@/components/rooms/works-room'),
+  avatar: () => import('@/components/rooms/avatar-room'),
+  log: () => import('@/components/rooms/log-room'),
 };
+
+const rooms: Record<PageId, ComponentType<RoomProps>> = {
+  profile: lazy(() =>
+    roomModules.profile().then((module) => ({ default: module.ProfileRoom })),
+  ),
+  works: lazy(() =>
+    roomModules.works().then((module) => ({ default: module.WorksRoom })),
+  ),
+  avatar: lazy(() =>
+    roomModules.avatar().then((module) => ({ default: module.AvatarRoom })),
+  ),
+  log: lazy(() =>
+    roomModules.log().then((module) => ({ default: module.LogRoom })),
+  ),
+};
+
+/** 雲にふれたとき: その部屋の中身を読み込み始める。アバターの部屋は、3D の表示に使うものも */
+function preloadRoom(id: PageId) {
+  if (id === 'avatar') {
+    roomModules
+      .avatar()
+      .then((module) => module.preloadAvatarRoom())
+      .catch(() => {});
+    return;
+  }
+  roomModules[id]().catch(() => {});
+}
 
 /**
  * サイト全体。「押せるものだけが、ぷにっとした雲」というルールで作っている。
@@ -75,6 +106,23 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
     isPostPage ? 'log' : null,
   );
   const [isExpanded, setIsExpanded] = useState(isPostPage);
+  // 隠しコマンド（トップを見ているあいだだけ）
+  const { party, onTap: onNameTap } = useSecretParty(room === null && !isPostPage);
+  // 「Yzmo」の文字を何回かつつくと、隠しコマンド（スマホなど、キーボードのない人向け。
+  // 押せるものではないので、ボタンにはせず、ふれたことだけを見る）
+  const nameElement = useRef<HTMLHeadingElement>(null);
+  const onNameTapRef = useRef(onNameTap);
+  useEffect(() => {
+    onNameTapRef.current = onNameTap;
+  });
+  useEffect(() => {
+    const element = nameElement.current;
+    if (!element) return;
+    const onPointerUp = (event: PointerEvent) =>
+      onNameTapRef.current(event.timeStamp);
+    element.addEventListener('pointerup', onPointerUp);
+    return () => element.removeEventListener('pointerup', onPointerUp);
+  }, []);
   const [origin, setOrigin] = useState({ x: 0, y: 0 });
   const buttons = useRef(new Map<PageId, HTMLButtonElement>());
   const backButton = useRef<HTMLButtonElement>(null);
@@ -248,9 +296,14 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
     <div className="site">
       <FloatingBits variant="home" />
       <ShootingStars />
-      <main className="home" inert={room !== null || isPostPage}>
+      <main
+        // 跳ねるたびに作り直さず、番号の data 属性を変えて、動きを最初から流す
+        className={cn('home', party > 0 && 'is-party')}
+        data-party={party > 0 ? party % 2 : undefined}
+        inert={room !== null || isPostPage}
+      >
         {/* 「Yzmo」の4文字は、4つの部屋（雲）と同じ順・同じ色 */}
-        <h1 className="home-name" aria-label={site.title}>
+        <h1 ref={nameElement} className="home-name" aria-label={site.title}>
           <span className="home-name-letters" aria-hidden="true">
             {['Y', 'z', 'm', 'o'].map((letter, i) => (
               <span key={letter} className={pages[i].tone}>
@@ -287,8 +340,8 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
               tone={item.tone}
               isPressed={room === item.id && !isExpanded}
               onPress={(button) => open(item.id, button)}
-              // アバターの部屋は 3D の表示に時間がかかるので、雲にふれた時点で読み込み始める
-              onIntent={item.id === 'avatar' ? preloadAvatarRoom : undefined}
+              // 雲にふれた時点で、部屋の中身を読み込み始める（アバターの部屋は、3D の表示に使うものも）
+              onIntent={() => preloadRoom(item.id)}
               label={t(item.menuLabel, item.en.menuLabel)}
             />
           ))}
@@ -320,7 +373,10 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
               <h2>{t(page.menuLabel, page.en.menuLabel)}</h2>
               <p>{t(page.note, page.en.note)}</p>
             </header>
-            <Room posts={posts} />
+            {/* 中身を読み込み終わるまでは、空の部屋（見出しともどるボタンだけ）を出す */}
+            <Suspense fallback={null}>
+              <Room posts={posts} />
+            </Suspense>
           </div>
           {page.mascot && <RoomMascot mascot={page.mascot} />}
         </section>

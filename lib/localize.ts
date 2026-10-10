@@ -13,6 +13,7 @@ export function localizeWork(work: Work, lang: Lang): Work {
     title: en.title ?? work.title,
     description: en.description ?? work.description,
     body: en.body ?? work.body,
+    imageAlt: en.imageAlt,
     links: work.links?.map((link, i) => ({
       ...link,
       label: en.links?.[i] ?? link.label,

@@ -592,3 +592,50 @@
     transition: none;
   }
 }
+
+/* ---- 使った道具での絞り込み ----
+   ジャンルの下に、1行ぶん小さめに並べる */
+.works-tools {
+  flex-basis: 100%;
+  order: 3;
+  align-items: center;
+  gap: 8px;
+}
+
+.works-tools button {
+  padding: 4px 12px 5px;
+  font-size: 12px;
+}
+
+.works-tools-label {
+  margin-right: 2px;
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--ink-soft);
+}
+
+.works-empty {
+  margin: 24px 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+/* 作品の詳細の、使った道具 */
+.work-detail-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.work-detail-tools li {
+  padding: 2px 10px 3px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone) 30%, var(--paper));
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--ink);
+}

@@ -12,6 +12,11 @@
  * 漢字の少ないトップページを開いたときは、軽い -basic だけで済むことが多い。
  * 分け方（BASIC_RANGES）は app/styles/fonts.css の unicode-range と同じにすること。
  *
+ * さらに、トップページに出ている文字だけを入れた、とても小さいフォント（-home）も作る。
+ * トップを開いたときは、ほぼこれだけを読めば済む（-basic・-extra は、ほかの画面の文字が出たときに読む）。
+ * -home を使う設定（@font-face）は、文字が公開のたびに変わるので CSS には書かず、ここで
+ * 書き出したすべてのページの <head> に直接書き足す（あとに書いたものが優先されるので、トップの文字は -home で描く）。
+ *
  * 開発中（npm run dev）は、scripts/vite-fonts.ts が元のフォントを丸ごと渡すので、この処理は要らない。
  */
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
@@ -57,6 +62,20 @@ const parts = {
   extra: [...chars].filter((char) => !isBasic(char)),
 };
 
+// トップページ（index.html）に出ている文字。<script> などの中は除く。英数字は、英語に切りかえたときのためにすべて入れる
+const homeHtml = await readFile(path.join(dist, 'index.html'), 'utf8');
+const homeText = homeHtml
+  .replace(/<(script|style|template)\b[\s\S]*?<\/\1>/g, '')
+  .replace(/<[^>]+>/g, ' ')
+  .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+  .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(Number(dec)));
+const homeChars = new Set();
+for (let code = 0x20; code <= 0x7e; code++) homeChars.add(String.fromCharCode(code));
+for (const char of homeText) {
+  if (char.codePointAt(0) >= 0x80 && chars.has(char)) homeChars.add(char);
+}
+parts.home = [...homeChars];
+
 await mkdir(outDir, { recursive: true });
 for (const { source, name } of fonts) {
   const font = await readFile(path.join(fontsDir, source));
@@ -70,6 +89,48 @@ for (const { source, name } of fonts) {
       `[fonts] ${output}: ${(subset.length / 1024).toFixed(0)}KB（${list.length} 文字）`,
     );
   }
+}
+
+// ---- -home を使う設定を、すべてのページの <head> に書き足す ----
+const homeRange = toUnicodeRange(parts.home);
+const homeFaces = fonts
+  .map(
+    ({ name, family, weight }) =>
+      `@font-face{font-family:'${family}';font-style:normal;font-weight:${weight};font-display:swap;` +
+      `src:url(/fonts/${name}-home.woff2) format('woff2');unicode-range:${homeRange}}`,
+  )
+  .join('');
+const homeStyle = `<style data-home-fonts>${homeFaces}</style>`;
+let pages = 0;
+for (const file of await listFiles(dist)) {
+  if (!file.endsWith('.html')) continue;
+  const html = await readFile(file, 'utf8');
+  if (html.includes('data-home-fonts') || !html.includes('</head>')) continue;
+  await writeFile(file, html.replace('</head>', `${homeStyle}</head>`));
+  pages += 1;
+}
+console.log(
+  `[fonts] トップの文字（${parts.home.length} 文字）だけのフォントを、${pages} ページに設定しました`,
+);
+
+/** 文字の一覧を、unicode-range の書き方（U+20-7E,U+3042,...）にする。続いている文字はまとめる */
+function toUnicodeRange(list) {
+  const codes = [...new Set(list.map((char) => char.codePointAt(0)))].sort(
+    (a, b) => a - b,
+  );
+  const ranges = [];
+  for (const code of codes) {
+    const last = ranges.at(-1);
+    if (last && code === last[1] + 1) last[1] = code;
+    else ranges.push([code, code]);
+  }
+  return ranges
+    .map(([start, end]) =>
+      start === end
+        ? `U+${start.toString(16).toUpperCase()}`
+        : `U+${start.toString(16).toUpperCase()}-${end.toString(16).toUpperCase()}`,
+    )
+    .join(',');
 }
 
 async function listFiles(dir) {
