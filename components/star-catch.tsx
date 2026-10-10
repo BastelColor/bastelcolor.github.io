@@ -4,10 +4,10 @@ import {
   useEffect,
   useRef,
   useState,
-  useSyncExternalStore,
   type CSSProperties,
 } from 'react';
 import { useT } from '@/components/lang';
+import { useReducedMotion } from '@/lib/motion';
 import { playSound } from '@/lib/sound';
 
 /**
@@ -36,8 +36,6 @@ type FallingStar = {
   caught: boolean;
 };
 
-const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
-
 function readBest() {
   try {
     return Number(window.localStorage.getItem(BEST_KEY)) || 0;
@@ -48,15 +46,7 @@ function readBest() {
 
 export function StarCatch() {
   const t = useT();
-  const reduced = useSyncExternalStore(
-    (onChange) => {
-      const query = window.matchMedia(REDUCED_MOTION);
-      query.addEventListener('change', onChange);
-      return () => query.removeEventListener('change', onChange);
-    },
-    () => window.matchMedia(REDUCED_MOTION).matches,
-    () => true,
-  );
+  const reduced = useReducedMotion(true);
   const [playing, setPlaying] = useState(false);
   const [stars, setStars] = useState<FallingStar[]>([]);
   const [score, setScore] = useState(0);

@@ -14,12 +14,15 @@ import {
   readLayers,
   replaceLayers,
 } from '@/lib/history-layers';
+import { reducesMotion } from '@/lib/motion';
 import { playSound } from '@/lib/sound';
 
 /** ダイアログが消えるまでの時間（works.css の .work-dialog の transition と合わせる） */
 const DIALOG_FADE_MS = 200;
 /** # 付きの URL で来たとき、部屋が広がってから作品の詳細を開くまでの時間 */
 const LINKED_OPEN_DELAY_MS = 700;
+/** 詳細を指で横になぞって、となりの作品へ移るのに要る距離（px） */
+const SWIPE_PX = 60;
 
 /**
  * 作品はサムネイルで並べ、ジャンルで絞り込める。押すと詳細をダイアログで開く。
@@ -28,6 +31,8 @@ const LINKED_OPEN_DELAY_MS = 700;
  *
  * 詳細を開くと履歴を1つ積むので、ブラウザの「戻る」で詳細だけを閉じられる
  * （lib/history-layers.ts）。
+ *
+ * 詳細を開いたまま、← → キー・指で横になぞる・下の矢印で、となりの作品へ移れる。
  */
 const VIEWS = [
   { id: 'grid', label: '一覧', labelEn: 'Grid' },
@@ -79,6 +84,8 @@ export function WorksRoom() {
     dialog.current?.showModal();
   };
   const showRef = useRef(show);
+  // ← → キーと指でなぞったときに移る先（描くたびに、いまのとなりの作品にする）
+  const stepRef = useRef<(direction: -1 | 1) => void>(() => {});
   useEffect(() => {
     showRef.current = show;
   });
@@ -114,12 +121,56 @@ export function WorksRoom() {
           else replaceLayers({ room: 'works' });
         }, LINKED_OPEN_DELAY_MS)
       : undefined;
+    // ← → キーで、となりの作品へ。詳細の上に重ねた画像のビューア（別の dialog）の中や、
+    // 文字を打つところでは、そちらの操作にまかせる
+    const isOwnEvent = (event: Event) => {
+      const target = event.target as Element | null;
+      return (
+        target?.closest('dialog') === element &&
+        !target.closest('input, textarea, select, [contenteditable]')
+      );
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!isOwnEvent(event) || event.altKey || event.ctrlKey || event.metaKey) {
+        return;
+      }
+      if (event.key === 'ArrowLeft') stepRef.current(-1);
+      if (event.key === 'ArrowRight') stepRef.current(1);
+    };
+    // 指で横になぞったら、となりの作品へ（縦のスクロールとまちがえないよう、横に大きく動いたときだけ）
+    let swipeStart: { x: number; y: number } | null = null;
+    const onPointerDown = (event: PointerEvent) => {
+      swipeStart =
+        event.pointerType === 'touch' && isOwnEvent(event)
+          ? { x: event.clientX, y: event.clientY }
+          : null;
+    };
+    const onPointerUp = (event: PointerEvent) => {
+      if (!swipeStart) return;
+      const dx = event.clientX - swipeStart.x;
+      const dy = event.clientY - swipeStart.y;
+      swipeStart = null;
+      if (Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(dy) * 2) {
+        stepRef.current(dx < 0 ? 1 : -1);
+      }
+    };
+    const onPointerCancel = () => {
+      swipeStart = null;
+    };
     element.addEventListener('click', onClick);
     element.addEventListener('close', onClose);
+    element.addEventListener('keydown', onKeyDown);
+    element.addEventListener('pointerdown', onPointerDown);
+    element.addEventListener('pointerup', onPointerUp);
+    element.addEventListener('pointercancel', onPointerCancel);
     window.addEventListener('popstate', onPopState);
     return () => {
       element.removeEventListener('click', onClick);
       element.removeEventListener('close', onClose);
+      element.removeEventListener('keydown', onKeyDown);
+      element.removeEventListener('pointerdown', onPointerDown);
+      element.removeEventListener('pointerup', onPointerUp);
+      element.removeEventListener('pointercancel', onPointerCancel);
       window.removeEventListener('popstate', onPopState);
       window.clearTimeout(clearTimer.current);
       window.clearTimeout(linkTimer);
@@ -169,12 +220,30 @@ export function WorksRoom() {
     shownIndex >= 0 && shownIndex < ordered.length - 1
       ? ordered[shownIndex + 1]
       : undefined;
-  // 詳細を開いたまま、となりの作品へ切りかえる（履歴は積まず、URL だけ変える）
+  // 詳細を開いたまま、となりの作品へ切りかえる（履歴は積まず、URL だけ変える）。
+  // 進んだ向きから、すっと入ってくるように見せる
   const switchTo = (id: string) => {
+    const direction = id === previous?.id ? -1 : 1;
+    playSound('pop');
     setShownId(id);
     replaceLayers({ room: 'works', work: id });
     dialog.current?.scrollTo({ top: 0 });
+    if (!reducesMotion()) {
+      dialog.current?.querySelector('.work-detail')?.animate(
+        [
+          { opacity: 0, translate: `${direction * 28}px 0` },
+          { opacity: 1, translate: '0 0' },
+        ],
+        { duration: 260, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+      );
+    }
   };
+  useEffect(() => {
+    stepRef.current = (direction) => {
+      const target = direction < 0 ? previous : next;
+      if (target) switchTo(target.id);
+    };
+  });
 
   const renderItem = (work: Work) => (
     <li key={work.id}>

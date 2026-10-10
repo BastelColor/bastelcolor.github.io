@@ -5,63 +5,22 @@
  * GitHub に送ったとき（.github/workflows/deploy.yml）にも、公開の前に実行される。
  * 1つでも失敗したら終了コード 1 で止まるので、壊れた状態では公開されない。
  *
- * Chrome の場所は CHROME_PATH で指定できる（無ければ、Windows・Linux のふつうの場所を探す）。
+ * Chrome の場所は CHROME_PATH で指定できる（無ければ、Windows・Linux のふつうの場所を探す。scripts/static-server.mjs）。
  */
-import { existsSync } from 'node:fs';
-import { readdir, readFile } from 'node:fs/promises';
-import { createServer } from 'node:http';
+import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import puppeteer from 'puppeteer-core';
 import { dist } from './built-posts.mjs';
 import { scenarios } from './smoke-scenarios.mjs';
+import {
+  CHROME_ARGS,
+  findChrome,
+  startStaticServer,
+} from './static-server.mjs';
 
-const CHROME_CANDIDATES = [
-  process.env.CHROME_PATH,
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
-  '/usr/bin/google-chrome',
-  '/usr/bin/google-chrome-stable',
-  '/usr/bin/chromium',
-].filter(Boolean);
-const TYPES = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript',
-  '.css': 'text/css',
-  '.json': 'application/json',
-  '.txt': 'text/plain; charset=utf-8',
-  '.xml': 'application/xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.webp': 'image/webp',
-  '.ico': 'image/x-icon',
-  '.woff2': 'font/woff2',
-  '.vrm': 'application/octet-stream',
-};
-
-// --- GitHub Pages と同じように、/work/abc → work/abc.html を返す小さなサーバー ---
-const server = createServer(async (req, res) => {
-  const pathname = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-  const candidates = pathname.endsWith('/')
-    ? [`${pathname}index.html`]
-    : [pathname, `${pathname}.html`, `${pathname}/index.html`];
-  for (const candidate of candidates) {
-    const file = path.join(dist, candidate);
-    if (!file.startsWith(dist) || !existsSync(file)) continue;
-    try {
-      const body = await readFile(file);
-      res.writeHead(200, {
-        'content-type': TYPES[path.extname(file)] ?? 'application/octet-stream',
-      });
-      res.end(body);
-      return;
-    } catch {
-      // フォルダーだったときなど。次の候補へ
-    }
-  }
-  res.writeHead(404, { 'content-type': TYPES['.html'] });
-  res.end(await readFile(path.join(dist, '404.html')));
-});
-await new Promise((resolve) => server.listen(0, resolve));
-const base = `http://localhost:${server.address().port}`;
+// --- GitHub Pages と同じように返す小さなサーバー（scripts/static-server.mjs） ---
+const server = await startStaticServer();
+const { base } = server;
 
 // --- 確かめる画面 ---
 const firstWork = (await readdirSafe('work'))[0];
@@ -118,22 +77,10 @@ const checks = [
   },
 ];
 
-const executablePath = CHROME_CANDIDATES.find((candidate) =>
-  existsSync(candidate),
-);
-if (!executablePath)
-  throw new Error(
-    '[smoke] Chrome が見つかりません（CHROME_PATH で指定してください）',
-  );
 const browser = await puppeteer.launch({
-  executablePath,
+  executablePath: findChrome(),
   headless: true,
-  // 3D の表示は、GPU の無い環境でも動くソフトウェア描画で確かめる
-  args: [
-    '--use-angle=swiftshader',
-    '--enable-unsafe-swiftshader',
-    '--no-sandbox',
-  ],
+  args: CHROME_ARGS,
 });
 
 /**
@@ -162,6 +109,8 @@ async function openPage({ allow404 = false } = {}) {
   page.on('requestfailed', (request) => {
     // 外のサービス（アクセス解析・BOOTH の画像など）は、ここでは確かめない
     if (!request.url().startsWith(base)) return;
+    // 読み込みの途中で別の画面へ移ったときに、取りやめたもの（無いファイルは 404 のエラーとして別に数える）
+    if (request.failure()?.errorText === 'net::ERR_ABORTED') return;
     errors.push(`読み込めませんでした: ${request.url()}`);
   });
   return { page, errors };
@@ -202,7 +151,10 @@ for (const scenario of scenarios) {
   const { page, errors } = await openPage({ allow404: true });
   const started = Date.now();
   try {
-    await scenario.run(page, base, { avatarId: firstAvatars[0] ?? 'quiple' });
+    await scenario.run(page, base, {
+      avatarId: firstAvatars[0] ?? 'quiple',
+      avatarIds: firstAvatars,
+    });
     await new Promise((resolve) => setTimeout(resolve, 500));
   } catch (error) {
     errors.push(error.message.split('\n')[0]);

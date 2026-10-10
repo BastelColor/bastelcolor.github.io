@@ -189,12 +189,10 @@
   animation: puni-press-y 0.3s ease-in-out 0.028s both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .puni,
-  .puni-x,
-  .puni-y {
-    animation: none !important;
-  }
+:root[data-motion='reduce'] .puni,
+:root[data-motion='reduce'] .puni-x,
+:root[data-motion='reduce'] .puni-y {
+  animation: none !important;
 }
 
 /* ---- keyframes ---- */

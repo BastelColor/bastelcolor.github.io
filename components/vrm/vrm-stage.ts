@@ -11,6 +11,13 @@ import modelSizes from 'virtual:model-sizes';
 import { createIdleMotion } from '@/components/vrm/idle-motion';
 import { createLightRig, type Lighting } from '@/components/vrm/lighting';
 import { createPointerLook, type PointerLook } from '@/components/vrm/look-at';
+import { createSway, type Sway } from '@/components/vrm/sway';
+import {
+  exportUsdz,
+  startWebXR,
+  type ARSession,
+  type ARView,
+} from '@/components/vrm/ar';
 import {
   createViewModes,
   type ViewMode,
@@ -48,6 +55,20 @@ export type VrmStage = {
   expressionNames: string[];
   /** ライトの組み合わせを切りかえる（components/vrm/lighting.ts） */
   setLighting: (lighting: Lighting, instant?: boolean) => void;
+  /** 横へぽんと押して揺らす（components/vrm/sway.ts） */
+  shake: () => void;
+  /** 風を吹かせる・止める（components/vrm/sway.ts） */
+  setWind: (on: boolean) => void;
+  /**
+   * AR（WebXR）を始める。押したときの操作の中で呼ぶ。overlay はカメラの映像に重ねる要素
+   * （components/vrm/ar.ts）
+   */
+  startAR: (
+    overlay: HTMLElement,
+    events: { onPlaced: () => void; onEnd: () => void },
+  ) => Promise<ARSession>;
+  /** いまのポーズのモデルを USDZ にする（iPhone の AR クイックルック用。components/vrm/ar.ts） */
+  exportUsdz: () => Promise<Blob>;
   /** いまの画面を写真にする（枠の中、少し広めに。背景は透明） */
   capture: () => StageShot;
   resetView: () => void;
@@ -57,6 +78,22 @@ export type VrmStage = {
 /** カメラが写す範囲 */
 export const FRAMINGS = ['full', 'upper', 'face'] as const;
 export type Framing = (typeof FRAMINGS)[number];
+
+/**
+ * 公開前の確認（scripts/smoke-scenarios.mjs）が読む、いまの目線と表情の数字。
+ * URL に ?check を付けて開いたときだけ、window.__yzmoCheck() で読める
+ */
+export type StageCheck = {
+  /** 目の位置が、頭の骨からどれだけ離れているか（m）。モデルの骨の大きさの扱いをまちがえると、何 m にもなる */
+  eyeOffset: number;
+  /** 黒目の向き（度）。yaw は左右、pitch は上下（正で下） */
+  eyeYaw: number;
+  eyePitch: number;
+  /** 顔の上下の向き（度、正で上） */
+  headPitch: number;
+  /** いま見せている表情と、その強さ（0〜1） */
+  expressions: Record<string, number>;
+};
 
 /** 写真（capture）。画像と、画像の中での枠（container）の位置（画像のピクセル） */
 export type StageShot = {
@@ -321,11 +358,14 @@ export async function createVrmStage({
   let motionPlayer: MotionPlayer | null = null;
   let viewModes: ViewModes | null = null;
   let pointerLook: PointerLook | null = null;
+  let sway: Sway | null = null;
   let releaseLilToon: (() => void) | null = null;
   let disposed = false;
   const dispose = () => {
     if (disposed) return;
     disposed = true;
+    // AR のあいだに片付けることになったら、AR も終える
+    void renderer.xr.getSession()?.end();
     renderer.setAnimationLoop(null);
     releaseLilToon?.();
     cancelAnimationFrame(resizeFrame);
@@ -334,6 +374,7 @@ export async function createVrmStage({
     motionPlayer?.dispose();
     viewModes?.dispose();
     pointerLook?.dispose();
+    sway?.dispose();
     if (vrm) disposeObject(vrm.scene);
     renderer.dispose();
   };
@@ -577,6 +618,9 @@ export async function createVrmStage({
     viewModes = createViewModes(THREE, scene, [vrm.scene]);
     const look = createPointerLook(THREE, scene, camera, canvas, [vrm], container);
     pointerLook = look;
+    // モデルをつまんで揺らす・風
+    const swaying = createSway(THREE, camera, canvas, [vrm]);
+    sway = swaying;
     // モーションが読めなくても待機モーションで表示は続ける
     motion
       ?.then((animation) => {
@@ -610,10 +654,44 @@ export async function createVrmStage({
       }
     };
 
+    // --- AR（WebXR）。始めているあいだだけ ---
+    let arView: ARView | null = null;
+
+    // --- 公開前の確認のための数字（URL に ?check があるときだけ） ---
+    if (new URLSearchParams(window.location.search).has('check')) {
+      const headBone = vrm.humanoid.getNormalizedBoneNode('head');
+      const checkVrm = vrm;
+      const check = (): StageCheck => {
+        const lookAt = checkVrm.lookAt;
+        const headPosition = new THREE.Vector3();
+        headBone?.getWorldPosition(headPosition);
+        const forward = new THREE.Vector3(0, 0, 1);
+        if (headBone) {
+          forward.applyQuaternion(headBone.getWorldQuaternion(headQuaternion));
+        }
+        return {
+          eyeOffset: lookAt
+            ? lookAt
+                .getLookAtWorldPosition(new THREE.Vector3())
+                .distanceTo(headPosition)
+            : 0,
+          eyeYaw: lookAt?.yaw ?? 0,
+          eyePitch: lookAt?.pitch ?? 0,
+          headPitch: THREE.MathUtils.radToDeg(Math.asin(forward.y)),
+          expressions: Object.fromEntries(expressionWeights),
+        };
+      };
+      const checkWindow = window as unknown as { __yzmoCheck?: () => StageCheck };
+      checkWindow.__yzmoCheck = check;
+      signal.addEventListener('abort', () => {
+        if (checkWindow.__yzmoCheck === check) delete checkWindow.__yzmoCheck;
+      });
+    }
+
     // --- 描画ループ ---
     const timer = new THREE.Timer();
     const currentVrm = vrm;
-    renderer.setAnimationLoop((time) => {
+    renderer.setAnimationLoop((time, frame) => {
       timer.update(time);
       // タブ復帰直後などに揺れものが暴れないよう、経過時間に上限を設ける
       const delta = Math.min(timer.getDelta(), 0.05);
@@ -621,10 +699,12 @@ export async function createVrmStage({
       updateExpressions(timer.getElapsed(), delta);
       player.update(delta);
       look.update(delta);
+      swaying.update(delta);
       currentVrm.update(delta);
       moveCamera(timer.getElapsed(), delta);
       lights.update(delta);
       controls.update();
+      arView?.update(frame);
       renderer.render(scene, camera);
     });
 
@@ -696,6 +776,32 @@ export async function createVrmStage({
       setViewMode: (mode) => viewModes?.set(mode),
       expressionNames,
       setLighting: lights.set,
+      shake: swaying.shake,
+      setWind: swaying.setWind,
+      startAR: async (overlay, { onPlaced, onEnd }) => {
+        const view = await startWebXR({
+          THREE,
+          renderer,
+          scene,
+          model: currentVrm.scene,
+          overlay,
+          onPlaced,
+          onEnd: () => {
+            arView = null;
+            // 目と揺れものは、またいつものカメラを見る。canvas の大きさも元にもどす
+            look.setCamera(camera);
+            swaying.setCamera(camera);
+            resize();
+            onEnd();
+          },
+        });
+        arView = view;
+        // AR のあいだは、スマホのカメラを「見ている人」にする
+        look.setCamera(renderer.xr.getCamera());
+        swaying.setCamera(renderer.xr.getCamera());
+        return view.session;
+      },
+      exportUsdz: () => exportUsdz(THREE, currentVrm.scene),
       capture: () => {
         // 枠の中。しっぽなどが切れにくいよう、細い枠では横を少し広げ、
         // 足元の展示台の影まで入るよう、下も少し広げる

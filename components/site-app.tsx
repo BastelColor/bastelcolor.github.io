@@ -22,6 +22,7 @@ import { findPage, pages } from '@/content/pages';
 import { site } from '@/content/site';
 import type { PageId } from '@/content/types';
 import { leaveLayer, pushLayers, readLayers } from '@/lib/history-layers';
+import { reducesMotion } from '@/lib/motion';
 import { isNewPost, type Post } from '@/lib/post-meta';
 import { rememberPostOrigin } from '@/lib/post-origin';
 import { useSecretParty } from '@/lib/secret-party';
@@ -156,9 +157,7 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
     if (!room) return;
     const closingRoom = room;
     setIsExpanded(false);
-    const reduceMotion = window.matchMedia(
-      '(prefers-reduced-motion: reduce)',
-    ).matches;
+    const reduceMotion = reducesMotion();
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(
       () => {

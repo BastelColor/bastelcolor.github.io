@@ -3,6 +3,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
 import { useT } from '@/components/lang';
+import { reducesMotion } from '@/lib/motion';
 import { applySky } from '@/lib/sky';
 import { playSound } from '@/lib/sound';
 import { THEME_STORAGE_KEY, type Theme } from '@/lib/theme';
@@ -71,8 +72,7 @@ export function ThemeToggle() {
       flushSync(() => saveTheme(next));
       paint(next);
     };
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!document.startViewTransition || reduced) {
+    if (!document.startViewTransition || reducesMotion()) {
       change();
       return;
     }

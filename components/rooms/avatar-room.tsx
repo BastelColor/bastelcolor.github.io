@@ -4,7 +4,6 @@ import {
   useEffect,
   useRef,
   useState,
-  useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
 } from 'react';
@@ -19,6 +18,12 @@ import {
 } from '@/components/rooms/avatar-photo';
 import { ShareButtons } from '@/components/share-buttons';
 import { LIGHTINGS, type Lighting } from '@/components/vrm/lighting';
+import {
+  detectAR,
+  openQuickLook,
+  type ARMode,
+  type ARSession,
+} from '@/components/vrm/ar';
 import { LineupViewer } from '@/components/vrm/lineup-viewer';
 import {
   VIEW_MODES,
@@ -36,13 +41,13 @@ import { avatarExpressions, avatarMotion } from '@/content/motions';
 import { site } from '@/content/site';
 import { readLayers, replaceLayers } from '@/lib/history-layers';
 import { localizeAvatar } from '@/lib/localize';
+import { reducesMotion, useReducedMotion } from '@/lib/motion';
 import { playSound } from '@/lib/sound';
 import { cn } from '@/lib/utils';
 
 /** 選ぶボタンにも目印を出す badge（まだ配布していない子だと、ひと目で分かるように） */
 const WIP_BADGE = '制作中';
 
-const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 
 /** まわすボタン1回で回り込む角度（45°） */
 const ORBIT_STEP = Math.PI / 4;
@@ -80,10 +85,12 @@ type RoomStage = Pick<
   | 'expressionNames'
   | 'setLighting'
   | 'setViewMode'
+  | 'shake'
+  | 'setWind'
   | 'capture'
 > &
-  // 写す範囲は、ひとりずつのときだけ
-  Partial<Pick<VrmStage, 'setFraming'>>;
+  // 写す範囲と AR は、ひとりずつのときだけ
+  Partial<Pick<VrmStage, 'setFraming' | 'startAR' | 'exportUsdz'>>;
 
 /** 写す範囲の名前（components/vrm/vrm-stage.ts） */
 const FRAMING_LABELS: Record<Framing, [string, string]> = {
@@ -110,19 +117,6 @@ const PHOTO_SHAPE_LABELS: Record<PhotoShape, [string, string]> = {
 /** 背丈くらべに足せる「わたし」の高さ（cm）の範囲 */
 const MY_HEIGHT_MIN = 50;
 const MY_HEIGHT_MAX = 250;
-
-/** 「視差効果を減らす」など、動きを減らす設定にしているか */
-function usePrefersReducedMotion() {
-  return useSyncExternalStore(
-    (onChange) => {
-      const query = window.matchMedia(REDUCED_MOTION);
-      query.addEventListener('change', onChange);
-      return () => query.removeEventListener('change', onChange);
-    },
-    () => window.matchMedia(REDUCED_MOTION).matches,
-    () => false,
-  );
-}
 
 /**
  * 「モデルの情報」に出す項目。数は公開のたびに VRM から数える（scripts/vite-model-stats.ts）
@@ -169,9 +163,7 @@ export function preloadAvatarRoom() {
   const avatar = avatars.find((item) => item.id === id) ?? avatars[0];
   preloadVrmStage({
     modelUrl: avatar.modelUrl,
-    motionId: window.matchMedia(REDUCED_MOTION).matches
-      ? undefined
-      : avatarMotion.id,
+    motionId: reducesMotion() ? undefined : avatarMotion.id,
     liltoon: avatar.liltoon,
   });
 }
@@ -199,6 +191,8 @@ export function AvatarRoom() {
   const [viewMode, setViewMode] = useState<DisplayMode>('normal');
   const [photoShape, setPhotoShape] = useState<PhotoShape>('stage');
   const [photoTransparent, setPhotoTransparent] = useState(false);
+  // 風（揺れもの）。別の子を選んでも、吹かせたまま
+  const [windy, setWindy] = useState(false);
   // 背丈くらべの「わたし」の身長（入力のまま。数字として読めて、範囲の中のときだけ線を出す）
   const [myHeight, setMyHeight] = useState('');
   const myHeightCm = Number(myHeight);
@@ -210,6 +204,24 @@ export function AvatarRoom() {
       : undefined;
   // 写真を撮った瞬間の、白く光る演出（撮るたびに作り直す）
   const [flash, setFlash] = useState(0);
+  // AR（components/vrm/ar.ts）。使える方法（スマホだけ）と、いまの様子
+  const [arMode, setArMode] = useState<ARMode | null>(null);
+  const [arState, setArState] = useState<'off' | 'searching' | 'placed'>(
+    'off',
+  );
+  const [arSmall, setArSmall] = useState(false);
+  const [arBusy, setArBusy] = useState(false);
+  const arSession = useRef<ARSession | null>(null);
+  const arOverlay = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let active = true;
+    void detectAR().then((found) => {
+      if (active) setArMode(found);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
   const podiumElement = useRef<HTMLDivElement>(null);
   const backdropElement = useRef<HTMLDivElement>(null);
   // 背景を切りかえた瞬間の「波」。モデルのところから新しい背景がぶわっと広がる。
@@ -256,7 +268,7 @@ export function AvatarRoom() {
     ...waves.map((item) => ({ ...item, key: String(item.key), isWave: true })),
   ];
   // 動きを減らす設定の人には、くるっと回るループのモーションは流さない（その場で小さく揺れるだけ）
-  const reduceMotion = usePrefersReducedMotion();
+  const reduceMotion = useReducedMotion();
   const spec = specRows(selected.modelUrl, t);
 
   const select = (id: string) => {
@@ -289,6 +301,11 @@ export function AvatarRoom() {
     stage?.setViewMode(viewMode);
   }, [stage, viewMode]);
 
+  // 風も、吹かせたまま
+  useEffect(() => {
+    stage?.setWind(windy);
+  }, [stage, windy]);
+
   // 写す範囲も、別の子を選んだあとまで選んだままにする。
   // ボタンを押したときは直接変えるので、ここでは新しい子を表示したときだけ合わせる
   const framingRef = useRef(framing);
@@ -298,6 +315,40 @@ export function AvatarRoom() {
   useEffect(() => {
     if (framingRef.current !== 'full') stage?.setFraming?.(framingRef.current);
   }, [stage]);
+
+  // AR で見る。Android などはこのページの中で（WebXR）、iPhone は AR クイックルックで開く
+  const openAR = async () => {
+    if (!stage || arBusy) return;
+    playSound('pop');
+    countEvent(`ar/${selected.id}`);
+    if (arMode === 'webxr' && stage.startAR && arOverlay.current) {
+      setArSmall(false);
+      try {
+        arSession.current = await stage.startAR(arOverlay.current, {
+          onPlaced: () => setArState('placed'),
+          onEnd: () => {
+            arSession.current = null;
+            setArState('off');
+          },
+        });
+        setArState('searching');
+      } catch (error) {
+        console.error(error);
+        setArState('off');
+      }
+      return;
+    }
+    if (arMode === 'quicklook' && stage.exportUsdz) {
+      setArBusy(true);
+      try {
+        openQuickLook(await stage.exportUsdz());
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setArBusy(false);
+      }
+    }
+  };
 
   const takePhoto = () => {
     if (!stage) return;
@@ -442,6 +493,40 @@ export function AvatarRoom() {
         {flash > 0 && (
           <span key={flash} className="avatar-room-flash" aria-hidden="true" />
         )}
+        {/* AR のあいだ、カメラの映像の上に重ねる案内とボタン（WebXR の dom-overlay） */}
+        <div
+          ref={arOverlay}
+          className="avatar-ar-overlay"
+          hidden={arState === 'off'}
+        >
+          <p className="avatar-ar-hint" aria-live="polite">
+            {arState === 'placed'
+              ? t(
+                  'ほかの場所をタップすると、そこへ移ります',
+                  'Tap somewhere else to move it',
+                )
+              : t(
+                  '床や机をゆっくり映して、白い輪が出たところをタップしてください',
+                  'Slowly scan the floor or a table, then tap where the white ring appears',
+                )}
+          </p>
+          <div className="avatar-ar-buttons">
+            <button
+              type="button"
+              aria-pressed={arSmall}
+              onClick={() => {
+                const next = !arSmall;
+                setArSmall(next);
+                arSession.current?.setSmall(next);
+              }}
+            >
+              {t('ちいさく', 'Small')}
+            </button>
+            <button type="button" onClick={() => arSession.current?.end()}>
+              {t('おわる', 'Done')}
+            </button>
+          </div>
+        </div>
         {/* 向きと背景のボタン。モデルの足元の左右に置く */}
         <div className="avatar-room-tools">
           <fieldset
@@ -495,6 +580,23 @@ export function AvatarRoom() {
               <circle cx="12" cy="12.5" r="3.6" />
             </svg>
           </button>
+          {/* AR で見る（使えるスマホだけ） */}
+          {arMode && mode === 'single' && (
+            <button
+              type="button"
+              className="avatar-room-ar"
+              aria-label={t(
+                'AR で、カメラの映像の中に立たせる',
+                'View in your room with AR',
+              )}
+              title={t('AR で見る', 'View in AR')}
+              disabled={!stage || arBusy}
+              aria-busy={arBusy}
+              onClick={() => void openAR()}
+            >
+              AR
+            </button>
+          )}
           <fieldset
             className="avatar-room-backdrops"
             aria-label={t('背景', 'Background')}
@@ -616,6 +718,35 @@ export function AvatarRoom() {
               ))}
           </div>
         </div>
+        {/* 揺れもの（髪・服・しっぽ）を揺らす。マウスでは、モデルをつまんで引っぱっても揺れる */}
+        <div className="avatar-room-play">
+          <p className="avatar-room-play-title">
+            {t('揺らしてみる', 'Make it sway')}
+          </p>
+          <div className="avatar-room-play-buttons">
+            <button
+              type="button"
+              disabled={!stage}
+              onClick={() => {
+                playSound('boing');
+                stage?.shake();
+              }}
+            >
+              {t('ゆらす', 'Shake')}
+            </button>
+            <button
+              type="button"
+              aria-pressed={windy}
+              disabled={!stage}
+              onClick={() => {
+                playSound('whoosh');
+                setWindy((value) => !value);
+              }}
+            >
+              {t('風をふかせる', 'Wind')}
+            </button>
+          </div>
+        </div>
         {/* 見せ方: 写す範囲・ライト・表示（中身を見る）・写真の形 */}
         <div className="avatar-room-play avatar-room-look">
           <p className="avatar-room-play-title">
@@ -725,7 +856,10 @@ export function AvatarRoom() {
           </div>
         )}
         <p className="avatar-room-hint">
-          {t('ドラッグでまわせます', 'Drag to rotate')}
+          {t(
+            'まわりをドラッグでまわせます。モデルをつまんで横に引っぱると、ぷるんと揺れます',
+            'Drag around the model to rotate. Grab the model and pull sideways to make it wobble.',
+          )}
         </p>
         {/* BOOTH にまだ商品ページが無い子（制作中など）は、リンクにせず「準備中」と出す */}
         {selected.booth ? (

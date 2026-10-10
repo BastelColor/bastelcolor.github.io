@@ -114,13 +114,38 @@ export function WorkDetail({
         <ShareButtons path={`/work/${work.id}`} title={work.title} />
       </div>
 
+      {/* 下に固定。本文の途中からでも、となりの作品へ移れるよう、もどるの両わきに矢印を置く */}
       <footer className="work-detail-footer">
+        {(previous || next) && (
+          <button
+            type="button"
+            className="work-detail-step is-previous"
+            aria-label={t('前の作品', 'Previous work')}
+            title={t('前の作品', 'Previous work')}
+            disabled={!previous}
+            onClick={() => previous && onSwitch(previous.id)}
+          >
+            <StepArrow />
+          </button>
+        )}
         <PuniButton
           tone="white"
           size="small"
           label={t('もどる', 'Back')}
           onPress={onClose}
         />
+        {(previous || next) && (
+          <button
+            type="button"
+            className="work-detail-step is-next"
+            aria-label={t('次の作品', 'Next work')}
+            title={t('次の作品', 'Next work')}
+            disabled={!next}
+            onClick={() => next && onSwitch(next.id)}
+          >
+            <StepArrow />
+          </button>
+        )}
       </footer>
     </article>
   );
@@ -149,6 +174,22 @@ function WorkMedia({ work }: { work: Work }) {
     return <img className="work-detail-cover" src={work.cover} alt={alt} />;
   }
   return <WorkThumbnail work={work} large alt={alt} />;
+}
+
+/** 前・次の作品への矢印（次は左右を反転して使う） */
+function StepArrow() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      <path
+        d="M10 3 5 8l5 5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 /** 別のタブで開くことを示す矢印 */

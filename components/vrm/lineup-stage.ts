@@ -4,6 +4,7 @@ import modelSizes from 'virtual:model-sizes';
 import { createIdleMotion, type IdleMotion } from '@/components/vrm/idle-motion';
 import { createLightRig, type Lighting } from '@/components/vrm/lighting';
 import { createPointerLook, type PointerLook } from '@/components/vrm/look-at';
+import { createSway, type Sway } from '@/components/vrm/sway';
 import {
   createMotionPlayer,
   type MotionPlayer,
@@ -54,6 +55,9 @@ export type LineupStage = {
   expressionNames: string[];
   setLighting: (lighting: Lighting, instant?: boolean) => void;
   setViewMode: (mode: ViewMode) => void;
+  /** みんなを横へぽんと押して揺らす・風を吹かせる（components/vrm/sway.ts） */
+  shake: () => void;
+  setWind: (on: boolean) => void;
   capture: () => StageShot;
   dispose: () => void;
 };
@@ -139,6 +143,7 @@ export async function createLineupStage({
   let releaseLilToon: (() => void) | null = null;
   let viewModes: ViewModes | null = null;
   let pointerLook: PointerLook | null = null;
+  let sway: Sway | null = null;
   let disposed = false;
   let resizeFrame = 0;
   let resizeObserver: ResizeObserver | null = null;
@@ -151,6 +156,7 @@ export async function createLineupStage({
     releaseLilToon?.();
     viewModes?.dispose();
     pointerLook?.dispose();
+    sway?.dispose();
     for (const item of placed) {
       item.player.dispose();
       disposeObject(item.vrm.scene);
@@ -327,6 +333,14 @@ export async function createLineupStage({
       container,
     );
     pointerLook = look;
+    // つまんで揺らす（つまんだ子だけ）・風
+    const swaying = createSway(
+      THREE,
+      camera,
+      canvas,
+      placed.map((item) => item.vrm),
+    );
+    sway = swaying;
 
     // --- まわす ---
     let turnGoal = 0;
@@ -368,6 +382,7 @@ export async function createLineupStage({
         item.player.update(delta);
       });
       look.update(delta);
+      swaying.update(delta);
       for (const item of placed) item.vrm.update(delta);
       lights.update(delta);
       renderer.render(scene, camera);
@@ -394,6 +409,8 @@ export async function createLineupStage({
       expressionNames,
       setLighting: lights.set,
       setViewMode: (mode) => viewModes?.set(mode),
+      shake: swaying.shake,
+      setWind: swaying.setWind,
       capture: () => {
         // 上のあきすぎた空は写さない（いちばん背の高い子の少し上から）
         const top = Math.max(

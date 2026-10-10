@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { reducesMotion } from '@/lib/motion';
 
 /** 星を出す間隔（px）。これだけマウスが動いたら1つ出す */
 const SPACING = 26;
@@ -11,17 +12,16 @@ const TONES = ['pink', 'mint', 'blue', 'yellow'];
 
 /**
  * マウスを動かすと、小さな星がついてきて、ふわっと消える（app/styles/base.css の .sparkle）。
- * マウスのある画面だけ。動きを減らす設定の人には出さない。画面には何も描かない部品
+ * マウスのある画面だけ。動きを減らしているとき（lib/motion.ts）は出さない。画面には何も描かない部品
  */
 export function CursorSparkles() {
   useEffect(() => {
     const fine = window.matchMedia('(hover: hover) and (pointer: fine)');
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     let last: { x: number; y: number } | null = null;
     let count = 0;
     let tone = 0;
     const onMove = (event: PointerEvent) => {
-      if (event.pointerType !== 'mouse' || !fine.matches || reduced.matches) {
+      if (event.pointerType !== 'mouse' || !fine.matches || reducesMotion()) {
         return;
       }
       const { clientX: x, clientY: y } = event;

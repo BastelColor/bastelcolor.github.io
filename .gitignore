@@ -52,3 +52,6 @@ next-env.d.ts
 
 # public/characters/ から自動で作る、半分の大きさのキャラクター画像（scripts/resize-characters.mjs）
 /public/characters/small/
+
+# 見た目の比較で撮った画像と一覧（scripts/visual-test.mjs）
+/.visual/

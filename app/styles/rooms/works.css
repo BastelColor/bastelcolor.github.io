@@ -428,15 +428,60 @@
   }
 }
 
-/* もどるボタンは、本文が長くても常に見えるよう下に固定する */
+/* もどるボタンは、本文が長くても常に見えるよう下に固定する。両わきは、前・次の作品への矢印 */
 .work-detail-footer {
   position: sticky;
   bottom: 0;
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 18px;
   margin-top: 28px;
   padding: 24px 0 18px;
   background: linear-gradient(transparent, var(--surface-solid) 45%);
+}
+
+.work-detail-step {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--paper);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--tone) 55%, transparent);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    translate 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.work-detail-step svg {
+  width: 18px;
+  height: 18px;
+}
+
+.work-detail-step.is-next svg {
+  scale: -1 1;
+}
+
+.work-detail-step:disabled {
+  opacity: 0.35;
+  cursor: default;
+  box-shadow: none;
+}
+
+@media (hover: hover) {
+  .work-detail-step:not(:disabled):hover {
+    translate: 0 -2px;
+  }
+}
+
+.work-detail-step:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
 }
 
 .work-detail h3 {
@@ -586,11 +631,9 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .work-dialog,
-  .work-dialog::backdrop {
-    transition: none;
-  }
+:root[data-motion='reduce'] .work-dialog,
+:root[data-motion='reduce'] .work-dialog::backdrop {
+  transition: none;
 }
 
 /* ---- 使った道具での絞り込み ----

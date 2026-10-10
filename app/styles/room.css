@@ -182,9 +182,7 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .room,
-  .room-inner {
-    transition: none;
-  }
+:root[data-motion='reduce'] .room,
+:root[data-motion='reduce'] .room-inner {
+  transition: none;
 }

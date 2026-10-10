@@ -18,6 +18,8 @@ import type { VRM } from '@pixiv/three-vrm';
  */
 export type PointerLook = {
   update: (delta: number) => void;
+  /** 「見ている人」のカメラを替える（AR のあいだは、スマホのカメラ） */
+  setCamera: (camera: Camera) => void;
   dispose: () => void;
 };
 
@@ -65,12 +67,13 @@ function fixEyePosition(
 export function createPointerLook(
   THREE: typeof import('three'),
   scene: Scene,
-  camera: Camera,
+  initialCamera: Camera,
   canvas: HTMLCanvasElement,
   vrms: VRM[],
   /** マウスを追う範囲（モデルの枠）。省略すると canvas 全体 */
   area: HTMLElement = canvas,
 ): PointerLook {
+  let camera = initialCamera;
   const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   // マウスの位置（canvas 全体に対する -1〜1）。null ならカメラを見る
   let pointer: { x: number; y: number } | null = null;
@@ -209,6 +212,9 @@ export function createPointerLook(
         turns[i].slerp(goal, k);
         headBone.quaternion.premultiply(turns[i]);
       });
+    },
+    setCamera: (next) => {
+      camera = next;
     },
     dispose: () => {
       window.removeEventListener('pointermove', onMove);

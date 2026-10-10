@@ -118,10 +118,19 @@ a {
   --edge: #8aa3b8;
 }
 
+/* 動きを減らす（lib/motion.ts）。右上の星のボタンか、端末の設定で <html data-motion="reduce"> になる */
+:root[data-motion='reduce'] *,
+:root[data-motion='reduce'] *::before,
+:root[data-motion='reduce'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+/* スクリプトが動かず、印が付かなかったときは、端末の設定に合わせる */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  :root:not([data-motion]) *,
+  :root:not([data-motion]) *::before,
+  :root:not([data-motion]) *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

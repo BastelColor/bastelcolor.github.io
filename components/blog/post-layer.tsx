@@ -11,6 +11,7 @@ import {
 import { useT } from '@/components/lang';
 import { PuniButton } from '@/components/puni-button';
 import { findPage } from '@/content/pages';
+import { reducesMotion } from '@/lib/motion';
 import { getPostOrigin, wasOpenedFromList } from '@/lib/post-origin';
 import { cn } from '@/lib/utils';
 
@@ -48,9 +49,7 @@ export function PostLayer({ children }: { children: ReactNode }) {
   const close = () => {
     if (phase === 'closing') return;
     setPhase('closing');
-    const reduceMotion = window.matchMedia(
-      '(prefers-reduced-motion: reduce)',
-    ).matches;
+    const reduceMotion = reducesMotion();
     // 縮み終わりは時間で判断する（タブが裏にあると transitionend が来ないことがあるため）。
     // 一覧から来たときは履歴をもどる（新しく積むと、ブラウザの「戻る」で記事にもどってしまう）
     timer.current = window.setTimeout(

@@ -1,7 +1,9 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { CursorSparkles } from '@/components/cursor-sparkles';
 import { LangToggle } from '@/components/lang';
+import { MotionToggle } from '@/components/motion-toggle';
 import { PageCounter } from '@/components/page-counter';
+import { ServiceWorker } from '@/components/service-worker';
 import { SkyClock } from '@/components/sky-clock';
 import { SoundToggle } from '@/components/sound-toggle';
 import { ThemeToggle } from '@/components/theme';
@@ -60,6 +62,17 @@ export const metadata: Metadata = {
     ],
     apple: '/apple-touch-icon.png',
   },
+  // ホーム画面に追加したとき、アプリのように開く（public/manifest.webmanifest・components/service-worker.tsx）
+  manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, title: 'Yzmo', statusBarStyle: 'default' },
+};
+
+// ブラウザの上の帯などの色（空の色）
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#c9e2f5' },
+    { media: '(prefers-color-scheme: dark)', color: '#141a2b' },
+  ],
 };
 
 export default function RootLayout({
@@ -68,22 +81,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    // テーマと空の色（data-theme / data-sky）は、描く前に <head> のスクリプトが書き足すので、食い違いの警告は出さない
+    // テーマ・動き・空の色（data-theme / data-motion / data-sky）は、描く前に <head> のスクリプトが書き足すので、食い違いの警告は出さない
     <html lang="ja" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: SKY_SCRIPT }} />
       </head>
       <body>
         {children}
-        {/* 右上の、音・テーマ（月・太陽）・「日本語 / EN」 */}
+        {/* 右上の、音・動きを減らす（星）・テーマ（月・太陽）・「日本語 / EN」 */}
         <div className="corner-tools">
           <SoundToggle />
+          <MotionToggle />
           <ThemeToggle />
           <LangToggle />
         </div>
         <SkyClock />
         <CursorSparkles />
         <PageCounter />
+        <ServiceWorker />
       </body>
     </html>
   );

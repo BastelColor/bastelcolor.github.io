@@ -363,7 +363,8 @@
 }
 
 /* 写真のボタン（まわすボタンと同じ、ぷっくりした丸） */
-.avatar-room-photo {
+.avatar-room-photo,
+.avatar-room-ar {
   --thickness: 3px;
   display: grid;
   place-items: center;
@@ -392,20 +393,97 @@
 
 @media (hover: hover) {
   .avatar-room-turn button:not(:disabled):hover,
-  .avatar-room-photo:not(:disabled):hover {
+  .avatar-room-photo:not(:disabled):hover,
+  .avatar-room-ar:not(:disabled):hover {
     translate: 0 -2px;
   }
 }
 
 .avatar-room-turn button:not(:disabled):active,
-.avatar-room-photo:not(:disabled):active {
+.avatar-room-photo:not(:disabled):active,
+.avatar-room-ar:not(:disabled):active {
   translate: 0 2px;
   --thickness: 1px;
 }
 
-.avatar-room-photo:disabled {
+.avatar-room-photo:disabled,
+.avatar-room-ar:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+/* AR のボタン（文字で「AR」） */
+.avatar-room-ar {
+  font-family: var(--display);
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.avatar-room-ar[aria-busy='true'] {
+  animation: avatar-ar-busy 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes avatar-ar-busy {
+  to {
+    opacity: 0.45;
+  }
+}
+
+/* AR のあいだ、カメラの映像の上に重ねる案内とボタン。
+   WebXR が画面いっぱいに出すので、ここでは置き方だけ決める（背景は透明のまま） */
+.avatar-ar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: max(16px, env(safe-area-inset-top)) 16px
+    max(20px, env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+
+.avatar-ar-overlay[hidden] {
+  display: none;
+}
+
+.avatar-ar-hint {
+  align-self: center;
+  max-width: 30em;
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.6;
+  text-align: center;
+  color: #3a4256;
+}
+
+.avatar-ar-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.avatar-ar-buttons button {
+  min-width: 96px;
+  padding: 12px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+  font-family: var(--body);
+  font-size: 15px;
+  font-weight: 900;
+  color: #3a4256;
+  pointer-events: auto;
+}
+
+.avatar-ar-buttons button[aria-pressed='true'] {
+  background: #ffe08a;
 }
 
 /* 写真を撮った瞬間に、枠が白く光る */

@@ -174,8 +174,6 @@
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .shooting-stars {
-    display: none;
-  }
+:root[data-motion='reduce'] .shooting-stars {
+  display: none;
 }
