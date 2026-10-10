@@ -7,13 +7,6 @@
  */
 export type PhotoBackdrop = 'sky' | 'white' | 'sunset' | 'sakura' | 'night';
 
-/**
- * 写真の形。stage は画面の枠のまま、square は正方形、portrait は縦長（4:5、SNS のアイコンや投稿向け）。
- * 正方形・縦長は、モデルを真ん中にして切り抜く
- */
-export const PHOTO_SHAPES = ['stage', 'square', 'portrait'] as const;
-export type PhotoShape = (typeof PHOTO_SHAPES)[number];
-
 type Shot = {
   /** モデルだけを写した画像（背景は透明） */
   image: HTMLCanvasElement;
@@ -32,10 +25,6 @@ type PhotoOptions = {
   wide: boolean;
   /** 右下に入れる文字 */
   caption: string;
-  /** 写真の形 */
-  shape: PhotoShape;
-  /** 背景を透明にする（モデルだけを切り抜く。背景・ライト・展示台・右下の文字は入れない） */
-  transparent: boolean;
 };
 
 /** 画面の要素に CSS の色を当てて、実際の色（rgb）を読む */
@@ -158,8 +147,6 @@ export function composePhoto({
   backdropElement,
   wide,
   caption,
-  shape,
-  transparent,
 }: PhotoOptions) {
   const { image, frame } = shot;
   const photo = document.createElement('canvas');
@@ -167,14 +154,12 @@ export function composePhoto({
   photo.height = image.height;
   const ctx = photo.getContext('2d');
   if (!ctx) return photo;
-  if (!transparent) {
-    const skyColor = backdropElement
-      ? getComputedStyle(backdropElement).backgroundColor
-      : '#dfecfa';
-    paintBackdrop(ctx, backdrop, photo.width, photo.height, skyColor);
-  }
+  const skyColor = backdropElement
+    ? getComputedStyle(backdropElement).backgroundColor
+    : '#dfecfa';
+  paintBackdrop(ctx, backdrop, photo.width, photo.height, skyColor);
 
-  if (podium && !transparent) {
+  if (podium) {
     const color = (name: string) => readColor(podium, `var(${name})`);
     // 画面の CSS のピクセル → 写真のピクセル
     const scale = frame.width / Math.max(1, podium.clientWidth);
@@ -228,51 +213,15 @@ export function composePhoto({
 
   ctx.drawImage(image, 0, 0);
 
-  const out = cropToShape(photo, frame, shape);
-  if (transparent) return out;
-
   // 右下に、だれの写真か・どこのサイトか
-  const outCtx = out.getContext('2d');
-  if (!outCtx) return out;
-  const size = Math.round(Math.min(out.width, out.height) * 0.028);
-  outCtx.font = `900 ${size}px "Zen Maru Gothic", sans-serif`;
-  outCtx.textAlign = 'right';
-  outCtx.textBaseline = 'bottom';
-  outCtx.fillStyle =
+  const size = Math.round(Math.min(photo.width, photo.height) * 0.028);
+  ctx.font = `900 ${size}px "Zen Maru Gothic", sans-serif`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+  ctx.fillStyle =
     backdrop === 'night' ? 'rgba(255, 255, 255, 0.75)' : 'rgba(47, 69, 88, 0.6)';
-  outCtx.fillText(caption, out.width - size * 1.2, out.height - size);
-  return out;
-}
-
-/**
- * 写真を、選んだ形に切り抜く。モデル（枠の真ん中）を中心に、入るいちばん大きな範囲で切り抜く。
- * stage（そのまま）は切り抜かない
- */
-function cropToShape(
-  photo: HTMLCanvasElement,
-  frame: Shot['frame'],
-  shape: PhotoShape,
-) {
-  if (shape === 'stage') return photo;
-  // 横 : 縦
-  const aspect = shape === 'square' ? 1 : 4 / 5;
-  let width = photo.width;
-  let height = width / aspect;
-  if (height > photo.height) {
-    height = photo.height;
-    width = height * aspect;
-  }
-  const centerX = frame.left + frame.width / 2;
-  // 縦は、足元の展示台まで入るよう、画像の下をそろえる
-  const left = Math.min(Math.max(0, centerX - width / 2), photo.width - width);
-  const top = photo.height - height;
-  const out = document.createElement('canvas');
-  out.width = Math.round(width);
-  out.height = Math.round(height);
-  out
-    .getContext('2d')
-    ?.drawImage(photo, left, top, width, height, 0, 0, out.width, out.height);
-  return out;
+  ctx.fillText(caption, photo.width - size * 1.2, photo.height - size);
+  return photo;
 }
 
 /**

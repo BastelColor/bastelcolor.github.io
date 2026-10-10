@@ -267,7 +267,7 @@
   bottom: 12px;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
   pointer-events: none;
 }
@@ -355,11 +355,52 @@
   box-shadow: 0 0 0 2px var(--surface-solid);
 }
 
-/* 写真のボタンと背景の丸は、右にまとめる */
+/* 写真のボタンと背景の丸は右にまとめ、その下に表示（ふつう・ワイヤーなど）の切りかえ */
 .avatar-room-tools-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.avatar-room-tools-row {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.avatar-room-display {
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-strong);
+}
+
+.avatar-room-display button {
+  padding: 3px 10px 4px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-family: var(--body);
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.avatar-room-display button[aria-pressed='true'] {
+  background: var(--surface-solid);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--edge) 18%, transparent);
+  color: var(--ink);
+}
+
+.avatar-room-display button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 1px;
 }
 
 /* 写真のボタン（まわすボタンと同じ、ぷっくりした丸） */
@@ -883,8 +924,9 @@
     font-size: 10px;
   }
 
-  /* モデルのすぐ下に表情のボタン、そのあとに紹介など */
+  /* モデルのすぐ下に表情のボタン、そのあとに紹介など。カードは横いっぱいに */
   .avatar-room-play {
+    align-self: stretch;
     margin-top: 4px;
   }
 
@@ -1045,11 +1087,36 @@
     aspect-ratio: 1 / 0.9;
   }
 
-  /* 細い画面では、まわすボタン・写真・背景の丸を1行に収めるよう、少し小さく詰める */
+  /* 細い画面では、まわすボタン・写真・背景の丸を1行に収めるよう、少し小さく詰め、
+     表示（ふつう・ワイヤーなど）の切りかえは、その下の行の真ん中に置く */
   .avatar-room-tools {
     left: 6px;
     right: 6px;
-    gap: 4px;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'turn row'
+      'display display';
+    align-items: center;
+    gap: 6px 4px;
+  }
+
+  .avatar-room-tools-end {
+    display: contents;
+  }
+
+  .avatar-room-turn {
+    grid-area: turn;
+  }
+
+  .avatar-room-tools-row {
+    grid-area: row;
+    justify-self: end;
+  }
+
+  .avatar-room-display {
+    grid-area: display;
+    justify-self: center;
   }
 
   .avatar-room-turn {
@@ -1063,8 +1130,14 @@
     white-space: nowrap;
   }
 
-  .avatar-room-tools-end {
+  .avatar-room-tools-end,
+  .avatar-room-tools-row {
     gap: 4px;
+  }
+
+  .avatar-room-display button {
+    padding: 3px 7px 4px;
+    font-size: 11px;
   }
 
   .avatar-room-photo {
@@ -1095,34 +1168,11 @@
   }
 }
 
-/* ---- 見せ方（カメラ・ライト・表示・写真）---- */
+/* ---- ライト（カードの中身は、表情のカードと同じ） ---- */
 
-.avatar-room-option {
-  display: grid;
-  grid-template-columns: 4.2em minmax(0, 1fr);
-  align-items: start;
-  gap: 8px;
+.avatar-room-light {
   min-width: 0;
-  margin: 10px 0 0;
-  padding: 0;
   border: 0;
-}
-
-.avatar-room-option-label {
-  padding-top: 6px;
-  font-size: 12px;
-  font-weight: 900;
-  color: var(--ink-soft);
-}
-
-.avatar-room-option .avatar-room-play-buttons {
-  gap: 6px;
-  margin: 0;
-}
-
-.avatar-room-option button {
-  padding: 4px 10px 5px;
-  font-size: 12px;
 }
 
 /* ---- 背丈くらべの「わたし」 ---- */

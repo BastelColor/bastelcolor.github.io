@@ -5,17 +5,11 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type ReactNode,
 } from 'react';
 import modelStats from 'virtual:model-stats';
 import { useLang, useT } from '@/components/lang';
 import { countEvent } from '@/components/page-counter';
-import {
-  composePhoto,
-  PHOTO_SHAPES,
-  savePhoto,
-  type PhotoShape,
-} from '@/components/rooms/avatar-photo';
+import { composePhoto, savePhoto } from '@/components/rooms/avatar-photo';
 import { ShareButtons } from '@/components/share-buttons';
 import { LIGHTINGS, type Lighting } from '@/components/vrm/lighting';
 import {
@@ -29,12 +23,7 @@ import {
   VIEW_MODES,
   type ViewMode as DisplayMode,
 } from '@/components/vrm/view-modes';
-import {
-  FRAMINGS,
-  preloadVrmStage,
-  type Framing,
-  type VrmStage,
-} from '@/components/vrm/vrm-stage';
+import { preloadVrmStage, type VrmStage } from '@/components/vrm/vrm-stage';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
 import { avatars } from '@/content/avatars';
 import { avatarExpressions, avatarMotion } from '@/content/motions';
@@ -90,14 +79,7 @@ type RoomStage = Pick<
   | 'capture'
 > &
   // 写す範囲と AR は、ひとりずつのときだけ
-  Partial<Pick<VrmStage, 'setFraming' | 'startAR' | 'exportUsdz'>>;
-
-/** 写す範囲の名前（components/vrm/vrm-stage.ts） */
-const FRAMING_LABELS: Record<Framing, [string, string]> = {
-  full: ['全身', 'Full body'],
-  upper: ['上半身', 'Upper body'],
-  face: ['顔', 'Face'],
-};
+  Partial<Pick<VrmStage, 'startAR' | 'exportUsdz'>>;
 
 /** 表示の名前（components/vrm/view-modes.ts） */
 const VIEW_MODE_LABELS: Record<DisplayMode, [string, string]> = {
@@ -105,13 +87,6 @@ const VIEW_MODE_LABELS: Record<DisplayMode, [string, string]> = {
   wireframe: ['ワイヤー', 'Wireframe'],
   texture: ['テクスチャ', 'Texture'],
   bones: ['ボーン', 'Bones'],
-};
-
-/** 写真の形の名前（components/rooms/avatar-photo.ts） */
-const PHOTO_SHAPE_LABELS: Record<PhotoShape, [string, string]> = {
-  stage: ['そのまま', 'As shown'],
-  square: ['正方形', 'Square'],
-  portrait: ['縦長', 'Portrait'],
 };
 
 /** 背丈くらべに足せる「わたし」の高さ（cm）の範囲 */
@@ -187,10 +162,7 @@ export function AvatarRoom() {
   const [mode, setMode] = useState<ViewMode>('single');
   const [backdrop, setBackdrop] = useState<Backdrop>('sky');
   const [lighting, setLighting] = useState<Lighting>('day');
-  const [framing, setFraming] = useState<Framing>('full');
   const [viewMode, setViewMode] = useState<DisplayMode>('normal');
-  const [photoShape, setPhotoShape] = useState<PhotoShape>('stage');
-  const [photoTransparent, setPhotoTransparent] = useState(false);
   // 風（揺れもの）。別の子を選んでも、吹かせたまま
   const [windy, setWindy] = useState(false);
   // 背丈くらべの「わたし」の身長（入力のまま。数字として読めて、範囲の中のときだけ線を出す）
@@ -306,16 +278,6 @@ export function AvatarRoom() {
     stage?.setWind(windy);
   }, [stage, windy]);
 
-  // 写す範囲も、別の子を選んだあとまで選んだままにする。
-  // ボタンを押したときは直接変えるので、ここでは新しい子を表示したときだけ合わせる
-  const framingRef = useRef(framing);
-  useEffect(() => {
-    framingRef.current = framing;
-  });
-  useEffect(() => {
-    if (framingRef.current !== 'full') stage?.setFraming?.(framingRef.current);
-  }, [stage]);
-
   // AR で見る。Android などはこのページの中で（WebXR）、iPhone は AR クイックルックで開く
   const openAR = async () => {
     if (!stage || arBusy) return;
@@ -366,8 +328,6 @@ export function AvatarRoom() {
       backdropElement: backdropElement.current,
       wide: mode === 'lineup',
       caption: `${name} · Yzmo`,
-      shape: photoShape,
-      transparent: photoTransparent,
     });
     void savePhoto(
       photo,
@@ -567,6 +527,7 @@ export function AvatarRoom() {
             </button>
           </fieldset>
           <div className="avatar-room-tools-end">
+          <div className="avatar-room-tools-row">
           <button
             type="button"
             className="avatar-room-photo"
@@ -614,6 +575,26 @@ export function AvatarRoom() {
                 title={t(item.label, item.labelEn)}
                 onClick={() => changeBackdrop(item.id)}
               />
+            ))}
+          </fieldset>
+          </div>
+          {/* 表示（中身を見る）: ふつう・ワイヤー・テクスチャ・ボーン */}
+          <fieldset
+            className="avatar-room-display"
+            aria-label={t('表示', 'Display')}
+          >
+            {VIEW_MODES.map((item) => (
+              <button
+                key={item}
+                type="button"
+                aria-pressed={viewMode === item}
+                onClick={() => {
+                  playSound('pop');
+                  setViewMode(item);
+                }}
+              >
+                {t(...VIEW_MODE_LABELS[item])}
+              </button>
             ))}
           </fieldset>
           </div>
@@ -747,65 +728,30 @@ export function AvatarRoom() {
             </button>
           </div>
         </div>
-        {/* 見せ方: 写す範囲・ライト・表示（中身を見る）・写真の形 */}
-        <div className="avatar-room-play avatar-room-look">
-          <p className="avatar-room-play-title">
-            {t('見せ方をかえる', 'Presentation')}
+        {/* ライト */}
+        <fieldset
+          className="avatar-room-play avatar-room-light"
+          aria-label={t('ライト', 'Light')}
+        >
+          <p className="avatar-room-play-title" aria-hidden="true">
+            {t('ライトをかえる', 'Lighting')}
           </p>
-          {mode === 'single' && (
-            <OptionRow
-              label={t('カメラ', 'Camera')}
-              options={FRAMINGS.map((item) => ({
-                id: item,
-                label: t(...FRAMING_LABELS[item]),
-              }))}
-              value={framing}
-              disabled={!stage}
-              onChange={(item) => {
-                setFraming(item);
-                stage?.setFraming?.(item);
-              }}
-            />
-          )}
-          <OptionRow
-            label={t('ライト', 'Light')}
-            options={LIGHTINGS.map((item) => ({
-              id: item,
-              label: t(...LIGHTING_LABELS[item]),
-            }))}
-            value={lighting}
-            onChange={setLighting}
-          />
-          <OptionRow
-            label={t('表示', 'Display')}
-            options={VIEW_MODES.map((item) => ({
-              id: item,
-              label: t(...VIEW_MODE_LABELS[item]),
-            }))}
-            value={viewMode}
-            onChange={setViewMode}
-          />
-          <OptionRow
-            label={t('写真', 'Photo')}
-            options={PHOTO_SHAPES.map((item) => ({
-              id: item,
-              label: t(...PHOTO_SHAPE_LABELS[item]),
-            }))}
-            value={photoShape}
-            onChange={setPhotoShape}
-          >
-            <button
-              type="button"
-              aria-pressed={photoTransparent}
-              onClick={() => {
-                playSound('pop');
-                setPhotoTransparent((value) => !value);
-              }}
-            >
-              {t('背景を透明に', 'Transparent')}
-            </button>
-          </OptionRow>
-        </div>
+          <div className="avatar-room-play-buttons">
+            {LIGHTINGS.map((item) => (
+              <button
+                key={item}
+                type="button"
+                aria-pressed={lighting === item}
+                onClick={() => {
+                  playSound('pop');
+                  setLighting(item);
+                }}
+              >
+                {t(...LIGHTING_LABELS[item])}
+              </button>
+            ))}
+          </div>
+        </fieldset>
         {/* 背丈くらべに「わたし」の線を足す */}
         {mode === 'lineup' && (
           <div className="avatar-room-play avatar-room-me">
@@ -882,51 +828,6 @@ export function AvatarRoom() {
         </p>
       </div>
     </div>
-  );
-}
-
-/**
- * 見せ方のカードの1行（見出しと、1つだけ選べるボタンの並び）。
- * children には、並びの最後に足すボタン（写真の「背景を透明に」など）を渡せる
- */
-function OptionRow<Id extends string>({
-  label,
-  options,
-  value,
-  disabled = false,
-  onChange,
-  children,
-}: {
-  label: string;
-  options: { id: Id; label: string }[];
-  value: Id;
-  disabled?: boolean;
-  onChange: (id: Id) => void;
-  children?: ReactNode;
-}) {
-  return (
-    <fieldset className="avatar-room-option" aria-label={label}>
-      <span className="avatar-room-option-label" aria-hidden="true">
-        {label}
-      </span>
-      <div className="avatar-room-play-buttons">
-        {options.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            aria-pressed={value === option.id}
-            disabled={disabled}
-            onClick={() => {
-              playSound('pop');
-              onChange(option.id);
-            }}
-          >
-            {option.label}
-          </button>
-        ))}
-        {children}
-      </div>
-    </fieldset>
   );
 }
 

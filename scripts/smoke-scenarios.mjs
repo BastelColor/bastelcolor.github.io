@@ -55,11 +55,11 @@ const GAZE = {
   headDown: 12,
 };
 
-/** 見せ方のカードで、見出し（label）の行のボタン（text）を押す */
+/** アバターの部屋で、名前（label）の付いたボタンのまとまり（ライト・表示）の、ボタン（text）を押す */
 const pressOption = (page, label, text) =>
   page.evaluate(
     (l, t) => {
-      const row = [...document.querySelectorAll('.avatar-room-option')].find(
+      const row = [...document.querySelectorAll('.avatar-room fieldset')].find(
         (item) => item.getAttribute('aria-label') === l,
       );
       [...(row?.querySelectorAll('button') ?? [])]
@@ -245,7 +245,7 @@ export const scenarios = [
       await pressOption(page, '表示', 'ワイヤー');
       await sleep(300);
       failIf(
-        (await page.$$eval('.avatar-room-option button[aria-pressed="true"]', (buttons) =>
+        (await page.$$eval('.avatar-room fieldset button[aria-pressed="true"]', (buttons) =>
           buttons.map((b) => b.textContent),
         )).filter((text) => text === '夕方' || text === 'ワイヤー').length !== 2,
         'ライトや表示のボタンが切りかわりません',
