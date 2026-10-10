@@ -579,7 +579,8 @@ VRChat 用に lilToon で作ったアバターは、ふつうに VRM に書き�
 3. 書き出した VRM を `models/` に置き、`content/avatars.ts` のそのアバターに `liltoon: true` を足す
 
 - `liltoon: true` のアバターを選んだときだけ、lilToon を表示するための部品（約310KB）を読み込みます。ほかのアバターやページは重くなりません。
-- 端末の GPU によっては、lilToon の描き方（シェーダー）を作れないことがあります（Android の Chrome で、ファーレが表示されなかった）。そのときは自動で、lilToon を使わない VRM のふつうの見た目で表示し直します（`components/vrm/vrm-stage.ts` の `LilToonRenderError`）。
+- 端末の GPU によっては、lilToon の描き方（シェーダー）を作れないことがあります（Android の Chrome で、ファーレが表示されなかった）。そのときは自動で、lilToon を使わずに読み直し、ほかの子と同じアニメ調の MToon で描きます（色とテクスチャは同じで、影の出方などが少し変わります。`components/vrm/vrm-stage.ts` の `LilToonRenderError`・`toonify`）。
+  - 原因を調べたいときは、その端末でアバターのページを `?check` を付けて開くと（例: `/avatar/falle?check`）、描けなかった理由（ブラウザが出したエラー）がモデルの上に出ます。
 - 同じメッシュを使うオブジェクトが2つあると、書き出しで「An item with the same key has already been added」というエラーになります。非表示のものも含めて、片方をアバターの外に出してから書き出してください。
 - 揺れもの（PhysBones）は VRM の揺れものに置きかわり、つかむ・伸ばす・角度の制限は再現されません。
 - この方法で書き出すと、表情（にっこりなど）が VRM に入りません。そのときは下の「表情が入っていないモデル」の方法で足します。

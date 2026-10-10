@@ -150,3 +150,22 @@
     transform: rotate(360deg);
   }
 }
+
+/* lilToon で描けなかった理由（?check のときだけ出す、調べもの用） */
+.vrm-shader-log {
+  position: absolute;
+  z-index: 5;
+  left: 8px;
+  right: 8px;
+  top: 8px;
+  max-height: 60%;
+  overflow: auto;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(20, 24, 39, 0.85);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: #ffffff;
+}

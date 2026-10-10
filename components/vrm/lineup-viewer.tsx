@@ -62,7 +62,11 @@ export function LineupViewer({
       canvas,
       container,
       models: lilToonFailed
-        ? modelsRef.current.map((model) => ({ ...model, liltoon: false }))
+        ? modelsRef.current.map((model) => ({
+            ...model,
+            liltoon: false,
+            toonFallback: model.liltoon,
+          }))
         : modelsRef.current,
       motionId,
       signal: controller.signal,

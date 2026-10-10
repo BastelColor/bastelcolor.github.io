@@ -57,8 +57,10 @@ export function VrmViewer({
   const [progress, setProgress] = useState(0);
   const [autoRotate, setAutoRotate] = useState(isFull);
   // lilToon で描けなかったら、ふつうの見た目で表示し直す（vrm-stage.ts の LilToonRenderError）
-  const [lilToonFailed, setLilToonFailed] = useState(false);
-  const useLilToon = liltoon && !lilToonFailed;
+  // 描けなかった理由。URL に ?check を付けて開いたときだけ、画面に出す（スマホで原因を調べるため）
+  const [lilToonFailed, setLilToonFailed] = useState<string | null>(null);
+  const useLilToon = liltoon && lilToonFailed === null;
+  const toonFallback = !!liltoon && !useLilToon;
   const onStageRef = useRef(onStage);
   useEffect(() => {
     onStageRef.current = onStage;
@@ -80,6 +82,7 @@ export function VrmViewer({
       motionId,
       brightness,
       liltoon: useLilToon,
+      toonFallback,
       autoRotate: isFull,
       zoom: isFull,
       signal: controller.signal,
@@ -97,7 +100,7 @@ export function VrmViewer({
         if (controller.signal.aborted) return;
         console.error(error);
         if (error instanceof LilToonRenderError) {
-          setLilToonFailed(true);
+          setLilToonFailed(error.log);
           return;
         }
         setViewerState('error');
@@ -109,7 +112,7 @@ export function VrmViewer({
       if (stageRef.current) onStageRef.current?.(null);
       stageRef.current = null;
     };
-  }, [modelUrl, motionId, brightness, useLilToon, isFull, bleedTo]);
+  }, [modelUrl, motionId, brightness, useLilToon, toonFallback, isFull, bleedTo]);
 
   const toggleAutoRotate = () => {
     const next = !autoRotate;
@@ -135,6 +138,12 @@ export function VrmViewer({
           </small>
         </output>
       )}
+
+      {/* lilToon で描けなかった理由（URL に ?check を付けて開いたときだけ。スマホで原因を調べるため） */}
+      {lilToonFailed !== null &&
+        new URLSearchParams(window.location.search).has('check') && (
+          <pre className="vrm-shader-log">{lilToonFailed}</pre>
+        )}
 
       {viewerState === 'error' && (
         <div className="vrm-error" role="alert">

@@ -21,6 +21,7 @@ import {
   failsToRender,
   LilToonRenderError,
   loadThreeModules,
+  toonify,
   measureVisibleBounds,
   type StageShot,
 } from '@/components/vrm/vrm-stage';
@@ -35,6 +36,8 @@ export type LineupModel = {
   id: string;
   modelUrl: string;
   liltoon?: boolean;
+  /** lilToon で描けなかったので、lilToon なしで読み、MToon で描く（vrm-stage.ts の toonify） */
+  toonFallback?: boolean;
   brightness?: number;
 };
 
@@ -207,6 +210,7 @@ export async function createLineupStage({
         vrm.scene.traverse((object) => {
           object.frustumCulled = false;
         });
+        if (model.toonFallback) toonify(THREE, modules.MToonMaterial, vrm.scene);
         return vrm;
       }),
     );
@@ -360,8 +364,9 @@ export async function createLineupStage({
     let weight = 0;
 
     // lilToon の見た目は、端末によっては描けないことがある。描けなければ、ふつうの見た目で並べ直す
-    if (lilToon && failsToRender(renderer, () => renderer.render(scene, camera))) {
-      throw new LilToonRenderError();
+    if (lilToon) {
+      const log = failsToRender(renderer, () => renderer.render(scene, camera));
+      if (log) throw new LilToonRenderError(log);
     }
 
     const timer = new THREE.Timer();

@@ -96,9 +96,12 @@ export type StageCheck = {
  * これが投げられたら、lilToon を使わずに（VRM のふつうの見た目で）表示し直す
  */
 export class LilToonRenderError extends Error {
-  constructor() {
+  /** シェーダーを作れなかった理由（ブラウザが出したもの。公開前の確認の ?check のときに画面に出す） */
+  log: string;
+  constructor(log: string) {
     super('lilToon のシェーダーを、この端末では作れませんでした');
     this.name = 'LilToonRenderError';
+    this.log = log;
   }
 }
 
@@ -107,19 +110,30 @@ export class LilToonRenderError extends Error {
  * 作れなかったものは、three.js がエラーを出して描かないだけなので、画面には何も出なくなる
  * （Android の Chrome で、lilToon の子だけが表示されなかった）
  */
-export function failsToRender(renderer: WebGLRenderer, render: () => void) {
-  let failed = false;
+export function failsToRender(
+  renderer: WebGLRenderer,
+  render: () => void,
+): string | null {
+  const logs: string[] = [];
   const previous = renderer.debug.onShaderError;
-  renderer.debug.onShaderError = (gl, program) => {
-    failed = true;
-    console.error('シェーダーを作れませんでした', gl.getProgramInfoLog(program));
+  renderer.debug.onShaderError = (gl, program, vertexShader, fragmentShader) => {
+    const log = [
+      gl.getProgramInfoLog(program),
+      gl.getShaderInfoLog(vertexShader),
+      gl.getShaderInfoLog(fragmentShader),
+    ]
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+    logs.push(log || '（理由は出ませんでした）');
+    console.error('シェーダーを作れませんでした', log);
   };
   try {
     render();
   } finally {
     renderer.debug.onShaderError = previous;
   }
-  return failed;
+  return logs.length > 0 ? logs.join('\n---\n') : null;
 }
 
 /** 写真（capture）。画像と、画像の中での枠（container）の位置（画像のピクセル） */
@@ -148,6 +162,11 @@ type CreateVrmStageOptions = {
    * 描画部品（@mochiya/three-liltoon、大きめ）を読み込む
    */
   liltoon?: boolean;
+  /**
+   * lilToon の子を、lilToon なしで読んだとき（lilToon で描けなかったとき）に true。
+   * ふつうの材質を MToon に置きかえて、アニメ調に描く（toonify）
+   */
+  toonFallback?: boolean;
   /** 最初から自動回転させるか（既定: true） */
   autoRotate?: boolean;
   /** ホイールでの拡大縮小を許可するか。ページ内に埋め込むときはスクロールを奪わないよう false に（既定: true） */
@@ -236,7 +255,7 @@ async function importThreeModules() {
     THREE,
     { GLTFLoader },
     { OrbitControls },
-    { VRMLoaderPlugin, VRMUtils, VRMHumanBoneName },
+    { VRMLoaderPlugin, VRMUtils, VRMHumanBoneName, MToonMaterial },
     { VRMAnimation, createVRMAnimationClip },
   ] = await Promise.all([
     import('three'),
@@ -252,9 +271,69 @@ async function importThreeModules() {
     VRMLoaderPlugin,
     VRMUtils,
     VRMHumanBoneName,
+    MToonMaterial,
     VRMAnimation,
     createVRMAnimationClip,
   };
+}
+
+/** lilToon で描けなかった子を MToon で描くときの、色の明るさの倍率 */
+const TOON_FALLBACK_BRIGHTNESS = 1.14;
+
+/**
+ * lilToon で描けなかった子を、MToon（ほかの子と同じアニメ調の描き方）で描き直す。
+ * lilToon を使わずに読むと、VRM に入っているふつうの材質（光の当たり方がリアル寄りで、暗く見える）になるため、
+ * その色とテクスチャを使って、影を少しだけつけた MToon に置きかえる
+ */
+export function toonify(
+  THREE: typeof import('three'),
+  MToonMaterial: (typeof import('@pixiv/three-vrm'))['MToonMaterial'],
+  root: Object3D,
+) {
+  const made = new Map<Material, Material>();
+  const convert = (material: Material) => {
+    const standard = material as Material & {
+      isMeshStandardMaterial?: boolean;
+      map?: Texture | null;
+      color?: import('three').Color;
+      emissive?: import('three').Color;
+      emissiveMap?: Texture | null;
+    };
+    if (!standard.isMeshStandardMaterial) return material;
+    let toon = made.get(material);
+    if (!toon) {
+      // lilToon で見るより少し暗くくすんで見えるので、その分だけ明るくする
+      const color = (standard.color?.clone() ?? new THREE.Color(1, 1, 1)).multiplyScalar(
+        TOON_FALLBACK_BRIGHTNESS,
+      );
+      toon = new MToonMaterial({
+        map: standard.map ?? undefined,
+        color,
+        // lilToon はほとんど影を落とさず明るく描くので、影はうすく（元の色をほんの少し紫寄りに）、
+        // 光の当たる側を広めにする
+        shadeColorFactor: color.clone().multiply(new THREE.Color(0.94, 0.9, 0.96)),
+        shadeMultiplyTexture: standard.map ?? undefined,
+        shadingShiftFactor: -0.4,
+        shadingToonyFactor: 0.9,
+        giEqualizationFactor: 0.9,
+        emissive: standard.emissive?.clone(),
+        emissiveMap: standard.emissiveMap ?? undefined,
+        transparent: material.transparent,
+        transparentWithZWrite: material.transparent,
+        alphaTest: material.alphaTest,
+        side: material.side,
+      });
+      made.set(material, toon);
+    }
+    return toon;
+  };
+  root.traverse((object) => {
+    const mesh = object as Object3D & { material?: Material | Material[] };
+    if (!mesh.material) return;
+    const before = mesh.material;
+    mesh.material = Array.isArray(before) ? before.map(convert) : convert(before);
+  });
+  for (const original of made.keys()) original.dispose();
 }
 
 export async function createVrmStage({
@@ -265,6 +344,7 @@ export async function createVrmStage({
   motionId,
   brightness = 1,
   liltoon = false,
+  toonFallback = false,
   autoRotate = true,
   zoom = true,
   signal,
@@ -446,6 +526,7 @@ export async function createVrmStage({
     vrm.scene.traverse((object) => {
       object.frustumCulled = false;
     });
+    if (toonFallback) toonify(THREE, modules.MToonMaterial, vrm.scene);
     scene.add(vrm.scene);
 
     // --- Tポーズから待機ポーズにしてから画角を測る ---
@@ -626,8 +707,9 @@ export async function createVrmStage({
     };
 
     // lilToon の見た目は、端末によっては描けないことがある。描けなければ、ふつうの見た目で表示し直す
-    if (liltoon && failsToRender(renderer, () => renderer.render(scene, camera))) {
-      throw new LilToonRenderError();
+    if (liltoon) {
+      const log = failsToRender(renderer, () => renderer.render(scene, camera));
+      if (log) throw new LilToonRenderError(log);
     }
 
     // --- AR（WebXR）。始めているあいだだけ ---
