@@ -22,6 +22,7 @@ import {
   LilToonRenderError,
   loadThreeModules,
   toonify,
+  applySlimLilToon,
   measureVisibleBounds,
   type StageShot,
 } from '@/components/vrm/vrm-stage';
@@ -176,7 +177,10 @@ export async function createLineupStage({
         ])
       : null;
     signal.throwIfAborted();
-    if (lilToon) releaseLilToon = lilToon[0].enableLilToon(renderer);
+    if (lilToon) {
+      releaseLilToon = lilToon[0].enableLilToon(renderer);
+      applySlimLilToon(lilToon[0].LilToonMaterial);
+    }
 
     // みんなを同時に読み込む。進み具合は、ファイルの大きさの合計に対する割合
     const loaded = new Map<string, number>();

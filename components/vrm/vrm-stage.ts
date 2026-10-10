@@ -13,6 +13,7 @@ import { createIdleMotion } from '@/components/vrm/idle-motion';
 import { createLightRig, type Lighting } from '@/components/vrm/lighting';
 import { createPointerLook, type PointerLook } from '@/components/vrm/look-at';
 import { createSway, type Sway } from '@/components/vrm/sway';
+import { slimLilToonUniforms } from '@/components/vrm/liltoon-slim';
 import {
   exportUsdz,
   startWebXR,
@@ -277,6 +278,15 @@ async function importThreeModules() {
   };
 }
 
+/**
+ * lilToon のシェーダーを、スマホの GPU でも作れるように軽くする（components/vrm/liltoon-slim.ts）。
+ * lilToon のマテリアルすべて（輪郭線などの、追加で描くものも）に効くよう、クラスに付ける
+ */
+export function applySlimLilToon(LilToonMaterial: { prototype: object }) {
+  (LilToonMaterial.prototype as { onBeforeCompile: unknown }).onBeforeCompile =
+    slimLilToonUniforms;
+}
+
 /** lilToon で描けなかった子を MToon で描くときの、色の明るさの倍率 */
 const TOON_FALLBACK_BRIGHTNESS = 1.14;
 
@@ -490,12 +500,13 @@ export async function createVrmStage({
     const loader = new GLTFLoader();
     if (liltoon) {
       // lilToon の見た目のまま描く（輪郭線などの追加の描画も、ここで有効にする）
-      const [{ enableLilToon }, { enableLilToonVRM }] = await Promise.all([
+      const [{ enableLilToon, LilToonMaterial }, { enableLilToonVRM }] = await Promise.all([
         import('@mochiya/three-liltoon'),
         import('@mochiya/three-liltoon/vrm'),
       ]);
       signal.throwIfAborted();
       releaseLilToon = enableLilToon(renderer);
+      applySlimLilToon(LilToonMaterial);
       loader.register((parser) =>
         enableLilToonVRM(new VRMLoaderPlugin(parser)),
       );
