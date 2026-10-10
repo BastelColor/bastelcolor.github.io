@@ -39,6 +39,29 @@ const IDLE_SECONDS = 4;
 /** マウスを追う範囲を、枠の外へ少し広げる量（枠の大きさに対する割合） */
 const AREA_MARGIN = 0.1;
 
+/** 目の位置を直したモデル（同じモデルで2回直さないように覚えておく） */
+const fixedEyes = new WeakSet<object>();
+
+/**
+ * 目の位置（頭の骨からのずれ）を、骨の大きさ（スケール）の分だけ小さくする。
+ * 骨に大きさがついているモデル（骨が 100 倍で、親で 1/100 にしているものなど）では、
+ * three-vrm が目の位置も 100 倍ずらして計算するので、目が頭の何メートルも上にあることになり、
+ * そこから見る人を見下ろそうとして、黒目がずっと下を向いてしまう
+ */
+function fixEyePosition(
+  THREE: typeof import('three'),
+  vrm: VRM,
+): void {
+  const lookAt = vrm.lookAt;
+  const rawHead = vrm.humanoid.getRawBoneNode('head');
+  if (!lookAt || !rawHead || fixedEyes.has(lookAt)) return;
+  fixedEyes.add(lookAt);
+  rawHead.updateWorldMatrix(true, false);
+  const headScale = rawHead.getWorldScale(new THREE.Vector3());
+  const modelScale = vrm.scene.getWorldScale(new THREE.Vector3());
+  lookAt.offsetFromHeadBone.multiply(modelScale).divide(headScale);
+}
+
 export function createPointerLook(
   THREE: typeof import('three'),
   scene: Scene,
@@ -83,6 +106,7 @@ export function createPointerLook(
 
   // それぞれの子が見る点。位置は世界の座標で置くので、scene の直下に置く
   const targets = vrms.map((vrm) => {
+    fixEyePosition(THREE, vrm);
     const target = new THREE.Object3D();
     target.name = 'PointerLookTarget';
     scene.add(target);
