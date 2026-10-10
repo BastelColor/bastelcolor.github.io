@@ -212,30 +212,49 @@ export function composePhoto({
   }
 
   ctx.drawImage(image, 0, 0);
+  drawCaption(photo, caption, backdrop === 'night');
+  return photo;
+}
 
-  // 右下に、だれの写真か・どこのサイトか
+/** 写真の右下に、だれの写真か・どこのサイトかを書く（light は、暗い背景の上の明るい文字） */
+export function drawCaption(
+  photo: HTMLCanvasElement,
+  caption: string,
+  light: boolean,
+) {
+  const ctx = photo.getContext('2d');
+  if (!ctx) return;
   const size = Math.round(Math.min(photo.width, photo.height) * 0.028);
   ctx.font = `900 ${size}px "Zen Maru Gothic", sans-serif`;
   ctx.textAlign = 'right';
   ctx.textBaseline = 'bottom';
-  ctx.fillStyle =
-    backdrop === 'night' ? 'rgba(255, 255, 255, 0.75)' : 'rgba(47, 69, 88, 0.6)';
+  if (light) {
+    // カメラの映像の上など、何色の上に乗るか分からないときは、うすい影をつける
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+    ctx.shadowBlur = size * 0.4;
+  }
+  ctx.fillStyle = light ? 'rgba(255, 255, 255, 0.85)' : 'rgba(47, 69, 88, 0.6)';
   ctx.fillText(caption, photo.width - size * 1.2, photo.height - size);
-  return photo;
+  ctx.shadowColor = 'transparent';
 }
 
 /**
  * 写真を保存する。スマホなどで「共有」から写真に保存できるときは共有の画面を出し、
  * それ以外はファイルとしてダウンロードする
  */
-export async function savePhoto(photo: HTMLCanvasElement, fileName: string) {
+export async function savePhoto(
+  photo: HTMLCanvasElement,
+  fileName: string,
+  /** false なら、共有の画面を出さずにダウンロードする（AR のあいだは、共有の画面で AR が止まってしまうため） */
+  { share = true }: { share?: boolean } = {},
+) {
   const blob = await new Promise<Blob | null>((resolve) =>
     photo.toBlob(resolve, 'image/png'),
   );
   if (!blob) return;
   const file = new File([blob], fileName, { type: 'image/png' });
   const isTouch = window.matchMedia('(pointer: coarse)').matches;
-  if (isTouch && navigator.canShare?.({ files: [file] })) {
+  if (share && isTouch && navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file] });
       return;

@@ -18,6 +18,8 @@ import {
 import {
   captureFrame,
   disposeObject,
+  failsToRender,
+  LilToonRenderError,
   loadThreeModules,
   measureVisibleBounds,
   type StageShot,
@@ -356,6 +358,11 @@ export async function createLineupStage({
     let lastExpression: string | null = null;
     let shownUntil = -1;
     let weight = 0;
+
+    // lilToon の見た目は、端末によっては描けないことがある。描けなければ、ふつうの見た目で並べ直す
+    if (lilToon && failsToRender(renderer, () => renderer.render(scene, camera))) {
+      throw new LilToonRenderError();
+    }
 
     const timer = new THREE.Timer();
     renderer.setAnimationLoop((time) => {

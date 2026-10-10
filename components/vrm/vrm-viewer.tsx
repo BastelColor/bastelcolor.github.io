@@ -3,7 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useT } from '@/components/lang';
 import type { MotionId } from '@/components/vrm/motions';
-import { createVrmStage, type VrmStage } from '@/components/vrm/vrm-stage';
+import {
+  createVrmStage,
+  LilToonRenderError,
+  type VrmStage,
+} from '@/components/vrm/vrm-stage';
 
 type ViewerState = 'loading' | 'ready' | 'error';
 
@@ -52,6 +56,9 @@ export function VrmViewer({
   const [viewerState, setViewerState] = useState<ViewerState>('loading');
   const [progress, setProgress] = useState(0);
   const [autoRotate, setAutoRotate] = useState(isFull);
+  // lilToon で描けなかったら、ふつうの見た目で表示し直す（vrm-stage.ts の LilToonRenderError）
+  const [lilToonFailed, setLilToonFailed] = useState(false);
+  const useLilToon = liltoon && !lilToonFailed;
   const onStageRef = useRef(onStage);
   useEffect(() => {
     onStageRef.current = onStage;
@@ -72,7 +79,7 @@ export function VrmViewer({
       modelUrl,
       motionId,
       brightness,
-      liltoon,
+      liltoon: useLilToon,
       autoRotate: isFull,
       zoom: isFull,
       signal: controller.signal,
@@ -89,6 +96,10 @@ export function VrmViewer({
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
         console.error(error);
+        if (error instanceof LilToonRenderError) {
+          setLilToonFailed(true);
+          return;
+        }
         setViewerState('error');
       });
 
@@ -98,7 +109,7 @@ export function VrmViewer({
       if (stageRef.current) onStageRef.current?.(null);
       stageRef.current = null;
     };
-  }, [modelUrl, motionId, brightness, liltoon, isFull, bleedTo]);
+  }, [modelUrl, motionId, brightness, useLilToon, isFull, bleedTo]);
 
   const toggleAutoRotate = () => {
     const next = !autoRotate;

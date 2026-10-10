@@ -9,6 +9,7 @@ import {
   type LineupStage,
 } from '@/components/vrm/lineup-stage';
 import type { MotionId } from '@/components/vrm/motions';
+import { LilToonRenderError } from '@/components/vrm/vrm-stage';
 
 type ViewerState = 'loading' | 'ready' | 'error';
 
@@ -38,6 +39,8 @@ export function LineupViewer({
   const [viewerState, setViewerState] = useState<ViewerState>('loading');
   const [progress, setProgress] = useState(0);
   const [layout, setLayout] = useState<LineupLayout | null>(null);
+  // lilToon で描けなかったら、みんなふつうの見た目で並べ直す（vrm-stage.ts の LilToonRenderError）
+  const [lilToonFailed, setLilToonFailed] = useState(false);
   const onStageRef = useRef(onStage);
   useEffect(() => {
     onStageRef.current = onStage;
@@ -58,7 +61,9 @@ export function LineupViewer({
     createLineupStage({
       canvas,
       container,
-      models: modelsRef.current,
+      models: lilToonFailed
+        ? modelsRef.current.map((model) => ({ ...model, liltoon: false }))
+        : modelsRef.current,
       motionId,
       signal: controller.signal,
       onProgress: setProgress,
@@ -73,6 +78,10 @@ export function LineupViewer({
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
         console.error(error);
+        if (error instanceof LilToonRenderError) {
+          setLilToonFailed(true);
+          return;
+        }
         setViewerState('error');
       });
     return () => {
@@ -80,7 +89,7 @@ export function LineupViewer({
       stage?.dispose();
       if (stage) onStageRef.current?.(null);
     };
-  }, [modelKey, motionId]);
+  }, [modelKey, motionId, lilToonFailed]);
 
   const nameOf = (id: string) =>
     models.find((model) => model.id === id)?.name ?? id;

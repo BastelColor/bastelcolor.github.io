@@ -527,6 +527,24 @@
   background: #ffe08a;
 }
 
+/* AR で写真を撮った瞬間に、画面が白く光る */
+.avatar-ar-flash {
+  position: fixed;
+  inset: 0;
+  background: #ffffff;
+  pointer-events: none;
+  animation: avatar-ar-flash 0.4s ease-out forwards;
+}
+
+@keyframes avatar-ar-flash {
+  from {
+    opacity: 0.8;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 /* 写真を撮った瞬間に、枠が白く光る */
 .avatar-room-flash {
   position: absolute;

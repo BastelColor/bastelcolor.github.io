@@ -85,6 +85,37 @@ export type StageCheck = {
   expressions: Record<string, number>;
 };
 
+/**
+ * lilToon の見た目で描けなかった（端末の GPU で、lilToon の描き方（シェーダー）を作れなかった）。
+ * これが投げられたら、lilToon を使わずに（VRM のふつうの見た目で）表示し直す
+ */
+export class LilToonRenderError extends Error {
+  constructor() {
+    super('lilToon のシェーダーを、この端末では作れませんでした');
+    this.name = 'LilToonRenderError';
+  }
+}
+
+/**
+ * 1回描いてみて、描き方（シェーダー）を作れなかったものがあるかを調べる。
+ * 作れなかったものは、three.js がエラーを出して描かないだけなので、画面には何も出なくなる
+ * （Android の Chrome で、lilToon の子だけが表示されなかった）
+ */
+export function failsToRender(renderer: WebGLRenderer, render: () => void) {
+  let failed = false;
+  const previous = renderer.debug.onShaderError;
+  renderer.debug.onShaderError = (gl, program) => {
+    failed = true;
+    console.error('シェーダーを作れませんでした', gl.getProgramInfoLog(program));
+  };
+  try {
+    render();
+  } finally {
+    renderer.debug.onShaderError = previous;
+  }
+  return failed;
+}
+
 /** 写真（capture）。画像と、画像の中での枠（container）の位置（画像のピクセル） */
 export type StageShot = {
   image: HTMLCanvasElement;
@@ -587,6 +618,11 @@ export async function createVrmStage({
         else expressionWeights.set(name, next);
       }
     };
+
+    // lilToon の見た目は、端末によっては描けないことがある。描けなければ、ふつうの見た目で表示し直す
+    if (liltoon && failsToRender(renderer, () => renderer.render(scene, camera))) {
+      throw new LilToonRenderError();
+    }
 
     // --- AR（WebXR）。始めているあいだだけ ---
     let arView: ARView | null = null;

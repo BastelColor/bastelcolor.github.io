@@ -43,8 +43,36 @@ export async function detectAR(): Promise<ARMode | null> {
 export type ARSession = {
   /** 机の上に置けるよう、小さく（1/4 の大きさに）する */
   setSmall: (small: boolean) => void;
+  /**
+   * カメラの映像ごと写真を撮れるか。カメラの映像をページから読める（WebXR の camera-access）ブラウザだけ。
+   * 読めないときは、写真のボタンを出さない（スマホのスクリーンショットで撮ってもらう）
+   */
+  canPhoto: boolean;
+  /** カメラの映像とモデルを1枚にした写真を撮る（次に描くときに撮る）。撮れなければ null */
+  photo: () => Promise<HTMLCanvasElement | null>;
   end: () => void;
 };
+
+/** AR の写真の大きさの上限（長い辺のピクセル） */
+const PHOTO_MAX_SIZE = 2048;
+
+/** カメラの映像を、画面いっぱいの背景として描く（カメラの位置や向きに関係なく、いちばん奥に） */
+const BACKGROUND_VERTEX = `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}
+`;
+// 写真は sRGB の入れ物に描く（モデルの色は自動で sRGB に直る）ので、カメラの映像（もともと sRGB）は、一度もどしておく
+const BACKGROUND_FRAGMENT = `
+uniform sampler2D map;
+varying vec2 vUv;
+void main() {
+  vec3 color = texture2D(map, vUv).rgb;
+  gl_FragColor = vec4(pow(color, vec3(2.2)), 1.0);
+}
+`;
 
 /** 小さくしたときの大きさ（本当の背丈に対する割合） */
 const SMALL_SCALE = 0.25;
@@ -83,7 +111,8 @@ export async function startWebXR({
   if (!xr) throw new Error('WebXR に対応していません');
   const session = await xr.requestSession('immersive-ar', {
     requiredFeatures: ['hit-test'],
-    optionalFeatures: ['dom-overlay'],
+    // camera-access: 写真を撮るときに、カメラの映像を読む
+    optionalFeatures: ['dom-overlay', 'camera-access'],
     domOverlay: { root: overlay },
   });
 
@@ -106,6 +135,89 @@ export async function startWebXR({
   reticle.matrixAutoUpdate = false;
   reticle.visible = false;
   scene.add(reticle);
+
+  // 写真のときだけ出す、カメラの映像の背景
+  const background = new THREE.Mesh(
+    new THREE.PlaneGeometry(2, 2),
+    new THREE.ShaderMaterial({
+      uniforms: { map: { value: null } },
+      vertexShader: BACKGROUND_VERTEX,
+      fragmentShader: BACKGROUND_FRAGMENT,
+      depthTest: false,
+      depthWrite: false,
+    }),
+  );
+  background.frustumCulled = false;
+  background.renderOrder = -1000;
+  background.visible = false;
+  scene.add(background);
+  const photoCamera = new THREE.PerspectiveCamera();
+  photoCamera.matrixAutoUpdate = false;
+  photoCamera.matrixWorldAutoUpdate = false;
+  const enabledFeatures =
+    (session as XRSession & { enabledFeatures?: string[] }).enabledFeatures ?? [];
+  const canPhoto = enabledFeatures.includes('camera-access');
+  let photoRequest: ((photo: HTMLCanvasElement | null) => void) | null = null;
+
+  /**
+   * いまのカメラの映像の上に、モデルを描いて写真にする。
+   * AR の画面（カメラの映像はブラウザの外で重ねられる）はページから読めないので、
+   * 写真用の入れ物に、カメラの映像とモデルを描き直す
+   */
+  const capture = (frame: XRFrame): HTMLCanvasElement | null => {
+    const space = renderer.xr.getReferenceSpace();
+    const view = space ? frame.getViewerPose(space)?.views[0] : undefined;
+    // XRView.camera は、カメラの映像を読めるときだけある（型の定義にはまだ無い）
+    const xrCamera = (view as (XRView & { camera?: { width: number; height: number } }) | undefined)
+      ?.camera;
+    const texture = xrCamera
+      ? renderer.xr.getCameraTexture(
+          xrCamera as unknown as Parameters<typeof renderer.xr.getCameraTexture>[0],
+        )
+      : null;
+    if (!view || !xrCamera || !texture) return null;
+    const scale = Math.min(1, PHOTO_MAX_SIZE / Math.max(xrCamera.width, xrCamera.height));
+    const width = Math.round(xrCamera.width * scale);
+    const height = Math.round(xrCamera.height * scale);
+    // 写すカメラは、スマホのカメラと同じ位置・向き・画角
+    photoCamera.projectionMatrix.fromArray(view.projectionMatrix);
+    photoCamera.projectionMatrixInverse.copy(photoCamera.projectionMatrix).invert();
+    photoCamera.matrixWorld.fromArray(view.transform.matrix);
+    photoCamera.matrixWorldInverse.copy(photoCamera.matrixWorld).invert();
+    background.material.uniforms.map.value = texture;
+    background.visible = true;
+    const reticleShown = reticle.visible;
+    reticle.visible = false;
+    const target = new THREE.WebGLRenderTarget(width, height, {
+      colorSpace: THREE.SRGBColorSpace,
+    });
+    const previous = renderer.getRenderTarget();
+    // AR の描き方（スマホのカメラで描く）をいったん止めて、写真用のカメラで描く
+    renderer.xr.enabled = false;
+    renderer.setRenderTarget(target);
+    renderer.clear();
+    renderer.render(scene, photoCamera);
+    renderer.xr.enabled = true;
+    renderer.setRenderTarget(previous);
+    background.visible = false;
+    reticle.visible = reticleShown;
+    const pixels = new Uint8Array(width * height * 4);
+    renderer.readRenderTargetPixels(target, 0, 0, width, height, pixels);
+    target.dispose();
+    // 読んだ画素は下の行から並んでいるので、上下を返して写真にする
+    const photo = document.createElement('canvas');
+    photo.width = width;
+    photo.height = height;
+    const context = photo.getContext('2d');
+    if (!context) return null;
+    const image = context.createImageData(width, height);
+    const row = width * 4;
+    for (let y = 0; y < height; y++) {
+      image.data.set(pixels.subarray((height - 1 - y) * row, (height - y) * row), y * row);
+    }
+    context.putImageData(image, 0, 0);
+    return photo;
+  };
 
   const viewerSpace = await session.requestReferenceSpace('viewer');
   const hitTestSource = await session.requestHitTestSource?.({
@@ -150,9 +262,13 @@ export async function startWebXR({
     // モデルを元の場所へもどす
     anchor.remove(model);
     parent?.add(model);
-    scene.remove(anchor, reticle);
+    scene.remove(anchor, reticle, background);
     reticle.geometry.dispose();
     (reticle.material as Material).dispose();
+    background.geometry.dispose();
+    (background.material as Material).dispose();
+    photoRequest?.(null);
+    photoRequest = null;
     renderer.xr.enabled = false;
     onEnd();
   });
@@ -160,12 +276,32 @@ export async function startWebXR({
   return {
     session: {
       setSmall: (small) => anchor.scale.setScalar(small ? SMALL_SCALE : 1),
+      canPhoto,
+      photo: () =>
+        new Promise((resolve) => {
+          if (!canPhoto || ended) {
+            resolve(null);
+            return;
+          }
+          photoRequest = resolve;
+        }),
       end: () => {
         if (!ended) void session.end();
       },
     },
     update: (frame) => {
-      if (!frame || !hitTestSource || ended) return;
+      if (!frame || ended) return;
+      if (photoRequest) {
+        const resolve = photoRequest;
+        photoRequest = null;
+        try {
+          resolve(capture(frame));
+        } catch (error) {
+          console.error(error);
+          resolve(null);
+        }
+      }
+      if (!hitTestSource) return;
       const space = renderer.xr.getReferenceSpace();
       const hit = space && frame.getHitTestResults(hitTestSource)[0];
       const pose = hit?.getPose(space!);

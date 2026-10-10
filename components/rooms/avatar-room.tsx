@@ -9,7 +9,11 @@ import {
 import modelStats from 'virtual:model-stats';
 import { useLang, useT } from '@/components/lang';
 import { countEvent } from '@/components/page-counter';
-import { composePhoto, savePhoto } from '@/components/rooms/avatar-photo';
+import {
+  composePhoto,
+  drawCaption,
+  savePhoto,
+} from '@/components/rooms/avatar-photo';
 import { ShareButtons } from '@/components/share-buttons';
 import { LIGHTINGS, type Lighting } from '@/components/vrm/lighting';
 import {
@@ -178,6 +182,9 @@ export function AvatarRoom() {
     'off',
   );
   const [arSmall, setArSmall] = useState(false);
+  // AR のあいだに写真を撮れるか（カメラの映像を読めるブラウザだけ）
+  const [arCanPhoto, setArCanPhoto] = useState(false);
+  const [arFlash, setArFlash] = useState(0);
   const [arBusy, setArBusy] = useState(false);
   const arSession = useRef<ARSession | null>(null);
   const arOverlay = useRef<HTMLDivElement>(null);
@@ -284,6 +291,7 @@ export function AvatarRoom() {
             setArState('off');
           },
         });
+        setArCanPhoto(arSession.current.canPhoto);
         setArState('searching');
       } catch (error) {
         console.error(error);
@@ -301,6 +309,19 @@ export function AvatarRoom() {
         setArBusy(false);
       }
     }
+  };
+
+  // AR のあいだの写真。カメラの映像とモデルを1枚にして、ダウンロードする
+  const takeArPhoto = async () => {
+    const session = arSession.current;
+    if (!session) return;
+    playSound('shutter');
+    setArFlash((count) => count + 1);
+    const photo = await session.photo();
+    if (!photo) return;
+    countEvent(`ar-photo/${selected.id}`);
+    drawCaption(photo, `${selected.nameEn} · Yzmo`, true);
+    void savePhoto(photo, `yzmo-${selected.id}-ar.png`, { share: false });
   };
 
   const takePhoto = () => {
@@ -461,7 +482,15 @@ export function AvatarRoom() {
                   'Slowly scan the floor or a table, then tap where the white ring appears',
                 )}
           </p>
+          {arFlash > 0 && (
+            <span key={arFlash} className="avatar-ar-flash" aria-hidden="true" />
+          )}
           <div className="avatar-ar-buttons">
+            {arCanPhoto && arState === 'placed' && (
+              <button type="button" onClick={() => void takeArPhoto()}>
+                {t('写真', 'Photo')}
+              </button>
+            )}
             <button
               type="button"
               aria-pressed={arSmall}
