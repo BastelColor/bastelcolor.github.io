@@ -34,14 +34,24 @@ const median = (values) => {
   return sorted[Math.floor(sorted.length / 2)];
 };
 
-/** 目線と表情の数字（components/vrm/vrm-stage.ts の StageCheck）を、count 回、間をあけて読む */
-const readChecks = async (page, count = 10, ms = 250) => {
+/**
+ * 目線の数字が落ち着くまで読む。直近の count 回の真ん中の値が ok を満たしたら、その数字を返す。
+ * timeout までに満たさなければ、最後に読んだ数字を返す（呼んだ側で失敗にする）。
+ * GitHub の確認の機械では 3D の描画がとても遅く（lilToon の子は 1 秒に 1〜2 回ほど）、
+ * 1回の描画で進める時間に上限があるので、顔や目がゆっくり動く。決まった時間だけ読むと、向きを変えている途中で測ってしまう
+ */
+const readSettled = async (page, ok, { count = 6, ms = 400, timeout = 40_000 } = {}) => {
   const samples = [];
-  for (let i = 0; i < count; i++) {
+  const started = Date.now();
+  while (Date.now() - started < timeout) {
     await sleep(ms);
-    samples.push(await page.evaluate(() => window.__yzmoCheck?.()));
+    const sample = await page.evaluate(() => window.__yzmoCheck?.());
+    if (!sample) continue;
+    samples.push(sample);
+    const recent = samples.slice(-count);
+    if (recent.length === count && ok(recent)) return recent;
   }
-  return samples.filter(Boolean);
+  return samples.slice(-count);
 };
 
 /** 目線の確かめ方の目安（度・m） */
@@ -262,7 +272,11 @@ export const scenarios = [
         await waitFor(page, () => !!window.__yzmoCheck, 10_000);
         // マウスがモデルの外にあるとき: 見ている人を見る
         await page.mouse.move(5, 5);
-        const idle = await readChecks(page);
+        const idleOk = (items) =>
+          Math.abs(median(items.map((item) => item.eyePitch))) <= GAZE.eyePitch &&
+          Math.abs(median(items.map((item) => item.eyeYaw))) <= GAZE.eyeYaw &&
+          median(items.map((item) => item.headPitch)) >= -GAZE.headDown;
+        const idle = await readSettled(page, idleOk);
         failIf(idle.length === 0, `${id}: 目線の数字が読めません`);
         const offset = Math.max(...idle.map((item) => item.eyeOffset));
         failIf(
@@ -285,7 +299,10 @@ export const scenarios = [
           return { x: rect.left + rect.width / 2, y: rect.top + rect.height * 0.2 };
         });
         await page.mouse.move(face.x, face.y);
-        const looking = await readChecks(page, 6);
+        const looking = await readSettled(
+          page,
+          (items) => Math.abs(median(items.map((item) => item.eyePitch))) <= GAZE.lookingPitch,
+        );
         const lookingPitch = median(looking.map((item) => item.eyePitch));
         failIf(
           Math.abs(lookingPitch) > GAZE.lookingPitch,
