@@ -51,6 +51,13 @@ const GAZE = {
   /** 見ている人を見ているとき、黒目の上下・左右の向き（真ん中の値）がこれより大きいと、よそ見に見える */
   eyePitch: 12,
   eyeYaw: 20,
+  /**
+   * マウスのほうを見ているときの、黒目の上下の向きの上限。マウスのほうへ上下 10° ほど向けるうえ、
+   * 踊りで顔が少し下がる分を目でおぎなうので、ふだんより広くする。
+   * （この数字は「見たい方向」の角度で、黒目そのものはこの 1/9 ほどしか動かない。
+   *   前にあった、黒目がずっと下を向くまちがいのときは 60〜70° だった）
+   */
+  lookingPitch: 20,
   /** 顔の下向き（真ん中の値）がこれより大きいと、うつむいて見える */
   headDown: 12,
 };
@@ -277,7 +284,7 @@ export const scenarios = [
         const looking = await readChecks(page, 6);
         const lookingPitch = median(looking.map((item) => item.eyePitch));
         failIf(
-          Math.abs(lookingPitch) > GAZE.eyePitch,
+          Math.abs(lookingPitch) > GAZE.lookingPitch,
           `${id}: 顔のあたりのマウスを見たとき、黒目が上下に寄りすぎています（${lookingPitch.toFixed(1)}°）`,
         );
         await page.mouse.move(5, 5);
