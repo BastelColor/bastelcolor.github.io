@@ -6,7 +6,9 @@ import type { VRM } from '@pixiv/three-vrm';
  *
  * - マウスがモデルの枠（area）の上にあるあいだだけ、そちらを見る。
  *   ボタンを押しに行ったときなど、枠の外にあるときは、カメラ（見ている人）を見る
- * - 「カメラを見る向き」から、マウスの方向へ、角度を半分ほどに弱め、上限をつけてずらす
+ * - ふだんは、カメラ（見ている人）のほうを、目の高さのまま水平に見る。
+ *   全身を写すときのカメラは腰の高さにあるので、カメラそのものを見ると、うつむいて見えてしまうため
+ * - マウスがあるときは、そこから、マウスの方向へ角度を半分ほどに弱め、上限をつけてずらす
  *   （黒目が目のふちへ寄りすぎない。下は上より狭くして、うつむいて見えないようにする）
  * - 目は VRM の視線（lookAt）、頭はそのうち少しだけ（HEAD_WEIGHT）ついていく。
  *   モーションや待機の動きのあとに足すので、踊っている最中でも、顔だけちらっとこちらを向く
@@ -21,12 +23,15 @@ export type PointerLook = {
 
 /** マウスの方向へ向ける割合（1 でマウスをまっすぐ見る） */
 const FOLLOW = 0.5;
-/** 「カメラを見る向き」からずらせる角度の上限（ラジアン）。左右 約 18°、上 約 10°、下 約 6° */
+/** ふだんの向き（カメラの方向・水平）からずらせる角度の上限（ラジアン）。左右 約 18°、上 約 10°、下 約 6° */
 const MAX_YAW = 0.32;
 const MAX_UP = 0.17;
 const MAX_DOWN = 0.1;
-/** 頭がついていく割合（目の向きのうち、どれだけ顔も向けるか） */
-const HEAD_WEIGHT = 0.35;
+/**
+ * 頭がついていく割合（目の向きのうち、どれだけ顔も向けるか）。
+ * ループのモーションは顔が少し下を向いているので、これで少しだけ起こして、こちらを見ているようにする
+ */
+const HEAD_WEIGHT = 0.5;
 /** 視線を合わせる速さ（大きいほど速い） */
 const EASE = 5;
 /** マウスがこの時間（秒）動かなかったら、カメラのほうを見る */
@@ -105,6 +110,7 @@ export function createPointerLook(
   const forward = new THREE.Vector3();
   const toward = new THREE.Vector3();
   const parentQuaternion = new THREE.Quaternion();
+  const full = new THREE.Quaternion();
   const goal = new THREE.Quaternion();
   const identity = new THREE.Quaternion();
 
@@ -141,7 +147,8 @@ export function createPointerLook(
             point.addScaledVector(cameraForward, -0.6);
             toPointer.copy(point).sub(head).normalize();
             yaw = wrap(yawOf(toPointer) - yawOf(toCamera)) * FOLLOW;
-            pitch = (pitchOf(toPointer) - pitchOf(toCamera)) * FOLLOW;
+            // 上下は、目の高さからの角度（顔のあたりを指したら、まっすぐ前を見る）
+            pitch = pitchOf(toPointer) * FOLLOW;
             yaw = Math.max(-MAX_YAW, Math.min(MAX_YAW, yaw));
             pitch = Math.max(-MAX_DOWN, Math.min(MAX_UP, pitch));
           }
@@ -150,9 +157,10 @@ export function createPointerLook(
         offset.yaw += (yaw - offset.yaw) * k;
         offset.pitch += (pitch - offset.pitch) * k;
 
-        // 見る点: 「カメラを見る向き」から、ずれのぶんだけ回した方向の、カメラと同じ距離の点
+        // 見る点: カメラの方向を水平に見る向きから、ずれのぶんだけ回した方向の、カメラと同じ距離の点
+        // （上下は、マウスでずらした分だけ。カメラの高さには合わせない）
         const lookYaw = yawOf(toCamera) + offset.yaw;
-        const lookPitch = pitchOf(toCamera) + offset.pitch;
+        const lookPitch = offset.pitch;
         look.set(
           Math.sin(lookYaw) * Math.cos(lookPitch),
           Math.sin(lookPitch),
@@ -171,8 +179,9 @@ export function createPointerLook(
           .normalize();
         // うしろのほうを向いているとき（踊ってくるっと回っているときなど）は、無理にふり向かない
         const weight = forward.angleTo(toward) > 1.4 ? 0 : HEAD_WEIGHT;
-        goal.setFromUnitVectors(forward, toward);
-        goal.slerpQuaternions(identity, goal, weight);
+        full.setFromUnitVectors(forward, toward);
+        // （slerpQuaternions の書き込み先に、読み込む側と同じものを渡すと回らなくなるので、別に分ける）
+        goal.slerpQuaternions(identity, full, weight);
         turns[i].slerp(goal, k);
         headBone.quaternion.premultiply(turns[i]);
       });
