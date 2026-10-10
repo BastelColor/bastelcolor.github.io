@@ -273,7 +273,8 @@ export const scenarios = [
         const yaw = median(idle.map((item) => item.eyeYaw));
         failIf(
           Math.abs(pitch) > GAZE.eyePitch || Math.abs(yaw) > GAZE.eyeYaw,
-          `${id}: 見ている人を見ていません（黒目の上下 ${pitch.toFixed(1)}°・左右 ${yaw.toFixed(1)}°）`,
+          `${id}: 見ている人を見ていません（黒目の上下 ${pitch.toFixed(1)}°・左右 ${yaw.toFixed(1)}°）` +
+            ` 向きの数字: ${JSON.stringify(idle.slice(-3).map((item) => item.debug))}`,
         );
         const head = median(idle.map((item) => item.headPitch));
         failIf(head < -GAZE.headDown, `${id}: うつむいています（顔の向き ${head.toFixed(1)}°）`);

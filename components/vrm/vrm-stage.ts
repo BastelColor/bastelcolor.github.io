@@ -1,6 +1,7 @@
 import type {
   Material,
   Object3D,
+  Quaternion,
   Spherical,
   Texture,
   Vector3,
@@ -81,6 +82,11 @@ export type StageCheck = {
   eyePitch: number;
   /** 顔の上下の向き（度、正で上） */
   headPitch: number;
+  /**
+   * 調べるとき用の、向きの数字（度、[左右, 上下]）。顔（動かす骨・表示する骨）、目が見る点、カメラ、
+   * three-vrm が最初に覚えた顔の向き（目の向きは、これを基準に計算される）
+   */
+  debug: Record<string, [number, number]>;
   /** いま見せている表情と、その強さ（0〜1） */
   expressions: Record<string, number>;
 };
@@ -639,7 +645,37 @@ export async function createVrmStage({
         if (headBone) {
           forward.applyQuaternion(headBone.getWorldQuaternion(headQuaternion));
         }
+        // 向き（+Z の向き、またはある点への向き）を [左右, 上下] の度にする
+        const angles = (direction: Vector3): [number, number] => {
+          const unit = direction.clone().normalize();
+          return [
+            Math.round(THREE.MathUtils.radToDeg(Math.atan2(unit.x, unit.z))),
+            Math.round(THREE.MathUtils.radToDeg(Math.asin(unit.y))),
+          ];
+        };
+        const facing = (quaternion: Quaternion) =>
+          angles(new THREE.Vector3(0, 0, 1).applyQuaternion(quaternion));
+        const rawHead = checkVrm.humanoid.getRawBoneNode('head');
+        const debug: Record<string, [number, number]> = {
+          head: angles(forward),
+          camera: angles(
+            camera.getWorldPosition(new THREE.Vector3()).sub(headPosition),
+          ),
+        };
+        if (rawHead) {
+          debug.rawHead = facing(rawHead.getWorldQuaternion(new THREE.Quaternion()));
+        }
+        if (lookAt?.target) {
+          debug.target = angles(
+            lookAt.target.getWorldPosition(new THREE.Vector3()).sub(headPosition),
+          );
+        }
+        const rest = (
+          lookAt as unknown as { _restHeadWorldQuaternion?: Quaternion } | null
+        )?._restHeadWorldQuaternion;
+        if (rest) debug.rest = facing(rest);
         return {
+          debug,
           eyeOffset: lookAt
             ? lookAt
                 .getLookAtWorldPosition(new THREE.Vector3())
