@@ -96,7 +96,6 @@ export const works: Work[] = [
     genre: 'game',
     title: 'Dream.（CAPCOM GAMES COMPETITION）',
     category: 'GAME / PLANNING',
-    tools: ['RE ENGINE'],
     description: 'ゲーム企画書の制作（チーム参加）',
     thumbnail: '/works/capcom-games-competition/thumb.webp',
     year: '2025',
