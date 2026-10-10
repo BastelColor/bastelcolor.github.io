@@ -8,7 +8,7 @@ import { LAYERS_CHANGE_EVENT } from '@/lib/history-layers';
 declare global {
   interface Window {
     goatcounter?: {
-      count?: (vars?: { path?: string }) => void;
+      count?: (vars?: { path?: string; title?: string; event?: boolean }) => void;
     };
   }
 }
@@ -25,19 +25,28 @@ function currentPath() {
   return pathname + search + hash;
 }
 
-/** GoatCounter が読み込まれるのを待ってから、path を1回数える */
-function countWhenReady(path: string, tries = READY_TRIES) {
+/** GoatCounter が読み込まれるのを待ってから、path を1回数える（event なら「できごと」として） */
+function countWhenReady(path: string, tries = READY_TRIES, event = false) {
   const count = window.goatcounter?.count;
   if (count) {
-    count({ path });
+    count(event ? { path, title: path, event: true } : { path });
     return;
   }
   if (tries > 0) {
     window.setTimeout(
-      () => countWhenReady(path, tries - 1),
+      () => countWhenReady(path, tries - 1, event),
       READY_INTERVAL_MS,
     );
   }
+}
+
+/**
+ * ページではない「できごと」を1回数える（例: アバターの写真を撮った → photo/quiple）。
+ * GoatCounter では、ページの一覧とは別に、できごととして並ぶ
+ */
+export function countEvent(name: string) {
+  if (!site.goatcounter) return;
+  countWhenReady(name, READY_TRIES, true);
 }
 
 /**

@@ -97,3 +97,83 @@
 :root[data-sky='night']:not([data-theme='dark']) .home-news {
   background: rgba(255, 255, 255, 0.92);
 }
+
+/* ---- 流れ星（components/shooting-stars.tsx）----
+   夜の空のときだけ見える。3つが、それぞれ違う間隔で、ときどき左下へ流れる */
+.shooting-stars {
+  position: absolute;
+  z-index: 0;
+  inset: 0 0 45% 0;
+  overflow: hidden;
+  opacity: var(--stars);
+  pointer-events: none;
+  transition: opacity 1s ease;
+}
+
+.shooting-stars span {
+  position: absolute;
+  width: 130px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(to right, #fff, rgba(255, 255, 255, 0));
+  rotate: -28deg;
+  opacity: 0;
+  animation: shooting-star 13s linear infinite;
+}
+
+.shooting-stars span::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 8px 2px rgba(255, 255, 255, 0.7);
+}
+
+.shooting-stars span:nth-child(1) {
+  left: 72%;
+  top: 6%;
+  animation-delay: 2s;
+}
+
+.shooting-stars span:nth-child(2) {
+  left: 38%;
+  top: 2%;
+  animation-duration: 19s;
+  animation-delay: 9s;
+}
+
+.shooting-stars span:nth-child(3) {
+  left: 90%;
+  top: 30%;
+  animation-duration: 23s;
+  animation-delay: 15s;
+}
+
+/* 1回の周期のうち、はじめの少しのあいだだけ流れる */
+@keyframes shooting-star {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  1% {
+    opacity: 1;
+  }
+  6% {
+    opacity: 0;
+    transform: translate(-320px, 170px);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-320px, 170px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shooting-stars {
+    display: none;
+  }
+}

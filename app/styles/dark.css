@@ -70,15 +70,23 @@
   --stage-top: #4a5878;
 }
 
-/* アバターの背景を「白」にしたときは、部屋の中と右上のボタンだけ明るいテーマの色にもどす */
-:root[data-theme='dark'] .room:has(.avatar-room[data-backdrop='white']),
-:root[data-theme='dark']:has(.avatar-room[data-backdrop='white']) .corner-tools {
+/* アバターの背景を明るいもの（白・夕焼け・桜）にしたときは、部屋の中と右上のボタンだけ
+   明るいテーマの色にもどす */
+:root[data-theme='dark'] .room:has(.avatar-room[data-backdrop-tone='light']),
+:root[data-theme='dark']:has(.avatar-room[data-backdrop-tone='light'])
+  .corner-tools {
   --ink: #2f4558;
   --ink-soft: #56697a;
   --surface: rgba(255, 255, 255, 0.5);
   --surface-strong: rgba(255, 255, 255, 0.75);
   --surface-solid: #fff;
   --paper: #fff;
+}
+
+/* 右上のボタンは、明るい背景の上でも文字がはっきり読めるよう、下地をほぼ白にする */
+:root[data-theme='dark']:has(.avatar-room[data-backdrop-tone='light'])
+  .corner-tools {
+  --surface-strong: rgba(255, 255, 255, 0.92);
 }
 
 :root[data-theme='dark'] .avatar-room-podium[data-backdrop='white'] {

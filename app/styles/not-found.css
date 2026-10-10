@@ -9,6 +9,15 @@
   display: none;
 }
 
+/* :has() が使えない古いブラウザ（Firefox 120 まで）では、空の色で上から覆って、
+   うしろのトップを見えなくする（夜の星は覆われて見えなくなる） */
+@supports not selector(:has(*)) {
+  .not-found {
+    z-index: 1;
+    background: linear-gradient(var(--sky-top), var(--sky-bottom));
+  }
+}
+
 .not-found {
   position: fixed;
   z-index: 0;

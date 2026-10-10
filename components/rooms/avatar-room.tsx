@@ -9,7 +9,11 @@ import {
 } from 'react';
 import modelStats from 'virtual:model-stats';
 import { useLang, useT } from '@/components/lang';
+import { countEvent } from '@/components/page-counter';
+import { composePhoto, savePhoto } from '@/components/rooms/avatar-photo';
 import { ShareButtons } from '@/components/share-buttons';
+import { LIGHTINGS, type Lighting } from '@/components/vrm/lighting';
+import { LineupViewer } from '@/components/vrm/lineup-viewer';
 import { preloadVrmStage, type VrmStage } from '@/components/vrm/vrm-stage';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
 import { avatars } from '@/content/avatars';
@@ -17,6 +21,7 @@ import { avatarExpressions, avatarMotion } from '@/content/motions';
 import { site } from '@/content/site';
 import { readLayers, replaceLayers } from '@/lib/history-layers';
 import { localizeAvatar } from '@/lib/localize';
+import { playSound } from '@/lib/sound';
 
 /** 選ぶボタンにも目印を出す badge（まだ配布していない子だと、ひと目で分かるように） */
 const WIP_BADGE = '制作中';
@@ -26,13 +31,40 @@ const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
 /** まわすボタン1回で回り込む角度（45°） */
 const ORBIT_STEP = Math.PI / 4;
 
-/** モデルのうしろの背景。空はいつもの部屋の色のまま */
+/**
+ * モデルのうしろの背景。空はいつもの部屋の色のまま。
+ * tone は背景の明るさ（暗いテーマで明るい背景にしたら、部屋の中の文字を明るいテーマの色にもどす）
+ */
 const BACKDROPS = [
-  { id: 'sky', label: '空', labelEn: 'sky' },
-  { id: 'white', label: '白', labelEn: 'white' },
-  { id: 'night', label: '夜', labelEn: 'night' },
+  { id: 'sky', label: '空', labelEn: 'sky', tone: 'theme' },
+  { id: 'white', label: '白', labelEn: 'white', tone: 'light' },
+  { id: 'sunset', label: '夕焼け', labelEn: 'sunset', tone: 'light' },
+  { id: 'sakura', label: '桜', labelEn: 'cherry blossom', tone: 'light' },
+  { id: 'night', label: '夜', labelEn: 'night', tone: 'dark' },
 ] as const;
 type Backdrop = (typeof BACKDROPS)[number]['id'];
+
+/** ライトの名前（components/vrm/lighting.ts） */
+const LIGHTING_LABELS: Record<Lighting, [string, string]> = {
+  day: ['昼', 'Day'],
+  evening: ['夕方', 'Evening'],
+  night: ['夜', 'Night'],
+  stage: ['ステージ', 'Stage'],
+};
+
+/** 見かた: ひとりずつ / みんなで並ぶ（背丈くらべ） */
+type ViewMode = 'single' | 'lineup';
+
+/** 1体でも、みんなで並んでいても使える、舞台の操作 */
+type RoomStage = Pick<
+  VrmStage,
+  | 'showExpression'
+  | 'orbit'
+  | 'front'
+  | 'expressionNames'
+  | 'setLighting'
+  | 'capture'
+>;
 
 /** 「視差効果を減らす」など、動きを減らす設定にしているか */
 function usePrefersReducedMotion() {
@@ -114,8 +146,14 @@ export function AvatarRoom() {
     lang,
   );
   // 表示できたモデルの舞台。読み込み中は null（表情のボタンは押せない）
-  const [stage, setStage] = useState<VrmStage | null>(null);
+  const [stage, setStage] = useState<RoomStage | null>(null);
+  const [mode, setMode] = useState<ViewMode>('single');
   const [backdrop, setBackdrop] = useState<Backdrop>('sky');
+  const [lighting, setLighting] = useState<Lighting>('day');
+  // 写真を撮った瞬間の、白く光る演出（撮るたびに作り直す）
+  const [flash, setFlash] = useState(0);
+  const podiumElement = useRef<HTMLDivElement>(null);
+  const backdropElement = useRef<HTMLDivElement>(null);
   // 背景を切りかえた瞬間の「波」。モデルのところから新しい背景がぶわっと広がる
   const [wave, setWave] = useState<{
     from: Backdrop;
@@ -137,15 +175,68 @@ export function AvatarRoom() {
       key: ++waveCount.current,
     });
     setBackdrop(next);
+    playSound('whoosh');
   };
   // 動きを減らす設定の人には、くるっと回るループのモーションは流さない（その場で小さく揺れるだけ）
   const reduceMotion = usePrefersReducedMotion();
   const spec = specRows(selected.modelUrl, t);
 
   const select = (id: string) => {
+    if (mode !== 'single') {
+      setStage(null);
+      setMode('single');
+    }
     setSelectedId(id);
     replaceLayers({ room: 'avatar', avatar: id });
   };
+
+  const changeMode = (next: ViewMode) => {
+    if (next === mode) return;
+    playSound('pop');
+    setStage(null);
+    setMode(next);
+    if (next === 'lineup') countEvent('lineup');
+  };
+
+  // ライトは、モデルを切りかえても選んだままにする（新しく表示したモデルには、すぐ当てる）
+  const litStage = useRef<RoomStage | null>(null);
+  useEffect(() => {
+    if (!stage) return;
+    stage.setLighting(lighting, litStage.current !== stage);
+    litStage.current = stage;
+  }, [stage, lighting]);
+
+  const takePhoto = () => {
+    if (!stage) return;
+    playSound('shutter');
+    setFlash((count) => count + 1);
+    countEvent(`photo/${mode === 'lineup' ? 'everyone' : selected.id}`);
+    const name =
+      mode === 'lineup'
+        ? avatars.map((avatar) => avatar.nameEn).join(' & ')
+        : selected.nameEn;
+    const photo = composePhoto({
+      shot: stage.capture(),
+      backdrop,
+      podium: podiumElement.current,
+      backdropElement: backdropElement.current,
+      wide: mode === 'lineup',
+      caption: `${name} · Yzmo`,
+    });
+    void savePhoto(
+      photo,
+      `yzmo-${mode === 'lineup' ? 'everyone' : selected.id}.png`,
+    );
+  };
+
+  const backdropTone = BACKDROPS.find((item) => item.id === backdrop)!.tone;
+  const lineupModels = avatars.map((avatar) => ({
+    id: avatar.id,
+    name: t(avatar.name, avatar.nameEn),
+    modelUrl: avatar.modelUrl,
+    liltoon: avatar.liltoon,
+    brightness: avatar.brightness,
+  }));
 
   // ブラウザのタブの名前も、選んでいる子に合わせる
   useEffect(() => {
@@ -166,10 +257,16 @@ export function AvatarRoom() {
   }, []);
 
   return (
-    <div className="avatar-room" data-backdrop={backdrop}>
+    <div
+      className="avatar-room"
+      data-backdrop={backdrop}
+      data-backdrop-tone={backdropTone}
+      data-mode={mode}
+    >
       {/* 部屋ぜんたいの背景（空はいつもの部屋の色）。切りかえたときは、前の背景の上に
           新しい背景がモデルのところから広がる */}
       <div
+        ref={backdropElement}
         className="avatar-backdrop"
         data-backdrop={wave ? wave.from : backdrop}
         aria-hidden="true"
@@ -196,6 +293,7 @@ export function AvatarRoom() {
       >
         {/* ライトと展示台。背景を切りかえたときは、背景と同じ円で新しい色の台が広がる */}
         <div
+          ref={podiumElement}
           className="avatar-room-podium"
           data-backdrop={wave ? wave.from : backdrop}
           aria-hidden="true"
@@ -208,18 +306,25 @@ export function AvatarRoom() {
             aria-hidden="true"
           />
         )}
-        <VrmViewer
-          key={selected.id}
-          modelUrl={selected.modelUrl}
-          modelName={t(selected.name, selected.nameEn)}
-          motionId={reduceMotion ? undefined : avatarMotion.id}
-          brightness={selected.brightness}
-          liltoon={selected.liltoon}
-          variant="bare"
-          // Quiple の大きなしっぽなどが枠で切れないよう、部屋の左右の端まで描く
-          bleedTo=".room-inner"
-          onStage={setStage}
-        />
+        {mode === 'single' ? (
+          <VrmViewer
+            key={selected.id}
+            modelUrl={selected.modelUrl}
+            modelName={t(selected.name, selected.nameEn)}
+            motionId={reduceMotion ? undefined : avatarMotion.id}
+            brightness={selected.brightness}
+            liltoon={selected.liltoon}
+            variant="bare"
+            // Quiple の大きなしっぽなどが枠で切れないよう、部屋の左右の端まで描く
+            bleedTo=".room-inner"
+            onStage={setStage}
+          />
+        ) : (
+          <LineupViewer models={lineupModels} onStage={setStage} />
+        )}
+        {flash > 0 && (
+          <span key={flash} className="avatar-room-flash" aria-hidden="true" />
+        )}
         {/* 向きと背景のボタン。モデルの足元の左右に置く */}
         <div className="avatar-room-tools">
           <fieldset
@@ -230,14 +335,20 @@ export function AvatarRoom() {
               type="button"
               aria-label={t('左へまわりこむ', 'Turn left')}
               disabled={!stage}
-              onClick={() => stage?.orbit(-ORBIT_STEP)}
+              onClick={() => {
+                playSound('pop');
+                stage?.orbit(-ORBIT_STEP);
+              }}
             >
               <TurnArrow />
             </button>
             <button
               type="button"
               disabled={!stage}
-              onClick={() => stage?.front()}
+              onClick={() => {
+                playSound('pop');
+                stage?.front();
+              }}
             >
               {t('正面', 'Front')}
             </button>
@@ -245,11 +356,28 @@ export function AvatarRoom() {
               type="button"
               aria-label={t('右へまわりこむ', 'Turn right')}
               disabled={!stage}
-              onClick={() => stage?.orbit(ORBIT_STEP)}
+              onClick={() => {
+                playSound('pop');
+                stage?.orbit(ORBIT_STEP);
+              }}
             >
               <TurnArrow flip />
             </button>
           </fieldset>
+          <div className="avatar-room-tools-end">
+          <button
+            type="button"
+            className="avatar-room-photo"
+            aria-label={t('写真を撮って保存する', 'Take and save a photo')}
+            title={t('写真を撮る', 'Take a photo')}
+            disabled={!stage}
+            onClick={takePhoto}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M8.5 5.5 9.8 3.8h4.4l1.3 1.7H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2Z" />
+              <circle cx="12" cy="12.5" r="3.6" />
+            </svg>
+          </button>
           <fieldset
             className="avatar-room-backdrops"
             aria-label={t('背景', 'Background')}
@@ -269,18 +397,41 @@ export function AvatarRoom() {
               />
             ))}
           </fieldset>
+          </div>
         </div>
       </div>
 
       <div className="avatar-room-side">
+        <fieldset
+          className="avatar-room-mode"
+          aria-label={t('見かた', 'View')}
+        >
+          <button
+            type="button"
+            aria-pressed={mode === 'single'}
+            onClick={() => changeMode('single')}
+          >
+            {t('ひとりずつ', 'One at a time')}
+          </button>
+          <button
+            type="button"
+            aria-pressed={mode === 'lineup'}
+            onClick={() => changeMode('lineup')}
+          >
+            {t('みんなで並ぶ', 'Line up')}
+          </button>
+        </fieldset>
         <ul className="avatar-room-choices">
           {avatars.map((avatar) => (
             <li key={avatar.id}>
               <button
                 type="button"
                 className="avatar-room-choice"
-                aria-pressed={avatar.id === selectedId}
-                onClick={() => select(avatar.id)}
+                aria-pressed={mode === 'single' && avatar.id === selectedId}
+                onClick={() => {
+                  playSound('pop');
+                  select(avatar.id);
+                }}
               >
                 <span className="avatar-room-icon">
                   <img src={avatar.icon.normal} alt="" />
@@ -300,12 +451,23 @@ export function AvatarRoom() {
             </li>
           ))}
         </ul>
-        {/* 選んでいる子のひとこと紹介 */}
+        {/* 選んでいる子のひとこと紹介（みんなで並んでいるときは、背丈くらべの説明） */}
         <div className="avatar-room-about" aria-live="polite">
-          {selected.badge && (
-            <span className="avatar-room-badge">{selected.badge}</span>
+          {mode === 'lineup' ? (
+            <p>
+              {t(
+                'みんなの背丈をくらべられます。数字は、耳や帽子もふくめた、頭のてっぺんまでの高さです。',
+                'Compare everyone’s height. The numbers are the height to the very top, including ears and hats.',
+              )}
+            </p>
+          ) : (
+            <>
+              {selected.badge && (
+                <span className="avatar-room-badge">{selected.badge}</span>
+              )}
+              <p>{selected.description}</p>
+            </>
           )}
-          <p>{selected.description}</p>
         </div>
         {/* 表情のボタン。読み込み中は全部を押せない状態で出し、表示できたらその子に無い表情を隠す */}
         <div className="avatar-room-play">
@@ -324,20 +486,42 @@ export function AvatarRoom() {
                   type="button"
                   disabled={!stage}
                   // 表情が見やすいよう、カメラが顔に寄る
-                  onClick={() =>
+                  onClick={() => {
+                    playSound('pop');
                     stage?.showExpression(expression.id, {
                       seconds: 3,
                       focusFace: true,
-                    })
-                  }
+                    });
+                  }}
                 >
                   {t(expression.label, expression.labelEn)}
                 </button>
               ))}
           </div>
         </div>
+        {/* ライトの組み合わせ */}
+        <div className="avatar-room-play">
+          <p className="avatar-room-play-title">
+            {t('ライトをかえる', 'Change the lighting')}
+          </p>
+          <div className="avatar-room-play-buttons">
+            {LIGHTINGS.map((item) => (
+              <button
+                key={item}
+                type="button"
+                aria-pressed={lighting === item}
+                onClick={() => {
+                  playSound('pop');
+                  setLighting(item);
+                }}
+              >
+                {t(...LIGHTING_LABELS[item])}
+              </button>
+            ))}
+          </div>
+        </div>
         {/* モデルの情報（ポリゴン数など） */}
-        {spec.length > 0 && (
+        {mode === 'single' && spec.length > 0 && (
           <div className="avatar-room-spec">
             <p className="avatar-room-play-title">
               {t('モデルの情報', 'Model info')}

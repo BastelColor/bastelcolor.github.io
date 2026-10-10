@@ -14,6 +14,7 @@ import {
   readLayers,
   replaceLayers,
 } from '@/lib/history-layers';
+import { playSound } from '@/lib/sound';
 
 /** ダイアログが消えるまでの時間（works.css の .work-dialog の transition と合わせる） */
 const DIALOG_FADE_MS = 200;
@@ -164,7 +165,10 @@ export function WorksRoom() {
       <button
         type="button"
         className="works-item"
-        onClick={() => open(work.id)}
+        onClick={() => {
+          playSound('pop');
+          open(work.id);
+        }}
       >
         <WorkThumbnail work={work} />
         <span className="works-item-title">{work.title}</span>
@@ -188,7 +192,10 @@ export function WorksRoom() {
               <button
                 type="button"
                 aria-pressed={genre === item.id}
-                onClick={() => setGenre(item.id)}
+                onClick={() => {
+                  playSound('pop');
+                  setGenre(item.id);
+                }}
               >
                 {t(item.label, item.labelEn)}
               </button>
@@ -202,7 +209,10 @@ export function WorksRoom() {
               key={item.id}
               type="button"
               aria-pressed={view === item.id}
-              onClick={() => setView(item.id)}
+              onClick={() => {
+                playSound('pop');
+                setView(item.id);
+              }}
             >
               {t(item.label, item.labelEn)}
             </button>

@@ -34,7 +34,8 @@ export async function generateMetadata({
       title: work.title,
       description: work.description,
       locale: 'ja_JP',
-      images: [work.thumbnail ?? '/og.png'],
+      // サムネイルとタイトルを並べたカード（公開するときに scripts/write-share-cards.mjs が作る）
+      images: [`/og/works/${work.id}.png`],
     },
   };
 }

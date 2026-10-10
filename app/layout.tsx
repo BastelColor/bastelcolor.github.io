@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
+import { CursorSparkles } from '@/components/cursor-sparkles';
 import { LangToggle } from '@/components/lang';
 import { PageCounter } from '@/components/page-counter';
 import { SkyClock } from '@/components/sky-clock';
+import { SoundToggle } from '@/components/sound-toggle';
 import { ThemeToggle } from '@/components/theme';
 import { site } from '@/content/site';
 import { SKY_SCRIPT } from '@/lib/sky';
@@ -73,12 +75,14 @@ export default function RootLayout({
       </head>
       <body>
         {children}
-        {/* 右上の、テーマ（月・太陽）と「日本語 / EN」 */}
+        {/* 右上の、音・テーマ（月・太陽）・「日本語 / EN」 */}
         <div className="corner-tools">
+          <SoundToggle />
           <ThemeToggle />
           <LangToggle />
         </div>
         <SkyClock />
+        <CursorSparkles />
         <PageCounter />
       </body>
     </html>

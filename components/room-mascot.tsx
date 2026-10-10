@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import type { Mascot } from '@/content/types';
+import { playSound } from '@/lib/sound';
 
 /** つつかれて跳ねている時間（room.css の room-mascot-poke と合わせる） */
 const POKE_MS = 700;
@@ -35,6 +36,7 @@ export function RoomMascot({ mascot }: { mascot: Mascot }) {
         y >= rect.top &&
         y <= rect.bottom;
       if (!inside) return;
+      playSound('boing');
       setPokes((count) => count + 1);
       setIsPoked(true);
       window.clearTimeout(timer.current);

@@ -35,7 +35,9 @@ export async function generateMetadata({
       title,
       description,
       locale: 'ja_JP',
-      images: [avatar.ogImage ?? '/og.png'],
+      // その子の絵と名前を並べたカード（公開するときに scripts/write-share-cards.mjs が作る。
+      // 絵は avatar.ogImage）
+      images: [`/og/avatars/${avatar.id}.png`],
     },
   };
 }

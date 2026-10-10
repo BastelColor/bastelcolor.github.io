@@ -128,7 +128,8 @@ a {
   }
 }
 
-/* ---- 右上の、テーマの切りかえ（components/theme.tsx）と「日本語 / EN」（components/lang.tsx）----
+/* ---- 右上の、音（components/sound-toggle.tsx）・テーマの切りかえ（components/theme.tsx）・
+   「日本語 / EN」（components/lang.tsx）----
    どの画面でも見えるよう、部屋や記事より手前に置く */
 .corner-tools {
   position: fixed;
@@ -140,7 +141,7 @@ a {
   gap: 6px;
 }
 
-.theme-toggle {
+.corner-button {
   display: grid;
   place-items: center;
   width: 32px;
@@ -155,28 +156,28 @@ a {
   transition: translate 0.15s ease;
 }
 
-.theme-toggle svg {
+.corner-button svg {
   width: 18px;
   height: 18px;
-  fill: currentColor;
+  fill: none;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-/* 月は、塗りだけにする */
-.theme-toggle[aria-pressed='false'] svg {
+.corner-button svg .is-filled {
+  fill: currentColor;
   stroke-width: 1;
 }
 
 @media (hover: hover) {
-  .theme-toggle:hover {
+  .corner-button:hover {
     translate: 0 -2px;
   }
 }
 
-.theme-toggle:focus-visible {
+.corner-button:focus-visible {
   outline: 3px solid var(--ink);
   outline-offset: 2px;
 }
@@ -212,4 +213,50 @@ a {
 .lang-toggle button:focus-visible {
   outline: 3px solid var(--ink);
   outline-offset: 2px;
+}
+
+/* ---- マウスについてくる星（components/cursor-sparkles.tsx）----
+   外側で部屋の色の濃い版の縁取り、内側を4つ角の星の形に切り抜く */
+.sparkle {
+  position: fixed;
+  z-index: 70;
+  width: var(--size);
+  height: var(--size);
+  margin: calc(var(--size) / -2) 0 0 calc(var(--size) / -2);
+  pointer-events: none;
+  filter: drop-shadow(0 0 1px var(--edge));
+  animation: sparkle 0.9s ease-out forwards;
+}
+
+.sparkle > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--tone);
+  clip-path: polygon(
+    50% 0,
+    62% 38%,
+    100% 50%,
+    62% 62%,
+    50% 100%,
+    38% 62%,
+    0 50%,
+    38% 38%
+  );
+}
+
+@keyframes sparkle {
+  from {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0) scale(0.4);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(calc(var(--drift) * 0.2), 4px)
+      rotate(calc(var(--spin) * 0.3)) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(var(--drift), 26px) rotate(var(--spin)) scale(0.3);
+  }
 }

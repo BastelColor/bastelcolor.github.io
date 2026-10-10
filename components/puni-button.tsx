@@ -1,6 +1,7 @@
 import type { CSSProperties, Ref } from 'react';
 import { CloudShape } from '@/components/cloud-shape';
 import type { Mascot } from '@/content/types';
+import { playSound } from '@/lib/sound';
 import { cn } from '@/lib/utils';
 
 type PuniButtonProps = {
@@ -61,7 +62,10 @@ export function PuniButton({
       aria-label={label}
       className={cn('puni', tone, size, isPressed && 'is-pressed')}
       style={{ '--i': index } as CSSProperties}
-      onClick={(event) => onPress(event.currentTarget)}
+      onClick={(event) => {
+        playSound('puni');
+        onPress(event.currentTarget);
+      }}
       onPointerEnter={onIntent}
       onPointerDown={onIntent}
       onFocus={onIntent}

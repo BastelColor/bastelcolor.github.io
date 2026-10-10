@@ -1,6 +1,7 @@
 /**
  * 書き出したサイト（dist/client）にある記事の一覧を読む。
- * scripts/write-feed.mjs（RSS）と scripts/write-post-cards.mjs（共有カードの画像）で使う。
+ * scripts/write-feed.mjs（RSS）と scripts/write-post-cards.mjs（共有カードの画像）で使う
+ * （root・dist は、ほかの書き出しのあとの処理でも使う）。
  *
  * 記事の一覧は、実際に書き出された記事のページから作る（下書きの記事は書き出されないので入らない）。
  * タイトル・日付・カテゴリ・紹介文などは、それぞれの記事の .md の先頭（--- で囲んだ部分）から読む。

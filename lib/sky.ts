@@ -6,6 +6,7 @@
  *
  * <html data-sky="morning|day|evening|night"> に書く。部屋の中（屋内）の色は変えない。
  */
+import { applyIntro } from '@/lib/intro';
 import { applyTheme } from '@/lib/theme';
 
 export type SkyPhase = 'morning' | 'day' | 'evening' | 'night';
@@ -30,7 +31,9 @@ export function applySky() {
 }
 
 /**
- * ページを描く前にテーマと空の色を決める、<head> に置く小さなスクリプト
- * （暗いテーマの人や夜に、一瞬だけ明るい画面が見えないように）
+ * ページを描く前にテーマと空の色を決め、はじまりの演出をするかを決める、<head> に置く小さなスクリプト
+ * （暗いテーマの人や夜に一瞬だけ明るい画面が見えたり、演出の前に雲が一瞬見えたりしないように）
  */
-export const SKY_SCRIPT = `(${applyTheme.toString()})();(${applySky.toString()})()`;
+export const SKY_SCRIPT = [applyTheme, applySky, applyIntro]
+  .map((apply) => `(${apply.toString()})();`)
+  .join('');

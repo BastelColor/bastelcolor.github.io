@@ -1,7 +1,15 @@
-import type { Material, Object3D, Spherical, Texture, Vector3 } from 'three';
+import type {
+  Material,
+  Object3D,
+  Spherical,
+  Texture,
+  Vector3,
+  WebGLRenderer,
+} from 'three';
 import type { VRM } from '@pixiv/three-vrm';
 import modelSizes from 'virtual:model-sizes';
 import { createIdleMotion } from '@/components/vrm/idle-motion';
+import { createLightRig, type Lighting } from '@/components/vrm/lighting';
 import {
   createMotionPlayer,
   type MotionPlayer,
@@ -28,8 +36,18 @@ export type VrmStage = {
   front: () => void;
   /** モデルが持っている表情の名前 */
   expressionNames: string[];
+  /** ライトの組み合わせを切りかえる（components/vrm/lighting.ts） */
+  setLighting: (lighting: Lighting, instant?: boolean) => void;
+  /** いまの画面を写真にする（枠の中、少し広めに。背景は透明） */
+  capture: () => StageShot;
   resetView: () => void;
   dispose: () => void;
+};
+
+/** 写真（capture）。画像と、画像の中での枠（container）の位置（画像のピクセル） */
+export type StageShot = {
+  image: HTMLCanvasElement;
+  frame: { left: number; top: number; width: number; height: number };
 };
 
 type CreateVrmStageOptions = {
@@ -77,11 +95,15 @@ const EXPRESSION_FADE = 0.2;
 const CAMERA_EASE = 7;
 /** 顔に寄ったとき、枠の高さに映す範囲（背丈に対する割合） */
 const FACE_VIEW = 0.34;
+/** 写真の、枠より下に広げる量（枠の高さに対する割合） */
+const PHOTO_BOTTOM = 0.06;
+/** 写真の高さ（ピクセル）。画面の大きさにかかわらず、だいたいこの大きさで撮る */
+const PHOTO_HEIGHT = 1600;
 
 // three.js 一式は重いので、アバターの部屋を開くとき（か、その雲にふれたとき）に初めて読み込む。
 // 一度読み込んだものは使い回す
 let threeModules: ReturnType<typeof importThreeModules> | null = null;
-function loadThreeModules() {
+export function loadThreeModules() {
   threeModules ??= importThreeModules();
   threeModules.catch(() => {
     threeModules = null;
@@ -195,16 +217,7 @@ export async function createVrmStage({
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(FOV, 1, 0.01, 100);
 
-  const hemisphere = new THREE.HemisphereLight(
-    0xf7fdff,
-    0xa8bbdc,
-    0.88 * brightness,
-  );
-  const keyLight = new THREE.DirectionalLight(0xffffff, 1.4 * brightness);
-  keyLight.position.set(1.8, 2.8, 3.2);
-  const fillLight = new THREE.DirectionalLight(0xffddea, 0.56 * brightness);
-  fillLight.position.set(-2.4, 1.4, 1.2);
-  scene.add(hemisphere, keyLight, fillLight);
+  const lights = createLightRig(THREE, scene, brightness);
 
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
@@ -529,6 +542,7 @@ export async function createVrmStage({
       player.update(delta);
       currentVrm.update(delta);
       moveCamera(timer.getElapsed(), delta);
+      lights.update(delta);
       controls.update();
       renderer.render(scene, camera);
     });
@@ -576,6 +590,35 @@ export async function createVrmStage({
         setGoal(() => goal, true);
       },
       expressionNames,
+      setLighting: lights.set,
+      capture: () => {
+        // 枠の中。しっぽなどが切れにくいよう、細い枠では横を少し広げ、
+        // 足元の展示台の影まで入るよう、下も少し広げる
+        const extra = Math.max(0, (frame.height * 0.9 - frame.width) / 2);
+        const left = Math.min(frame.left, extra);
+        const right = Math.min(frame.right, extra);
+        const { image, ratio } = captureFrame(
+          renderer,
+          () => renderer.render(scene, camera),
+          {
+            x: frame.left - left,
+            y: frame.top,
+            width: frame.width + left + right,
+            height:
+              frame.height +
+              Math.min(frame.bottom, frame.height * PHOTO_BOTTOM),
+          },
+        );
+        return {
+          image,
+          frame: {
+            left: left * ratio,
+            top: 0,
+            width: frame.width * ratio,
+            height: frame.height * ratio,
+          },
+        };
+      },
       resetView,
       dispose,
     };
@@ -586,10 +629,49 @@ export async function createVrmStage({
 }
 
 /**
+ * canvas の一部を、大きめの解像度で描き直して切り出す（写真）。
+ * region は canvas の中で写す範囲（CSS のピクセル）
+ */
+export function captureFrame(
+  renderer: WebGLRenderer,
+  render: () => void,
+  region: { x: number; y: number; width: number; height: number },
+) {
+  const canvas = renderer.domElement;
+  const previousRatio = renderer.getPixelRatio();
+  const ratio = Math.min(
+    4,
+    Math.max(previousRatio, PHOTO_HEIGHT / region.height),
+  );
+  // 大きな解像度で描いて、すぐ（画面に出る前に）写し取り、元の解像度で描き直す
+  renderer.setPixelRatio(ratio);
+  render();
+  const photo = document.createElement('canvas');
+  photo.width = Math.round(region.width * ratio);
+  photo.height = Math.round(region.height * ratio);
+  photo
+    .getContext('2d')
+    ?.drawImage(
+      canvas,
+      Math.round(region.x * ratio),
+      Math.round(region.y * ratio),
+      photo.width,
+      photo.height,
+      0,
+      0,
+      photo.width,
+      photo.height,
+    );
+  renderer.setPixelRatio(previousRatio);
+  render();
+  return { image: photo, ratio };
+}
+
+/**
  * VRM のルートや SpringBone はモデル本体より遠い座標を持つことがあるため、
  * 実際に描画されるメッシュだけで範囲を測る。
  */
-function measureVisibleBounds(THREE: typeof import('three'), root: Object3D) {
+export function measureVisibleBounds(THREE: typeof import('three'), root: Object3D) {
   const bounds = new THREE.Box3();
   root.traverse((object) => {
     const mesh = object as Object3D & { isMesh?: boolean };
@@ -600,7 +682,7 @@ function measureVisibleBounds(THREE: typeof import('three'), root: Object3D) {
   return bounds;
 }
 
-function disposeObject(root: Object3D) {
+export function disposeObject(root: Object3D) {
   root.traverse((object) => {
     const renderable = object as Object3D & {
       geometry?: { dispose: () => void };

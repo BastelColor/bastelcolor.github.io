@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useSyncExternalStore } from 'react';
+import { playSound } from '@/lib/sound';
 
 /**
  * 表示する言語（日本語 / 英語）。
@@ -33,6 +34,7 @@ function subscribe(onChange: () => void) {
 }
 
 export function setLang(lang: Lang) {
+  playSound('pop');
   try {
     window.localStorage.setItem(STORAGE_KEY, lang);
   } catch {

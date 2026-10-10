@@ -15,6 +15,7 @@ import { FloatingBits } from '@/components/floating-bits';
 import { useT } from '@/components/lang';
 import { PuniButton } from '@/components/puni-button';
 import { RoomMascot } from '@/components/room-mascot';
+import { ShootingStars } from '@/components/shooting-stars';
 import { AvatarRoom, preloadAvatarRoom } from '@/components/rooms/avatar-room';
 import { LogRoom } from '@/components/rooms/log-room';
 import { ProfileRoom } from '@/components/rooms/profile-room';
@@ -246,6 +247,7 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
   return (
     <div className="site">
       <FloatingBits variant="home" />
+      <ShootingStars />
       <main className="home" inert={room !== null || isPostPage}>
         {/* 「Yzmo」の4文字は、4つの部屋（雲）と同じ順・同じ色 */}
         <h1 className="home-name" aria-label={site.title}>

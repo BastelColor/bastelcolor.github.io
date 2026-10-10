@@ -1,4 +1,5 @@
 import { NotFoundBack, NotFoundTitle } from '@/components/not-found-back';
+import { ShootingStars } from '@/components/shooting-stars';
 import { site } from '@/content/site';
 
 /**
@@ -8,6 +9,7 @@ import { site } from '@/content/site';
 export default function NotFound() {
   return (
     <main className="not-found">
+      <ShootingStars />
       <title>{`ページがみつかりません | ${site.title}`}</title>
       <p className="not-found-code" aria-hidden="true">
         404

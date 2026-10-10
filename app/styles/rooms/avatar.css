@@ -102,6 +102,27 @@
   background: #fbfdff;
 }
 
+/* 夕焼け: 上はうすむらさき、下は夕日のだいだい（トップの夕方の空と同じ色あい） */
+.avatar-backdrop[data-backdrop='sunset'] {
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 100%, rgba(255, 196, 140, 0.55), transparent 70%),
+    linear-gradient(#c3c9ec, #f7c6cf 50%, #ffd2ac);
+}
+
+/* 桜: うすい桃色に、花びらを散らす */
+.avatar-backdrop[data-backdrop='sakura'] {
+  background:
+    radial-gradient(ellipse 9px 5px at 14% 22%, #ffc4d8 90%, transparent),
+    radial-gradient(ellipse 7px 4px at 31% 64%, #ffd6e4 90%, transparent),
+    radial-gradient(ellipse 9px 5px at 48% 12%, #ffd6e4 90%, transparent),
+    radial-gradient(ellipse 8px 4px at 63% 44%, #ffc4d8 90%, transparent),
+    radial-gradient(ellipse 9px 5px at 82% 18%, #ffc4d8 90%, transparent),
+    radial-gradient(ellipse 7px 4px at 90% 70%, #ffd6e4 90%, transparent),
+    radial-gradient(ellipse 8px 4px at 8% 82%, #ffd6e4 90%, transparent),
+    radial-gradient(ellipse 9px 5px at 72% 88%, #ffc4d8 90%, transparent),
+    linear-gradient(#ffe8f1, #fff8fb);
+}
+
 .avatar-backdrop[data-backdrop='night'] {
   background:
     radial-gradient(circle at 12% 18%, #fff 0 1.4px, transparent 2px),
@@ -113,13 +134,13 @@
     radial-gradient(circle at 58% 24%, #fff 0 1.2px, transparent 1.8px),
     radial-gradient(
       circle at 76% 12%,
-      var(--surface-strong) 0 1.6px,
+      rgba(255, 255, 255, 0.85) 0 1.6px,
       transparent 2.2px
     ),
     radial-gradient(circle at 90% 34%, #fff 0 1px, transparent 1.6px),
     radial-gradient(
       circle at 22% 52%,
-      var(--surface-strong) 0 1px,
+      rgba(255, 255, 255, 0.7) 0 1px,
       transparent 1.6px
     ),
     radial-gradient(
@@ -154,13 +175,29 @@
 .avatar-room[data-backdrop='night'] .avatar-room-booth-soon,
 .avatar-room[data-backdrop='night'] .avatar-room-side > a,
 .avatar-room[data-backdrop='night'] .share-label,
-.avatar-room[data-backdrop='night'] .share-status {
+.avatar-room[data-backdrop='night'] .share-status,
+.avatar-room[data-backdrop='night'] .lineup-ruler {
   color: #dbe4f3;
+}
+
+.avatar-room[data-backdrop='night'] .lineup-ruler {
+  border-color: rgba(219, 228, 243, 0.3);
 }
 
 .avatar-room-podium[data-backdrop='white'] {
   --stage-glow: rgba(214, 233, 252, 0.8);
   --stage-side: #e8eef5;
+}
+
+.avatar-room-podium[data-backdrop='sunset'] {
+  --stage-glow: rgba(255, 214, 176, 0.75);
+  --stage-top: #fff7f1;
+  --stage-side: #f4c7b4;
+}
+
+.avatar-room-podium[data-backdrop='sakura'] {
+  --stage-glow: rgba(255, 224, 236, 0.85);
+  --stage-side: #f6cddd;
 }
 
 .avatar-room-podium[data-backdrop='night'] {
@@ -253,6 +290,16 @@
   background: #ffffff;
 }
 
+.avatar-room-backdrops .is-sunset {
+  background: linear-gradient(#c3c9ec, #ffcfa8);
+}
+
+.avatar-room-backdrops .is-sakura {
+  background:
+    radial-gradient(ellipse 4px 2.5px at 60% 40%, #ff9fc0 90%, transparent),
+    #ffe3ee;
+}
+
 .avatar-room-backdrops .is-night {
   background: #24334f;
 }
@@ -262,15 +309,75 @@
   box-shadow: 0 0 0 2px var(--surface-solid);
 }
 
+/* 写真のボタンと背景の丸は、右にまとめる */
+.avatar-room-tools-end {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 写真のボタン（まわすボタンと同じ、ぷっくりした丸） */
+.avatar-room-photo {
+  --thickness: 3px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-strong);
+  box-shadow:
+    inset 0 -3px 0 color-mix(in srgb, var(--edge) 8%, transparent),
+    0 var(--thickness) 0 color-mix(in srgb, var(--edge) 22%, transparent);
+  color: var(--ink);
+  cursor: pointer;
+  transition: translate 0.15s ease;
+}
+
+.avatar-room-photo svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
 @media (hover: hover) {
-  .avatar-room-turn button:not(:disabled):hover {
+  .avatar-room-turn button:not(:disabled):hover,
+  .avatar-room-photo:not(:disabled):hover {
     translate: 0 -2px;
   }
 }
 
-.avatar-room-turn button:not(:disabled):active {
+.avatar-room-turn button:not(:disabled):active,
+.avatar-room-photo:not(:disabled):active {
   translate: 0 2px;
   --thickness: 1px;
+}
+
+.avatar-room-photo:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* 写真を撮った瞬間に、枠が白く光る */
+.avatar-room-flash {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  border-radius: inherit;
+  background: #fff;
+  pointer-events: none;
+  opacity: 0;
+  animation: avatar-room-flash 0.45s ease-out;
+}
+
+@keyframes avatar-room-flash {
+  from {
+    opacity: 0.85;
+  }
 }
 
 .avatar-room-turn button:disabled {
@@ -279,6 +386,7 @@
 }
 
 .avatar-room-turn button:focus-visible,
+.avatar-room-photo:focus-visible,
 .avatar-room-backdrops button:focus-visible {
   outline: 3px solid var(--ink);
   outline-offset: 3px;
@@ -508,6 +616,12 @@
   background-color: color-mix(in srgb, var(--tone) 45%, var(--paper));
 }
 
+.avatar-room-play button[aria-pressed='true'] {
+  translate: 0 2px;
+  --thickness: 1px;
+  background-color: color-mix(in srgb, var(--tone) 45%, var(--paper));
+}
+
 .avatar-room-play button:focus-visible {
   outline: 3px solid var(--ink);
   outline-offset: 3px;
@@ -682,9 +796,150 @@
 :root:not([data-theme='dark']) .avatar-room[data-backdrop='night']
   :is(
     .avatar-room-choice:not([aria-pressed='true']),
+    .avatar-room-mode,
     .avatar-room-about,
     .avatar-room-play,
     .avatar-room-spec
   ) {
   background-color: rgba(255, 255, 255, 0.88);
+}
+
+/* ---- 見かた（ひとりずつ / みんなで並ぶ） ---- */
+
+.avatar-room-mode {
+  display: flex;
+  /* fieldset は中身の幅まで縮むので、列の幅いっぱいに広げる */
+  min-width: 0;
+  width: 100%;
+  margin: 0 0 14px;
+  padding: 4px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.avatar-room-mode button {
+  flex: 1;
+  white-space: nowrap;
+  padding: 7px 10px 8px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.avatar-room-mode button[aria-pressed='true'] {
+  background: var(--surface-solid);
+  color: var(--ink);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--edge) 22%, transparent);
+}
+
+.avatar-room-mode button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* ---- みんなで並ぶ（components/vrm/lineup-viewer.tsx）----
+   展示台を横長にして、みんなで1つの台に立つ。頭の上に名前と背丈の札、うしろに 50cm ごとの目もり。
+   展示台の大きさを変えるときは、lineup-stage.ts の groundFromBottom も合わせる */
+
+.avatar-room[data-mode='lineup'] .avatar-room-podium::after {
+  width: 92%;
+  aspect-ratio: 12 / 1;
+}
+
+.vrm-viewer.is-lineup canvas {
+  cursor: default;
+}
+
+.lineup-ruler {
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  right: 0;
+  top: var(--y);
+  border-top: 2px dashed color-mix(in srgb, var(--ink) 18%, transparent);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  color: color-mix(in srgb, var(--ink) 55%, transparent);
+  pointer-events: none;
+  /* 目もりの数字は、線の左端の下に */
+  padding: 4px 0 0 4px;
+}
+
+.lineup-tags {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  pointer-events: none;
+}
+
+.lineup-tags li {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  translate: -50% calc(-100% - 6px);
+  padding: 3px 10px 5px;
+  border-radius: 12px;
+  background: var(--surface-strong);
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--edge) 22%, transparent);
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.lineup-tags b {
+  font-size: 13px;
+}
+
+.lineup-tags span {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 760px) {
+  /* 見かたの切りかえは、選ぶボタンのさらに上 */
+  .avatar-room-mode {
+    order: -2;
+    margin: 0;
+  }
+
+  /* みんなで並ぶときは、横幅で大きさが決まるので、枠を横長にして上のあきを減らす */
+  .avatar-room[data-mode='lineup'] .avatar-room-stage {
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 1 / 0.9;
+  }
+
+  .avatar-room-backdrops {
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .avatar-room-backdrops button {
+    width: 20px;
+    height: 20px;
+  }
+
+  .lineup-tags li {
+    padding: 2px 7px 4px;
+  }
+
+  .lineup-tags b {
+    font-size: 11px;
+  }
+
+  .lineup-tags span {
+    font-size: 10px;
+  }
 }
