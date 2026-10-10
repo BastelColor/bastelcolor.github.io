@@ -428,8 +428,6 @@ export async function createVrmStage({
       controls.update();
     };
     resetView();
-    // 枠の大きさが変わったら合わせ直す
-    onFrameChange = resetView;
 
     // --- カメラをなめらかに動かす（まわすボタン・正面・表情のアップ） ---
     // ねらいの位置（注視点と、そこからのカメラの向き・距離）へ、毎フレーム少しずつ近づける。
@@ -507,6 +505,11 @@ export async function createVrmStage({
       ),
     });
     const frontView = () => framedView(0);
+    // 枠の大きさが変わったら合わせ直す。上半身・顔を写しているあいだは、カメラは体についていくので、
+    // 全身の位置へもどさない（スマホでアドレスバーが出たり消えたりしただけで、アップが引いてしまうため）
+    onFrameChange = () => {
+      if (framing === 'full') resetView();
+    };
     const faceView = (): CameraView => {
       if (!head) return frontView();
       const target = head.getWorldPosition(new THREE.Vector3());
@@ -572,7 +575,7 @@ export async function createVrmStage({
     motionPlayer = player;
     // 表示の切りかえ（中身を見る）と、マウスのほうを見る動き
     viewModes = createViewModes(THREE, scene, [vrm.scene]);
-    const look = createPointerLook(THREE, scene, camera, canvas, [vrm]);
+    const look = createPointerLook(THREE, scene, camera, canvas, [vrm], container);
     pointerLook = look;
     // モーションが読めなくても待機モーションで表示は続ける
     motion

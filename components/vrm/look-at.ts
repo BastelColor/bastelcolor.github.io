@@ -4,10 +4,13 @@ import type { VRM } from '@pixiv/three-vrm';
 /**
  * モデルの視線と顔の向きを、マウスのほうへ向ける（マウスのある画面だけ）。
  *
- * - 目は VRM の視線（lookAt）で、マウスのある点を見る
- * - 頭も少しだけ（最大 MAX_TURN）マウスのほうへ向ける。モーションや待機の動きのあとに足すので、
- *   踊っている最中でも、顔だけちらっとこちらを向く
- * - マウスが画面から出たり、しばらく動かなかったりしたら、カメラ（見ている人）を見る
+ * - マウスがモデルの枠（area）の上にあるあいだだけ、そちらを見る。
+ *   ボタンを押しに行ったときなど、枠の外にあるときは、カメラ（見ている人）を見る
+ * - 「カメラを見る向き」から、マウスの方向へ、角度を半分ほどに弱め、上限をつけてずらす
+ *   （黒目が目のふちへ寄りすぎない。下は上より狭くして、うつむいて見えないようにする）
+ * - 目は VRM の視線（lookAt）、頭はそのうち少しだけ（HEAD_WEIGHT）ついていく。
+ *   モーションや待機の動きのあとに足すので、踊っている最中でも、顔だけちらっとこちらを向く
+ * - マウスがしばらく動かなかったら、カメラを見る
  *
  * 毎フレーム、モーションの更新のあと・vrm.update() の前に update() を呼ぶ
  */
@@ -16,14 +19,20 @@ export type PointerLook = {
   dispose: () => void;
 };
 
-/** 頭がマウスのほうへ向く最大の角度（ラジアン、約 35°） */
-const MAX_TURN = 0.6;
-/** 頭がマウスのほうへ向く割合（目だけでなく、顔も少しついていく） */
-const HEAD_WEIGHT = 0.45;
-/** 向きを合わせる速さ（大きいほど速い） */
-const EASE = 6;
+/** マウスの方向へ向ける割合（1 でマウスをまっすぐ見る） */
+const FOLLOW = 0.5;
+/** 「カメラを見る向き」からずらせる角度の上限（ラジアン）。左右 約 18°、上 約 10°、下 約 6° */
+const MAX_YAW = 0.32;
+const MAX_UP = 0.17;
+const MAX_DOWN = 0.1;
+/** 頭がついていく割合（目の向きのうち、どれだけ顔も向けるか） */
+const HEAD_WEIGHT = 0.35;
+/** 視線を合わせる速さ（大きいほど速い） */
+const EASE = 5;
 /** マウスがこの時間（秒）動かなかったら、カメラのほうを見る */
 const IDLE_SECONDS = 4;
+/** マウスを追う範囲を、枠の外へ少し広げる量（枠の大きさに対する割合） */
+const AREA_MARGIN = 0.1;
 
 export function createPointerLook(
   THREE: typeof import('three'),
@@ -31,13 +40,27 @@ export function createPointerLook(
   camera: Camera,
   canvas: HTMLCanvasElement,
   vrms: VRM[],
+  /** マウスを追う範囲（モデルの枠）。省略すると canvas 全体 */
+  area: HTMLElement = canvas,
 ): PointerLook {
   const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-  // マウスの位置（画面全体に対する -1〜1）。null ならカメラを見る
+  // マウスの位置（canvas 全体に対する -1〜1）。null ならカメラを見る
   let pointer: { x: number; y: number } | null = null;
   let idle = 0;
   const onMove = (event: PointerEvent) => {
     if (event.pointerType !== 'mouse') return;
+    const box = area.getBoundingClientRect();
+    const marginX = box.width * AREA_MARGIN;
+    const marginY = box.height * AREA_MARGIN;
+    const inside =
+      event.clientX >= box.left - marginX &&
+      event.clientX <= box.right + marginX &&
+      event.clientY >= box.top - marginY &&
+      event.clientY <= box.bottom + marginY;
+    if (!inside) {
+      pointer = null;
+      return;
+    }
     const rect = canvas.getBoundingClientRect();
     pointer = {
       x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -53,7 +76,7 @@ export function createPointerLook(
     document.documentElement.addEventListener('pointerleave', onLeave);
   }
 
-  // それぞれの子が見る点（目の高さの、マウスの方向）。位置は世界の座標で置くので、scene の直下に置く
+  // それぞれの子が見る点。位置は世界の座標で置くので、scene の直下に置く
   const targets = vrms.map((vrm) => {
     const target = new THREE.Object3D();
     target.name = 'PointerLookTarget';
@@ -64,31 +87,30 @@ export function createPointerLook(
     }
     return target;
   });
-  // 頭の向きをずらす量（なめらかに近づける）
+  // いま見ている向き（「カメラを見る向き」からのずれ。なめらかに近づける）
+  const offsets = vrms.map(() => ({ yaw: 0, pitch: 0 }));
+  // 頭の向きをずらす量
   const turns = vrms.map(() => new THREE.Quaternion());
 
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
   const head = new THREE.Vector3();
+  const cameraPosition = new THREE.Vector3();
+  const cameraForward = new THREE.Vector3();
   const plane = new THREE.Plane();
   const point = new THREE.Vector3();
+  const toCamera = new THREE.Vector3();
+  const toPointer = new THREE.Vector3();
+  const look = new THREE.Vector3();
   const forward = new THREE.Vector3();
   const toward = new THREE.Vector3();
   const parentQuaternion = new THREE.Quaternion();
   const goal = new THREE.Quaternion();
   const identity = new THREE.Quaternion();
 
-  /** 頭の位置を通り、カメラに向いた面の上で、マウスが指している点 */
-  const pointerPoint = (headPosition: Vector3, out: Vector3) => {
-    if (!pointer) return camera.getWorldPosition(out);
-    ndc.set(pointer.x, pointer.y);
-    ray.setFromCamera(ndc, camera);
-    camera.getWorldDirection(forward);
-    plane.setFromNormalAndCoplanarPoint(forward, headPosition);
-    // 頭より少し手前（カメラ側）を見るようにすると、目がこちらを向いて見えやすい
-    if (!ray.ray.intersectPlane(plane, out)) return camera.getWorldPosition(out);
-    return out.addScaledVector(forward, -0.6);
-  };
+  const yawOf = (v: Vector3) => Math.atan2(v.x, v.z);
+  const pitchOf = (v: Vector3) => Math.asin(Math.max(-1, Math.min(1, v.y)));
+  const wrap = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
 
   return {
     update: (delta) => {
@@ -97,32 +119,60 @@ export function createPointerLook(
         if (idle > IDLE_SECONDS) pointer = null;
       }
       const k = 1 - Math.exp(-delta * EASE);
+      camera.getWorldPosition(cameraPosition);
+      camera.getWorldDirection(cameraForward);
       vrms.forEach((vrm, i) => {
         const headBone = vrm.humanoid.getNormalizedBoneNode('head');
         if (!headBone) return;
         headBone.getWorldPosition(head);
-        pointerPoint(head, point);
-        targets[i].position.copy(point);
+        toCamera.copy(cameraPosition).sub(head);
+        const distance = toCamera.length();
+        toCamera.normalize();
 
-        // 頭の向き: 親（首）から見た、いまの顔の正面と、マウスの方向
+        // マウスの方向（頭を通り、カメラに向いた面の上の点）を、「カメラを見る向き」からのずれにする
+        let yaw = 0;
+        let pitch = 0;
+        if (pointer) {
+          ndc.set(pointer.x, pointer.y);
+          ray.setFromCamera(ndc, camera);
+          plane.setFromNormalAndCoplanarPoint(cameraForward, head);
+          if (ray.ray.intersectPlane(plane, point)) {
+            // 頭より少し手前（カメラ側）を見るようにすると、目がこちらを向いて見えやすい
+            point.addScaledVector(cameraForward, -0.6);
+            toPointer.copy(point).sub(head).normalize();
+            yaw = wrap(yawOf(toPointer) - yawOf(toCamera)) * FOLLOW;
+            pitch = (pitchOf(toPointer) - pitchOf(toCamera)) * FOLLOW;
+            yaw = Math.max(-MAX_YAW, Math.min(MAX_YAW, yaw));
+            pitch = Math.max(-MAX_DOWN, Math.min(MAX_UP, pitch));
+          }
+        }
+        const offset = offsets[i];
+        offset.yaw += (yaw - offset.yaw) * k;
+        offset.pitch += (pitch - offset.pitch) * k;
+
+        // 見る点: 「カメラを見る向き」から、ずれのぶんだけ回した方向の、カメラと同じ距離の点
+        const lookYaw = yawOf(toCamera) + offset.yaw;
+        const lookPitch = pitchOf(toCamera) + offset.pitch;
+        look.set(
+          Math.sin(lookYaw) * Math.cos(lookPitch),
+          Math.sin(lookPitch),
+          Math.cos(lookYaw) * Math.cos(lookPitch),
+        );
+        targets[i].position.copy(head).addScaledVector(look, distance);
+
+        // 頭の向き: 親（首）から見た、いまの顔の正面と、見る方向。そのうち HEAD_WEIGHT だけ向ける
         const parent = headBone.parent as Object3D | null;
         if (!parent) return;
         parent.getWorldQuaternion(parentQuaternion).invert();
-        toward.copy(point).sub(head).applyQuaternion(parentQuaternion).normalize();
+        toward.copy(look).applyQuaternion(parentQuaternion).normalize();
         forward
           .set(0, 0, 1)
           .applyQuaternion(headBone.quaternion as Quaternion)
           .normalize();
-        const angle = forward.angleTo(toward);
-        // うしろのほうを指していたら、無理にふり向かない
-        const weight = angle > 1.8 ? 0 : HEAD_WEIGHT;
+        // うしろのほうを向いているとき（踊ってくるっと回っているときなど）は、無理にふり向かない
+        const weight = forward.angleTo(toward) > 1.4 ? 0 : HEAD_WEIGHT;
         goal.setFromUnitVectors(forward, toward);
-        // 向く角度に上限をつける
-        if (angle * weight > MAX_TURN) {
-          goal.slerpQuaternions(identity, goal, MAX_TURN / angle);
-        } else {
-          goal.slerpQuaternions(identity, goal, weight);
-        }
+        goal.slerpQuaternions(identity, goal, weight);
         turns[i].slerp(goal, k);
         headBone.quaternion.premultiply(turns[i]);
       });

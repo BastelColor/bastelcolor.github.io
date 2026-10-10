@@ -324,6 +324,7 @@ export async function createLineupStage({
       camera,
       canvas,
       placed.map((item) => item.vrm),
+      container,
     );
     pointerLook = look;
 
