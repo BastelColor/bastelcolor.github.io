@@ -74,8 +74,6 @@ type RoomStage = Pick<
   | 'expressionNames'
   | 'setLighting'
   | 'setViewMode'
-  | 'shake'
-  | 'setWind'
   | 'capture'
 > &
   // 写す範囲と AR は、ひとりずつのときだけ
@@ -163,8 +161,6 @@ export function AvatarRoom() {
   const [backdrop, setBackdrop] = useState<Backdrop>('sky');
   const [lighting, setLighting] = useState<Lighting>('day');
   const [viewMode, setViewMode] = useState<DisplayMode>('normal');
-  // 風（揺れもの）。別の子を選んでも、吹かせたまま
-  const [windy, setWindy] = useState(false);
   // 背丈くらべの「わたし」の身長（入力のまま。数字として読めて、範囲の中のときだけ線を出す）
   const [myHeight, setMyHeight] = useState('');
   const myHeightCm = Number(myHeight);
@@ -272,11 +268,6 @@ export function AvatarRoom() {
   useEffect(() => {
     stage?.setViewMode(viewMode);
   }, [stage, viewMode]);
-
-  // 風も、吹かせたまま
-  useEffect(() => {
-    stage?.setWind(windy);
-  }, [stage, windy]);
 
   // AR で見る。Android などはこのページの中で（WebXR）、iPhone は AR クイックルックで開く
   const openAR = async () => {
@@ -699,35 +690,6 @@ export function AvatarRoom() {
               ))}
           </div>
         </div>
-        {/* 揺れもの（髪・服・しっぽ）を揺らす。マウスでは、モデルをつまんで引っぱっても揺れる */}
-        <div className="avatar-room-play">
-          <p className="avatar-room-play-title">
-            {t('揺らしてみる', 'Make it sway')}
-          </p>
-          <div className="avatar-room-play-buttons">
-            <button
-              type="button"
-              disabled={!stage}
-              onClick={() => {
-                playSound('boing');
-                stage?.shake();
-              }}
-            >
-              {t('ゆらす', 'Shake')}
-            </button>
-            <button
-              type="button"
-              aria-pressed={windy}
-              disabled={!stage}
-              onClick={() => {
-                playSound('whoosh');
-                setWindy((value) => !value);
-              }}
-            >
-              {t('風をふかせる', 'Wind')}
-            </button>
-          </div>
-        </div>
         {/* ライト */}
         <fieldset
           className="avatar-room-play avatar-room-light"
@@ -803,8 +765,8 @@ export function AvatarRoom() {
         )}
         <p className="avatar-room-hint">
           {t(
-            'まわりをドラッグでまわせます。モデルをつまんで横に引っぱると、ぷるんと揺れます',
-            'Drag around the model to rotate. Grab the model and pull sideways to make it wobble.',
+            'まわりをドラッグでまわせます。モデルをつまんで引っぱると、ぷるんと揺れます（しっぽや髪の先だけもつまめます）',
+            'Drag around the model to rotate. Grab and pull the model to make it wobble (tails and hair tips too).',
           )}
         </p>
         {/* BOOTH にまだ商品ページが無い子（制作中など）は、リンクにせず「準備中」と出す */}

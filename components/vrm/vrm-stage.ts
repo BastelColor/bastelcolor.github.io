@@ -53,10 +53,6 @@ export type VrmStage = {
   expressionNames: string[];
   /** ライトの組み合わせを切りかえる（components/vrm/lighting.ts） */
   setLighting: (lighting: Lighting, instant?: boolean) => void;
-  /** 横へぽんと押して揺らす（components/vrm/sway.ts） */
-  shake: () => void;
-  /** 風を吹かせる・止める（components/vrm/sway.ts） */
-  setWind: (on: boolean) => void;
   /**
    * AR（WebXR）を始める。押したときの操作の中で呼ぶ。overlay はカメラの映像に重ねる要素
    * （components/vrm/ar.ts）
@@ -556,7 +552,7 @@ export async function createVrmStage({
     viewModes = createViewModes(THREE, scene, [vrm.scene]);
     const look = createPointerLook(THREE, scene, camera, canvas, [vrm], container);
     pointerLook = look;
-    // モデルをつまんで揺らす・風
+    // モデルをつまんで引っぱる
     const swaying = createSway(THREE, camera, canvas, [vrm]);
     sway = swaying;
     // モーションが読めなくても待機モーションで表示は続ける
@@ -639,6 +635,7 @@ export async function createVrmStage({
       look.update(delta);
       swaying.update(delta);
       currentVrm.update(delta);
+      swaying.afterUpdate();
       moveCamera(timer.getElapsed(), delta);
       lights.update(delta);
       controls.update();
@@ -691,8 +688,6 @@ export async function createVrmStage({
       setViewMode: (mode) => viewModes?.set(mode),
       expressionNames,
       setLighting: lights.set,
-      shake: swaying.shake,
-      setWind: swaying.setWind,
       startAR: async (overlay, { onPlaced, onEnd }) => {
         const view = await startWebXR({
           THREE,

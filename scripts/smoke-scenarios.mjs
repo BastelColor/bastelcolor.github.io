@@ -203,7 +203,7 @@ export const scenarios = [
     },
   },
   {
-    name: 'アバター: 揺らす・風・背景・ライト・表示を切りかえ、写真を保存できる',
+    name: 'アバター: 背景・ライト・表示を切りかえ、写真を保存できる',
     run: async (page, base, { avatarId }) => {
       // 写真の保存（<a download> を押す）を数える
       await page.evaluateOnNewDocument(() => {
@@ -227,19 +227,6 @@ export const scenarios = [
           document.querySelectorAll('.avatar-backdrop').length === 1 &&
           document.querySelectorAll('.avatar-room-podium-clip').length === 1,
         5_000,
-      );
-      // 揺れもの: ゆらす・風
-      await page.evaluate(() => {
-        const buttons = [...document.querySelectorAll('.avatar-room-play button')];
-        buttons.find((button) => button.textContent === 'ゆらす')?.click();
-        buttons.find((button) => button.textContent === '風をふかせる')?.click();
-      });
-      await sleep(500);
-      failIf(
-        (await page.$$eval('.avatar-room-play button[aria-pressed="true"]', (buttons) =>
-          buttons.map((button) => button.textContent),
-        )).includes('風をふかせる') === false,
-        '風のボタンが切りかわりません',
       );
       await pressOption(page, 'ライト', '夕方');
       await pressOption(page, '表示', 'ワイヤー');

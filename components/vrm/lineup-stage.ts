@@ -55,9 +55,6 @@ export type LineupStage = {
   expressionNames: string[];
   setLighting: (lighting: Lighting, instant?: boolean) => void;
   setViewMode: (mode: ViewMode) => void;
-  /** みんなを横へぽんと押して揺らす・風を吹かせる（components/vrm/sway.ts） */
-  shake: () => void;
-  setWind: (on: boolean) => void;
   capture: () => StageShot;
   dispose: () => void;
 };
@@ -333,7 +330,7 @@ export async function createLineupStage({
       container,
     );
     pointerLook = look;
-    // つまんで揺らす（つまんだ子だけ）・風
+    // つまんで引っぱる（つまんだ子だけ）
     const swaying = createSway(
       THREE,
       camera,
@@ -384,6 +381,7 @@ export async function createLineupStage({
       look.update(delta);
       swaying.update(delta);
       for (const item of placed) item.vrm.update(delta);
+      swaying.afterUpdate();
       lights.update(delta);
       renderer.render(scene, camera);
     });
@@ -409,8 +407,6 @@ export async function createLineupStage({
       expressionNames,
       setLighting: lights.set,
       setViewMode: (mode) => viewModes?.set(mode),
-      shake: swaying.shake,
-      setWind: swaying.setWind,
       capture: () => {
         // 上のあきすぎた空は写さない（いちばん背の高い子の少し上から）
         const top = Math.max(
