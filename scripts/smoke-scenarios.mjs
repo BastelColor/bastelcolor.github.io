@@ -18,6 +18,23 @@ function failIf(condition, message) {
 const waitFor = (page, fn, timeout = 20_000, ...args) =>
   page.waitForFunction(fn, { timeout, polling: 200 }, ...args);
 
+/**
+ * selector を押して、done（ページの中で評価する式）が成り立つまで待つ。成り立たなければ、押し直す。
+ * 部屋が雲から広がっている途中は、円の外にあるものを押しても届かない。GitHub の確認の機械は遅く、
+ * 広がりきるまでの時間が読めないので、決まった時間だけ待ってから1回押すのでは、たまに失敗する
+ */
+const clickUntil = async (page, selector, done, { tries = 6, timeout = 5_000 } = {}) => {
+  for (let i = 0; i < tries; i++) {
+    await page.click(selector).catch(() => {});
+    const ok = await waitFor(page, done, timeout).then(
+      () => true,
+      () => false,
+    );
+    if (ok) return;
+  }
+  throw new Error(`「${selector}」を押しても、思ったとおりになりません`);
+};
+
 /** アバターの部屋で、モデルを表示し終わるまで待つ（写真のボタンは、表示できるまで押せない） */
 const avatarReady = (page) =>
   waitFor(
@@ -203,18 +220,28 @@ export const scenarios = [
         const tool = await page.$$eval('.works-item', (items) => items.length);
         failIf(!(tool > 0 && tool < all), `道具で絞り込めません（${all} → ${tool}）`);
       }
-      await page.click('.works-item');
-      await waitFor(page, () => !!document.querySelector('.work-dialog[open] h3'), 5_000);
+      await clickUntil(page, '.works-item', () => !!document.querySelector('.work-dialog[open] h3'));
       // ← → キーと下の矢印で、となりの作品へ移れる
       const title = () => page.evaluate(() => document.querySelector('.work-dialog[open] h3')?.textContent);
       const first = await title();
       await page.keyboard.press('ArrowRight');
-      await sleep(400);
-      const second = await title();
-      failIf(second === first, '→ キーで、次の作品へ移れません');
+      await waitFor(
+        page,
+        (before) => document.querySelector('.work-dialog[open] h3')?.textContent !== before,
+        5_000,
+        first,
+      ).catch(() => {
+        throw new Error('→ キーで、次の作品へ移れません');
+      });
       await page.click('.work-detail-step.is-previous');
-      await sleep(400);
-      failIf((await title()) !== first, '前の作品の矢印で、もどれません');
+      await waitFor(
+        page,
+        (before) => document.querySelector('.work-dialog[open] h3')?.textContent === before,
+        5_000,
+        first,
+      ).catch(() => {
+        throw new Error('前の作品の矢印で、もどれません');
+      });
       await page.keyboard.press('Escape');
       await waitFor(page, () => !document.querySelector('.work-dialog[open]'), 5_000);
     },
@@ -380,10 +407,12 @@ export const scenarios = [
         () => false,
       );
       if (!hasPost) return;
-      // 部屋が雲から広がりきるまで待つ（広がる途中は、円の外にある記事を押せない）
-      await sleep(900);
-      await page.click('.log-item');
-      await waitFor(page, () => location.pathname.startsWith('/blog/') && !!document.querySelector('.post h1'));
+      // 部屋が雲から広がりきるまでは、円の外にある記事を押せないので、開くまで押し直す
+      await clickUntil(
+        page,
+        '.log-item',
+        () => location.pathname.startsWith('/blog/') && !!document.querySelector('.post h1'),
+      );
       await sleep(800);
       await page.keyboard.press('Escape');
       await waitFor(page, () => !location.pathname.startsWith('/blog/'), 5_000);
