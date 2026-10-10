@@ -4,6 +4,11 @@ import modelSizes from 'virtual:model-sizes';
 import { createIdleMotion, type IdleMotion } from '@/components/vrm/idle-motion';
 import { createLightRig, type Lighting } from '@/components/vrm/lighting';
 import {
+  createMotionPlayer,
+  type MotionPlayer,
+} from '@/components/vrm/motion-player';
+import { loadMotion, type MotionId } from '@/components/vrm/motions';
+import {
   captureFrame,
   disposeObject,
   loadThreeModules,
@@ -47,6 +52,8 @@ type CreateLineupStageOptions = {
   canvas: HTMLCanvasElement;
   container: HTMLElement;
   models: LineupModel[];
+  /** みんなでループ再生する埋め込みモーション（ひとりずつのときと同じもの）。省略時は待機モーションのみ */
+  motionId?: MotionId;
   signal: AbortSignal;
   onProgress: (percent: number) => void;
   /** 並べ終わったときと、枠の大きさが変わったときに、札の位置を知らせる */
@@ -79,6 +86,7 @@ export async function createLineupStage({
   canvas,
   container,
   models,
+  motionId,
   signal,
   onProgress,
   onLayout,
@@ -86,6 +94,12 @@ export async function createLineupStage({
   const modules = await loadThreeModules();
   const { THREE, GLTFLoader, VRMLoaderPlugin, VRMUtils } = modules;
   signal.throwIfAborted();
+
+  // モーションはモデルと並行して読み込んでおき、並べ終わったらみんなで同時に再生する
+  const motion = motionId
+    ? loadMotion(motionId, THREE, modules.VRMAnimation)
+    : null;
+  motion?.catch(() => {});
 
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -107,6 +121,7 @@ export async function createLineupStage({
     vrm: VRM;
     group: Group;
     idle: IdleMotion;
+    player: MotionPlayer;
     height: number;
     width: number;
   };
@@ -122,7 +137,10 @@ export async function createLineupStage({
     cancelAnimationFrame(resizeFrame);
     resizeObserver?.disconnect();
     releaseLilToon?.();
-    for (const item of placed) disposeObject(item.vrm.scene);
+    for (const item of placed) {
+      item.player.dispose();
+      disposeObject(item.vrm.scene);
+    }
     renderer.dispose();
   };
   signal.addEventListener('abort', dispose, { once: true });
@@ -208,6 +226,7 @@ export async function createLineupStage({
         vrm,
         group,
         idle,
+        player: createMotionPlayer({ ...modules, vrm }),
         height: Math.max(
           head
             ? measureHeadTop(
@@ -269,6 +288,14 @@ export async function createLineupStage({
     resizeObserver.observe(container);
     resize();
 
+    // --- モーション（読めなくても、待機モーションで表示は続ける） ---
+    motion
+      ?.then((animation) => {
+        if (disposed) return;
+        for (const item of placed) item.player.play(animation);
+      })
+      .catch((error: unknown) => console.error(error));
+
     // --- まわす ---
     let turnGoal = 0;
 
@@ -306,6 +333,7 @@ export async function createLineupStage({
           manager.setValue(lastExpression, weight);
         }
         item.group.rotation.y += (turnGoal - item.group.rotation.y) * k;
+        item.player.update(delta);
         item.vrm.update(delta);
       });
       lights.update(delta);

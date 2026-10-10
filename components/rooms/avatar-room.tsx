@@ -320,7 +320,12 @@ export function AvatarRoom() {
             onStage={setStage}
           />
         ) : (
-          <LineupViewer models={lineupModels} onStage={setStage} />
+          <LineupViewer
+            models={lineupModels}
+            // ひとりずつのときと同じく、動きを減らす設定の人には、くるっと回るモーションは流さない
+            motionId={reduceMotion ? undefined : avatarMotion.id}
+            onStage={setStage}
+          />
         )}
         {flash > 0 && (
           <span key={flash} className="avatar-room-flash" aria-hidden="true" />

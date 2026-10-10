@@ -154,21 +154,23 @@
 }
 
 /* 1回の周期のうち、はじめの少しのあいだだけ流れる */
+/* 線は rotate で傾けてあり、transform の移動はその傾いた向きで行われる。
+   線の向き（頭の光る点がある左）へまっすぐ進むよう、横（X）にだけ動かす */
 @keyframes shooting-star {
   0% {
     opacity: 0;
-    transform: translate(0, 0);
+    transform: translateX(0);
   }
   1% {
     opacity: 1;
   }
   6% {
     opacity: 0;
-    transform: translate(-320px, 170px);
+    transform: translateX(-360px);
   }
   100% {
     opacity: 0;
-    transform: translate(-320px, 170px);
+    transform: translateX(-360px);
   }
 }
 

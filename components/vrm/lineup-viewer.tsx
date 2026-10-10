@@ -8,11 +8,14 @@ import {
   type LineupModel,
   type LineupStage,
 } from '@/components/vrm/lineup-stage';
+import type { MotionId } from '@/components/vrm/motions';
 
 type ViewerState = 'loading' | 'ready' | 'error';
 
 type LineupViewerProps = {
   models: (LineupModel & { name: string })[];
+  /** みんなでループ再生するモーション（省略時は、その場で小さく揺れるだけ） */
+  motionId?: MotionId;
   /** 表示できたときに舞台を渡す。片付けるときは null を渡す */
   onStage?: (stage: LineupStage | null) => void;
 };
@@ -21,7 +24,11 @@ type LineupViewerProps = {
  * 「みんなで並ぶ」（背丈くらべ）。みんなを同じ縮尺で並べ、頭の上に名前と背丈、
  * うしろに 50cm ごとの目もりを出す（components/vrm/lineup-stage.ts）
  */
-export function LineupViewer({ models, onStage }: LineupViewerProps) {
+export function LineupViewer({
+  models,
+  motionId,
+  onStage,
+}: LineupViewerProps) {
   const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -49,6 +56,7 @@ export function LineupViewer({ models, onStage }: LineupViewerProps) {
       canvas,
       container,
       models: modelsRef.current,
+      motionId,
       signal: controller.signal,
       onProgress: setProgress,
       onLayout: setLayout,
@@ -69,7 +77,7 @@ export function LineupViewer({ models, onStage }: LineupViewerProps) {
       stage?.dispose();
       if (stage) onStageRef.current?.(null);
     };
-  }, [modelKey]);
+  }, [modelKey, motionId]);
 
   const nameOf = (id: string) =>
     models.find((model) => model.id === id)?.name ?? id;
