@@ -792,14 +792,13 @@ export async function createVrmStage({
     const currentVrm = vrm;
     renderer.setAnimationLoop((time, frame) => {
       timer.update(time);
-      // タブ復帰直後などに揺れものが暴れないよう、経過時間に上限を設ける
-      const delta = Math.min(timer.getDelta(), 0.05);
+      const { delta, springDelta } = frameDeltas(timer.getDelta());
       idleMotion.update(timer.getElapsed());
       updateExpressions(timer.getElapsed(), delta);
       player.update(delta);
       look.update(delta);
-      swaying.update(delta);
-      currentVrm.update(delta);
+      swaying.update(springDelta);
+      currentVrm.update(springDelta);
       swaying.afterUpdate();
       moveCamera(timer.getElapsed(), delta);
       lights.update(delta);
@@ -912,6 +911,17 @@ export async function createVrmStage({
     dispose();
     throw error;
   }
+}
+
+/**
+ * 前のフレームからの経過時間（秒）を、使い道ごとに区切る。
+ * - delta: 踊り・表情・視線・カメラ・ライト。描くのが遅い端末（lilToon の子をスマホで描くときなど）でも、
+ *   ふつうの速さで進むよう、0.25 秒まで認める（短く区切ると、遅い端末ではスローモーションになる）
+ * - springDelta: 揺れもの（髪・服）と、つまんだときのばね。一度に長く進めると暴れるので、0.05 秒まで
+ *   （タブをもどした直後など、経過時間がとても長いときも）
+ */
+export function frameDeltas(raw: number) {
+  return { delta: Math.min(raw, 0.25), springDelta: Math.min(raw, 0.05) };
 }
 
 /**

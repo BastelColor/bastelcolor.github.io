@@ -19,6 +19,7 @@ import {
   captureFrame,
   disposeObject,
   failsToRender,
+  frameDeltas,
   LilToonRenderError,
   loadThreeModules,
   toonify,
@@ -376,7 +377,7 @@ export async function createLineupStage({
     const timer = new THREE.Timer();
     renderer.setAnimationLoop((time) => {
       timer.update(time);
-      const delta = Math.min(timer.getDelta(), 0.05);
+      const { delta, springDelta } = frameDeltas(timer.getDelta());
       const elapsed = timer.getElapsed();
       const target = elapsed < shownUntil ? 1 : 0;
       weight =
@@ -395,8 +396,8 @@ export async function createLineupStage({
         item.player.update(delta);
       });
       look.update(delta);
-      swaying.update(delta);
-      for (const item of placed) item.vrm.update(delta);
+      swaying.update(springDelta);
+      for (const item of placed) item.vrm.update(springDelta);
       swaying.afterUpdate();
       lights.update(delta);
       renderer.render(scene, camera);
