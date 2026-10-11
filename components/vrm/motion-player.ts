@@ -22,6 +22,8 @@ type VrmModule = typeof import('@pixiv/three-vrm');
 export type MotionPlayer = {
   play: (animation: VRMAnimation) => void;
   update: (delta: number) => void;
+  /** 再生しているモーションの1周の長さ（秒）。まだ無ければ 0 */
+  duration: () => number;
   dispose: () => void;
 };
 
@@ -162,6 +164,8 @@ export function createMotionPlayer({
       }
       rememberPose();
     },
+
+    duration: () => (channels.length > 0 ? duration : 0),
 
     dispose: () => {
       channels = [];

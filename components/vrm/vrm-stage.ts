@@ -14,8 +14,8 @@ import { createLightRig, type Lighting } from '@/components/vrm/lighting';
 import { createPointerLook, type PointerLook } from '@/components/vrm/look-at';
 import { createSway, type Sway } from '@/components/vrm/sway';
 import { slimLilToonUniforms } from '@/components/vrm/liltoon-slim';
+import { exportUsdz } from '@/components/vrm/usdz';
 import {
-  exportUsdz,
   startWebXR,
   type ARSession,
   type ARView,
@@ -911,7 +911,26 @@ export async function createVrmStage({
         swaying.setCamera(renderer.xr.getCamera());
         return view.session;
       },
-      exportUsdz: () => exportUsdz(THREE, currentVrm.scene),
+      exportUsdz: () => {
+        // 踊りの1周を、描かずに進めながら記録する（止めているとき・踊らないときは、いまのポーズ）
+        const duration = paused ? 0 : player.duration();
+        let elapsed = timer.getElapsed();
+        return exportUsdz(
+          THREE,
+          currentVrm.scene,
+          duration > 0
+            ? {
+                duration,
+                step: (dt) => {
+                  elapsed += dt;
+                  idleMotion.update(elapsed);
+                  player.update(dt);
+                  currentVrm.update(dt);
+                },
+              }
+            : null,
+        );
+      },
       capture: () => {
         // 枠の中。しっぽなどが切れにくいよう、細い枠では横を少し広げ、
         // 足元の展示台の影まで入るよう、下も少し広げる
