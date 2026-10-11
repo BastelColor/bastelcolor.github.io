@@ -467,8 +467,7 @@ export async function exportUsdz(
         `                asset inputs:file = @${file}@`,
         `                float2 inputs:st.connect = <${path}/Reader.outputs:result>`,
         `                float4 inputs:scale = (${num(color.r * share)}, ${num(color.g * share)}, ${num(color.b * share)}, 1)`,
-        // テクスチャは、光の強さのまま（linear）に直して入れてある（textureToPng）
-        '                token inputs:sourceColorSpace = "raw"',
+        '                token inputs:sourceColorSpace = "sRGB"',
         '                token inputs:wrapS = "repeat"',
         '                token inputs:wrapT = "repeat"',
         '                float3 outputs:rgb',
@@ -614,8 +613,8 @@ function plainMaterial(THREE: Three, material: Material): PlainMaterial {
 
 /**
  * テクスチャを PNG にする（大きすぎるものは縮める）。読めないものは null。
- * 色は、sRGB から光の強さのまま（linear）に直して入れる。AR クイックルックは光る色（emissive）の
- * テクスチャを sRGB として読まないことがあるため（Google の usd_from_gltf も、こうしている）
+ * 色は元のまま（sRGB）。光の強さのまま（linear）に直して "raw" として入れると、iPhone では
+ * もう一度 sRGB として読まれ、暗く濃くなった
  */
 async function textureToPng(texture: Texture): Promise<Uint8Array | null> {
   const image = texture.image as
@@ -633,19 +632,6 @@ async function textureToPng(texture: Texture): Promise<Uint8Array | null> {
     context.scale(1, -1);
   }
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
-  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-  const toLinear = Array.from({ length: 256 }, (_, i) => {
-    const c = i / 255;
-    const linear = c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-    return Math.round(linear * 255);
-  });
-  const data = pixels.data;
-  for (let i = 0; i < data.length; i += 4) {
-    data[i] = toLinear[data[i]];
-    data[i + 1] = toLinear[data[i + 1]];
-    data[i + 2] = toLinear[data[i + 2]];
-  }
-  context.putImageData(pixels, 0, 0);
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, 'image/png'),
   );
