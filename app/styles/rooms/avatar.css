@@ -1288,3 +1288,72 @@
   border-color: #ffd36e;
   color: #ffd36e;
 }
+
+/* ---- みんなで並ぶときの、1人ずつ出す・しまうボタン（顔のアイコン）。部屋の中と、AR の中で使う ---- */
+
+.avatar-room-shown-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.avatar-room-shown .avatar-room-shown-toggles {
+  justify-content: flex-start;
+  margin-top: 10px;
+}
+
+.avatar-room-shown-toggles button {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-strong);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--edge) 18%, transparent);
+  cursor: pointer;
+  pointer-events: auto;
+  transition:
+    translate 0.15s ease,
+    opacity 0.2s ease,
+    filter 0.2s ease;
+}
+
+/* しまっている子は、色を抜いて薄く */
+.avatar-room-shown-toggles button[aria-pressed='false'] {
+  opacity: 0.45;
+  filter: grayscale(1);
+}
+
+/* 出ている子が1人だけのときの、その子（しまえない） */
+.avatar-room-shown-toggles button:disabled {
+  cursor: default;
+}
+
+.avatar-room-shown-toggles img {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatar-room-shown-toggles button:not(:disabled):active {
+  translate: 0 2px;
+}
+
+.avatar-room-shown-toggles button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+
+/* AR の中では、カメラの映像の上でも見えるよう、白い丸にする */
+.avatar-ar-overlay .avatar-room-shown-toggles button {
+  background: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+}

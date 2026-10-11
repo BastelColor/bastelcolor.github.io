@@ -27,6 +27,7 @@ import {
   VIEW_MODES,
   type ViewMode as DisplayMode,
 } from '@/components/vrm/view-modes';
+import type { LineupStage } from '@/components/vrm/lineup-stage';
 import { preloadVrmStage, type VrmStage } from '@/components/vrm/vrm-stage';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
 import { avatars } from '@/content/avatars';
@@ -84,8 +85,10 @@ type RoomStage = Pick<
   | 'setPaused'
   | 'capture'
 > &
-  // 写す範囲と AR は、ひとりずつのときだけ
-  Partial<Pick<VrmStage, 'startAR' | 'exportUsdz'>>;
+  // AR（Android の WebXR）は、ひとりずつでも、みんなで並んでいても。iPhone の AR クイックルックは、ひとりずつだけ
+  Partial<Pick<VrmStage, 'startAR' | 'exportUsdz'>> &
+  // 出す・しまうのは、みんなで並ぶときだけ（components/vrm/lineup-stage.ts）
+  Partial<Pick<LineupStage, 'setShown'>>;
 
 /** 表示の名前（components/vrm/view-modes.ts） */
 const VIEW_MODE_LABELS: Record<DisplayMode, [string, string]> = {
@@ -171,6 +174,17 @@ export function AvatarRoom() {
   const [viewMode, setViewMode] = useState<DisplayMode>('normal');
   // 踊りを止めているか。別の子を選んでも、そのまま
   const [paused, setPaused] = useState(false);
+  // みんなで並ぶときに、しまっている子（出ている子が1人だけのときは、その子はしまえない）
+  const [hiddenIds, setHiddenIds] = useState<ReadonlySet<string>>(new Set());
+  const toggleShown = (id: string) => {
+    playSound('pop');
+    setHiddenIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else if (avatars.length - next.size > 1) next.add(id);
+      return next;
+    });
+  };
   // 背丈くらべの「わたし」の身長（入力のまま。数字として読めて、範囲の中のときだけ線を出す）
   const [myHeight, setMyHeight] = useState('');
   const myHeightCm = Number(myHeight);
@@ -282,6 +296,12 @@ export function AvatarRoom() {
     stage?.setPaused(paused);
   }, [stage, paused]);
 
+  // みんなで並ぶときに、しまった子を舞台に伝える
+  useEffect(() => {
+    if (!stage?.setShown) return;
+    for (const avatar of avatars) stage.setShown(avatar.id, !hiddenIds.has(avatar.id));
+  }, [stage, hiddenIds]);
+
   // 表示（中身を見る）も、選んだままにする
   useEffect(() => {
     stage?.setViewMode(viewMode);
@@ -291,7 +311,7 @@ export function AvatarRoom() {
   const openAR = async () => {
     if (!stage || arBusy) return;
     playSound('pop');
-    countEvent(`ar/${selected.id}`);
+    countEvent(`ar/${mode === 'lineup' ? 'everyone' : selected.id}`);
     if (arMode === 'webxr' && stage.startAR && arOverlay.current) {
       setArSmall(false);
       try {
@@ -341,6 +361,12 @@ export function AvatarRoom() {
     return () => window.clearTimeout(timer);
   }, [arMode, mode, stage, paused]);
 
+  // みんなで並ぶときに、出ている子の名前（写真の右下に入れる）
+  const shownNames = avatars
+    .filter((avatar) => !hiddenIds.has(avatar.id))
+    .map((avatar) => avatar.nameEn)
+    .join(' & ');
+
   // AR のあいだの写真。カメラの映像とモデルを1枚にして、ダウンロードする
   const takeArPhoto = async () => {
     const session = arSession.current;
@@ -349,9 +375,10 @@ export function AvatarRoom() {
     setArFlash((count) => count + 1);
     const photo = await session.photo();
     if (!photo) return;
-    countEvent(`ar-photo/${selected.id}`);
-    drawCaption(photo, `${selected.nameEn} · Yzmo`, true);
-    void savePhoto(photo, `yzmo-${selected.id}-ar.png`, { share: false });
+    const id = mode === 'lineup' ? 'everyone' : selected.id;
+    countEvent(`ar-photo/${id}`);
+    drawCaption(photo, `${mode === 'lineup' ? shownNames : selected.nameEn} · Yzmo`, true);
+    void savePhoto(photo, `yzmo-${id}-ar.png`, { share: false });
   };
 
   const takePhoto = () => {
@@ -359,10 +386,7 @@ export function AvatarRoom() {
     playSound('shutter');
     setFlash((count) => count + 1);
     countEvent(`photo/${mode === 'lineup' ? 'everyone' : selected.id}`);
-    const name =
-      mode === 'lineup'
-        ? avatars.map((avatar) => avatar.nameEn).join(' & ')
-        : selected.nameEn;
+    const name = mode === 'lineup' ? shownNames : selected.nameEn;
     const photo = composePhoto({
       shot: stage.capture(),
       backdrop,
@@ -518,6 +542,10 @@ export function AvatarRoom() {
             <span key={arFlash} className="avatar-ar-flash" aria-hidden="true" />
           )}
           <div className="avatar-ar-bottom">
+          {/* みんなで並ぶときは、1人ずつ出したりしまったりできる */}
+          {mode === 'lineup' && (
+            <ShownToggles hiddenIds={hiddenIds} onToggle={toggleShown} />
+          )}
           {/* 置いたあとは、表情も変えられる */}
           {arState === 'placed' && stage && (
             <div className="avatar-ar-buttons is-expressions">
@@ -635,8 +663,8 @@ export function AvatarRoom() {
               <circle cx="12" cy="12.5" r="3.6" />
             </svg>
           </button>
-          {/* AR で見る（使えるスマホだけ） */}
-          {arMode && mode === 'single' && (
+          {/* AR で見る（使えるスマホだけ。みんなで並ぶのは、ページの中で AR を描ける Android などだけ） */}
+          {arMode && (mode === 'single' || arMode === 'webxr') && (
             <button
               type="button"
               className="avatar-room-ar"
@@ -818,6 +846,15 @@ export function AvatarRoom() {
           </div>
         </fieldset>
         {/* 背丈くらべに「わたし」の線を足す */}
+        {/* みんなで並ぶときは、1人ずつ出したりしまったりできる（AR の中でも同じ） */}
+        {mode === 'lineup' && (
+          <div className="avatar-room-play avatar-room-shown">
+            <p className="avatar-room-play-title">
+              {t('ならぶ子をえらぶ', 'Who lines up')}
+            </p>
+            <ShownToggles hiddenIds={hiddenIds} onToggle={toggleShown} />
+          </div>
+        )}
         {mode === 'lineup' && (
           <div className="avatar-room-play avatar-room-me">
             <label className="avatar-room-play-title" htmlFor="lineup-me">
@@ -897,6 +934,42 @@ export function AvatarRoom() {
 }
 
 /** まわすボタンの矢印（flip で右向き） */
+/**
+ * みんなで並ぶときの、1人ずつ出す・しまうボタン（顔のアイコン）。押すたびに出たり、しまわれたりする。
+ * 出ている子が1人だけのときは、その子はしまえない
+ */
+function ShownToggles({
+  hiddenIds,
+  onToggle,
+}: {
+  hiddenIds: ReadonlySet<string>;
+  onToggle: (id: string) => void;
+}) {
+  const t = useT();
+  const shownCount = avatars.length - hiddenIds.size;
+  return (
+    <fieldset className="avatar-room-shown-toggles" aria-label={t('ならぶ子', 'Who lines up')}>
+      {avatars.map((avatar) => {
+        const shown = !hiddenIds.has(avatar.id);
+        const name = t(avatar.name, avatar.nameEn);
+        return (
+          <button
+            key={avatar.id}
+            type="button"
+            aria-pressed={shown}
+            aria-label={name}
+            title={shown ? t(`${name}をしまう`, `Hide ${name}`) : t(`${name}を出す`, `Show ${name}`)}
+            disabled={shown && shownCount <= 1}
+            onClick={() => onToggle(avatar.id)}
+          >
+            <img src={avatar.icon.normal} alt="" width={40} height={40} />
+          </button>
+        );
+      })}
+    </fieldset>
+  );
+}
+
 /** 再生・停止のボタンの絵。止めているときは再生（▶）、動いているときは停止（❚❚） */
 function PlayIcon({ paused }: { paused: boolean }) {
   return (

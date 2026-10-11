@@ -5,6 +5,7 @@ import { createIdleMotion, type IdleMotion } from '@/components/vrm/idle-motion'
 import { createLightRig, type Lighting } from '@/components/vrm/lighting';
 import { createPointerLook, type PointerLook } from '@/components/vrm/look-at';
 import { createSway, type Sway } from '@/components/vrm/sway';
+import { startWebXR, type ARSession, type ARView } from '@/components/vrm/ar';
 import {
   createMotionPlayer,
   type MotionPlayer,
@@ -25,6 +26,7 @@ import {
   toonify,
   applySlimLilToon,
   measureVisibleBounds,
+  scaleSprings,
   type StageShot,
 } from '@/components/vrm/vrm-stage';
 
@@ -64,6 +66,16 @@ export type LineupStage = {
   setViewMode: (mode: ViewMode) => void;
   /** みんなの踊りを止める・また動かす（vrm-stage.ts と同じ） */
   setPaused: (paused: boolean) => void;
+  /**
+   * その子を出す・しまう。ぽんっと出てきて（しまうときは縮んで消えて）、残った子は真ん中にそろって並び直す。
+   * 背丈の札（onLayout）も、出ている子だけになる
+   */
+  setShown: (id: string, shown: boolean) => void;
+  /** AR（WebXR）で、出ている子をみんなで並べて立たせる（vrm-stage.ts の startAR と同じ） */
+  startAR: (
+    overlay: HTMLElement,
+    events: { onPlaced: () => void; onEnd: () => void },
+  ) => Promise<ARSession>;
   capture: () => StageShot;
   dispose: () => void;
 };
@@ -101,6 +113,10 @@ const groundFromBottom = (width: number, height: number) =>
 const TURN_EASE = 7;
 const EXPRESSION_SECONDS = 2.5;
 const EXPRESSION_FADE = 0.2;
+/** 出す・しまうときに、大きくなる・縮む時間（秒） */
+const APPEAR_SECONDS = 0.35;
+/** 並び直すときの速さ（大きいほど速い） */
+const SLIDE_EASE = 8;
 
 export async function createLineupStage({
   canvas,
@@ -144,6 +160,16 @@ export async function createLineupStage({
     player: MotionPlayer;
     height: number;
     width: number;
+    /** 腰の真上（まわす軸）から、左右のはしまでの幅 */
+    leftWidth: number;
+    rightWidth: number;
+    /** 出ているか。appear は、出てくる・消えていく途中の大きさ（0〜1） */
+    shown: boolean;
+    appear: number;
+    /** 並び直したときの、横の位置 */
+    targetX: number;
+    /** 揺れものを、置く大きさに合わせる（AR の「ちいさく」） */
+    scaleSprings: (scale: number) => void;
   };
   const placed: Placed[] = [];
   let releaseLilToon: (() => void) | null = null;
@@ -227,7 +253,9 @@ export async function createLineupStage({
     }
 
     // --- 待機ポーズにしてから大きさを測り、左から順に並べる ---
-    let cursor = 0;
+    // みんなをまとめる入れ物（AR では、これをまるごと置く）
+    const lineup = new THREE.Group();
+    scene.add(lineup);
     vrms.forEach((vrm, i) => {
       const idle = createIdleMotion(vrm);
       idle.update(0);
@@ -246,11 +274,7 @@ export async function createLineupStage({
       const group = new THREE.Group();
       vrm.scene.position.set(-pivot.x, 0, -pivot.z);
       group.add(vrm.scene);
-      // 画面の左から右へ並べる（モデルの右手側が画面の左なので、-X 側の幅を先に足す）
-      cursor += rightWidth;
-      group.position.x = cursor;
-      cursor += leftWidth + GAP;
-      scene.add(group);
+      lineup.add(group);
       placed.push({
         id: models[i].id,
         vrm,
@@ -268,12 +292,33 @@ export async function createLineupStage({
           0.01,
         ),
         width: leftWidth + rightWidth,
+        leftWidth,
+        rightWidth,
+        shown: true,
+        appear: 1,
+        targetX: 0,
+        scaleSprings: scaleSprings(vrm),
       });
     });
-    // まんなかを原点に
-    const totalWidth = cursor - GAP;
-    for (const item of placed) item.group.position.x -= totalWidth / 2;
-    const tallest = Math.max(...placed.map((item) => item.height));
+
+    // 出ている子だけを、左から順に、真ん中をそろえて並べる位置を決める
+    // （画面の左から右へ。モデルの右手側が画面の左なので、-X 側の幅を先に足す）
+    let totalWidth = 0;
+    let tallest = 0;
+    const arrange = () => {
+      const shown = placed.filter((item) => item.shown);
+      let cursor = 0;
+      for (const item of shown) {
+        cursor += item.rightWidth;
+        item.targetX = cursor;
+        cursor += item.leftWidth + GAP;
+      }
+      totalWidth = Math.max(cursor - GAP, 0.01);
+      for (const item of shown) item.targetX -= totalWidth / 2;
+      tallest = Math.max(0.01, ...shown.map((item) => item.height));
+    };
+    arrange();
+    for (const item of placed) item.group.position.x = item.targetX;
 
     // --- 枠の大きさに合わせて、カメラの写す範囲を決める ---
     const view = { width: 1, height: 1, scale: 1, ground: 0 };
@@ -302,9 +347,9 @@ export async function createLineupStage({
         rulers.push({ meters, y: toY(meters) });
       }
       onLayout({
-        models: placed.map((item) => ({
+        models: placed.filter((item) => item.shown).map((item) => ({
           id: item.id,
-          x: width / 2 + item.group.position.x * scale,
+          x: width / 2 + item.targetX * scale,
           top: toY(item.height),
           height: item.height,
         })),
@@ -377,8 +422,10 @@ export async function createLineupStage({
     }
 
     let paused = false;
+    // AR のあいだの、床の位置を調べる係（components/vrm/ar.ts）
+    let arView: ARView | null = null;
     const timer = new THREE.Timer();
-    renderer.setAnimationLoop((time) => {
+    renderer.setAnimationLoop((time, frame) => {
       timer.update(time);
       const { delta, springDelta } = frameDeltas(timer.getDelta());
       const elapsed = timer.getElapsed();
@@ -388,7 +435,16 @@ export async function createLineupStage({
           ? Math.min(1, weight + delta / EXPRESSION_FADE)
           : Math.max(0, weight - delta / EXPRESSION_FADE);
       const k = 1 - Math.exp(-delta * TURN_EASE);
+      const slide = 1 - Math.exp(-delta * SLIDE_EASE);
       placed.forEach((item, i) => {
+        // 出す・しまう（ぽんっと大きくなり、縮んで消える）と、並び直し
+        item.appear = item.shown
+          ? Math.min(1, item.appear + delta / APPEAR_SECONDS)
+          : Math.max(0, item.appear - delta / APPEAR_SECONDS);
+        item.group.visible = item.appear > 0;
+        item.group.scale.setScalar(Math.max(0.001, popOut(item.appear)));
+        item.group.position.x += (item.targetX - item.group.position.x) * slide;
+        if (!item.group.visible) return;
         // 子ごとに少しずらして、そろって揺れないようにする
         item.idle.update(elapsed + i * 1.7);
         const manager = item.vrm.expressionManager;
@@ -400,9 +456,12 @@ export async function createLineupStage({
       });
       look.update(delta);
       swaying.update(springDelta);
-      for (const item of placed) item.vrm.update(springDelta);
+      for (const item of placed) {
+        if (item.group.visible) item.vrm.update(springDelta);
+      }
       swaying.afterUpdate();
       lights.update(delta);
+      arView?.update(frame);
       renderer.render(scene, camera);
     });
     return {
@@ -429,6 +488,44 @@ export async function createLineupStage({
       setViewMode: (mode) => viewModes?.set(mode),
       setPaused: (value) => {
         paused = value;
+      },
+      setShown: (id, shown) => {
+        const item = placed.find((candidate) => candidate.id === id);
+        if (!item || item.shown === shown) return;
+        // 出てくる子は、いまの並びのはしからではなく、自分の場所から出てくる
+        item.shown = shown;
+        arrange();
+        if (shown && item.appear === 0) item.group.position.x = item.targetX;
+        resize();
+      },
+      startAR: async (overlay, { onPlaced, onEnd }) => {
+        const view = await startWebXR({
+          THREE,
+          renderer,
+          scene,
+          model: lineup,
+          hips: placed
+            .map((item) => item.vrm.humanoid.getRawBoneNode('hips'))
+            .filter((bone): bone is Object3D => bone !== null),
+          onScale: (scale) => {
+            for (const item of placed) item.scaleSprings(scale);
+          },
+          overlay,
+          onPlaced,
+          onEnd: () => {
+            arView = null;
+            // 目と揺れものは、またいつものカメラを見る。canvas の大きさも元にもどす
+            look.setCamera(camera);
+            swaying.setCamera(camera);
+            resize();
+            onEnd();
+          },
+        });
+        arView = view;
+        // AR のあいだは、スマホのカメラを「見ている人」にする
+        look.setCamera(renderer.xr.getCamera());
+        swaying.setCamera(renderer.xr.getCamera());
+        return view.session;
       },
       capture: () => {
         // 上のあきすぎた空は写さない（いちばん背の高い子の少し上から）
@@ -457,6 +554,13 @@ export async function createLineupStage({
     dispose();
     throw error;
   }
+}
+
+/** 出てくるときの大きさ（0〜1）。少し大きくなりすぎてから、ぽよんともどる */
+function popOut(t: number) {
+  const overshoot = 1.7;
+  const u = t - 1;
+  return 1 + (overshoot + 1) * u * u * u + overshoot * u * u;
 }
 
 /**

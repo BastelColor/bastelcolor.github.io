@@ -69,17 +69,18 @@ export function createGroundShadow({
   renderer: WebGLRenderer;
   parent: Object3D;
   model: Object3D;
-  /** 腰の骨（足元の丸を、腰の真下について行かせる） */
-  hips: Object3D | null;
+  /**
+   * それぞれの子の腰の骨（足元の丸を、腰の真下について行かせる）。みんなで並ぶときは何人ぶんも。
+   * 見えていない子（親のどれかが visible = false）の丸は出さない
+   */
+  hips: Object3D[];
 }): GroundShadow {
   // 足元の丸の大きさの目安は、腰の高さ（モデルの足元からの高さ）
   const hipsPosition = new THREE.Vector3();
-  const hipsHeight = hips
-    ? Math.max(
-        0.2,
-        model.worldToLocal(hips.getWorldPosition(hipsPosition)).y * model.scale.y,
-      )
-    : 0.7;
+  const heightOf = (hip: Object3D) =>
+    Math.max(0.2, model.worldToLocal(hip.getWorldPosition(hipsPosition)).y * model.scale.y);
+  const hipsHeights = hips.map(heightOf);
+  const hipsHeight = hipsHeights.length > 0 ? Math.max(...hipsHeights) : 0.7;
   // 影を写す範囲は、しっぽまで含めたモデル全体の大きさで決める
   // （腰の高さから決めると、Quiple の頭より高いしっぽが範囲からはみ出し、影が落ちなかった）
   const bounds = measureModel(THREE, model);
@@ -126,22 +127,31 @@ export function createGroundShadow({
   floor.position.y = 0.001;
   parent.add(floor);
 
-  // 足元の丸
-  const contact = new THREE.Mesh(
-    new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
-    new THREE.ShaderMaterial({
-      uniforms: { opacity: { value: CONTACT_OPACITY } },
-      vertexShader: CONTACT_VERTEX,
-      fragmentShader: CONTACT_FRAGMENT,
-      transparent: true,
-      depthWrite: false,
-    }),
-  );
-  const contactSize = hipsHeight * CONTACT_RADIUS * 2;
-  contact.scale.set(contactSize * 1.2, 1, contactSize);
-  contact.position.y = 0.002;
-  contact.renderOrder = -1;
-  parent.add(contact);
+  // 足元の丸（子ごとに1つ。形とマテリアルはみんなで使う）
+  const contactGeometry = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+  const contactMaterial = new THREE.ShaderMaterial({
+    uniforms: { opacity: { value: CONTACT_OPACITY } },
+    vertexShader: CONTACT_VERTEX,
+    fragmentShader: CONTACT_FRAGMENT,
+    transparent: true,
+    depthWrite: false,
+  });
+  // 腰の骨の大きさ（入れ物から見た）。出したりしまったりで子が大きく・小さくなるのに合わせ、丸の大きさも変える
+  const scaleOf = (hip: Object3D) =>
+    hip.getWorldScale(new THREE.Vector3()).x / parent.getWorldScale(new THREE.Vector3()).x;
+  const contacts = hips.map((hip, i) => {
+    const contact = new THREE.Mesh(contactGeometry, contactMaterial);
+    contact.position.y = 0.002;
+    contact.renderOrder = -1;
+    parent.add(contact);
+    const size = hipsHeights[i] * CONTACT_RADIUS * 2;
+    return { hip, contact, size, baseScale: scaleOf(hip) };
+  });
+  /** 親をたどって、どれも見えているか */
+  const shown = (node: Object3D) => {
+    for (let n: Object3D | null = node; n; n = n.parent) if (!n.visible) return false;
+    return true;
+  };
 
   // モデルに影を落とさせる（自分の体には落とさない）。終わったら元にもどす
   const casters = new Map<Mesh, boolean>();
@@ -167,25 +177,30 @@ export function createGroundShadow({
 
   return {
     update: () => {
-      if (!hips) return;
-      parent.worldToLocal(hips.getWorldPosition(hipsPosition));
-      contact.position.x = hipsPosition.x;
-      contact.position.z = hipsPosition.z;
+      for (const { hip, contact, size, baseScale } of contacts) {
+        contact.visible = shown(hip);
+        if (!contact.visible) continue;
+        parent.worldToLocal(hip.getWorldPosition(hipsPosition));
+        contact.position.x = hipsPosition.x;
+        contact.position.z = hipsPosition.z;
+        const grow = scaleOf(hip) / baseScale;
+        contact.scale.set(size * 1.2 * grow, 1, size * grow);
+      }
     },
     setScale,
     setPhoto: (photo) => {
       floor.material.opacity = photo ? photoOpacity(SHADOW_OPACITY) : SHADOW_OPACITY;
-      contact.material.uniforms.opacity.value = photo
+      contactMaterial.uniforms.opacity.value = photo
         ? photoOpacity(CONTACT_OPACITY)
         : CONTACT_OPACITY;
     },
     dispose: () => {
-      parent.remove(light, light.target, floor, contact);
+      parent.remove(light, light.target, floor, ...contacts.map(({ contact }) => contact));
       light.shadow.dispose();
       floor.geometry.dispose();
       floor.material.dispose();
-      contact.geometry.dispose();
-      contact.material.dispose();
+      contactGeometry.dispose();
+      contactMaterial.dispose();
       for (const [mesh, cast] of casters) mesh.castShadow = cast;
       renderer.shadowMap.enabled = shadowWasEnabled;
     },

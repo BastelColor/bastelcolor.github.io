@@ -108,9 +108,10 @@ export async function startWebXR({
   THREE: typeof import('three');
   renderer: WebGLRenderer;
   scene: Scene;
+  /** 置くもの。みんなで並ぶときは、みんなをまとめた入れ物 */
   model: Object3D;
-  /** 腰の骨。足元の影を、腰の真下について行かせる */
-  hips: Object3D | null;
+  /** それぞれの子の腰の骨。足元の影を、腰の真下について行かせる */
+  hips: Object3D[];
   /**
    * 置く大きさ（1 が本当の大きさ）が変わったとき。揺れものの当たり判定などは、
    * モデルの大きさではなく場面の長さで決まっているので、モデルに合わせて縮めてもらう

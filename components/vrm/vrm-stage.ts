@@ -894,7 +894,9 @@ export async function createVrmStage({
           renderer,
           scene,
           model: currentVrm.scene,
-          hips: currentVrm.humanoid.getRawBoneNode('hips'),
+          hips: [currentVrm.humanoid.getRawBoneNode('hips')].filter(
+            (bone): bone is Object3D => bone !== null,
+          ),
           onScale: scaleSprings(currentVrm),
           overlay,
           onPlaced,

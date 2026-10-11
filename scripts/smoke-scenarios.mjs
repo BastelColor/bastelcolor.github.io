@@ -406,7 +406,7 @@ export const scenarios = [
     },
   },
   {
-    name: 'アバター: みんなで並ぶと4人の背丈と「わたし」の線が出る',
+    name: 'アバター: みんなで並ぶと4人の背丈と「わたし」の線が出て、1人ずつしまったり出したりできる',
     run: async (page, base, { avatarId }) => {
       await page.goto(base + '/avatar/' + avatarId, { waitUntil: 'load' });
       await avatarReady(page);
@@ -423,6 +423,21 @@ export const scenarios = [
       failIf(!!(await page.$('.vrm-error')), 'みんなを表示できませんでした');
       await page.type('#lineup-me', '160');
       await waitFor(page, () => /160cm/.test(document.querySelector('.lineup-mark')?.textContent ?? ''), 5_000);
+      // 顔のボタンで1人しまうと、背丈の札が1つ減り、もう一度押すともどる
+      const tags = () => page.$$eval('.lineup-tags li', (items) => items.length);
+      const all = await tags();
+      await page.click('.avatar-room-shown .avatar-room-shown-toggles button');
+      await waitFor(page, (count) => document.querySelectorAll('.lineup-tags li').length === count - 1, 15_000, all).catch(
+        async () => {
+          throw new Error(`顔のボタンで、しまえません（${all} → ${await tags()}）`);
+        },
+      );
+      await page.click('.avatar-room-shown .avatar-room-shown-toggles button');
+      await waitFor(page, (count) => document.querySelectorAll('.lineup-tags li').length === count, 15_000, all).catch(
+        async () => {
+          throw new Error(`顔のボタンで、また出せません（${all} → ${await tags()}）`);
+        },
+      );
     },
   },
   {

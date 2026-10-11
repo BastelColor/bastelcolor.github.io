@@ -41,9 +41,25 @@ export async function generateMetadata({
   };
 }
 
-/** 中身は共通部分が出すので、ここには検索エンジン向けの説明（lib/structured-data.tsx）だけを置く */
+/**
+ * 中身は共通部分が出すので、ここには検索エンジン向けの説明（lib/structured-data.tsx）と、
+ * いちばん上に大きく出る画像の先読みだけを置く。作品の詳細は、ページのプログラムが動いてから
+ * 組み立てられるので、先読みしないと、画像はプログラムを読み終わるまで読み始めない
+ */
 export default async function WorkPage({ params }: WorkPageProps) {
   const { id } = await params;
   const work = works.find((item) => item.id === id);
-  return work ? <JsonLd data={workData(work)} /> : null;
+  if (!work) return null;
+  // 詳細のいちばん上（動画のときは、その下の1枚目の画像）
+  const firstImage = work.youtubeId
+    ? work.images?.[0]?.src
+    : (work.cover ?? work.thumbnail ?? work.images?.[0]?.src);
+  return (
+    <>
+      <JsonLd data={workData(work)} />
+      {firstImage && (
+        <link rel="preload" as="image" href={firstImage} fetchPriority="high" />
+      )}
+    </>
+  );
 }

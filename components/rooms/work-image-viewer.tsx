@@ -23,7 +23,8 @@ export function WorkImageViewer({ images }: { images: WorkImage[] }) {
               )}
               onClick={() => viewer.current?.open(i)}
             >
-              <img src={image.src} alt={image.alt} loading="lazy" />
+              {/* 1枚目は開いてすぐ目に入るので、すぐ読む（ほかは、見えそうになってから） */}
+              <img src={image.src} alt={image.alt} loading={i === 0 ? 'eager' : 'lazy'} />
             </button>
           </li>
         ))}
