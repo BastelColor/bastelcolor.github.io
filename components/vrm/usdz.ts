@@ -19,6 +19,7 @@ import type {
  * three.js の USDZExporter は骨で動くモデルを書き出せないので、ここで USD の文章を組み立てる。
  *
  * マテリアルは、基本の色とテクスチャだけ（AR クイックルックは MToon / lilToon を描けないため）。
+ * 色の大半は光る色（emissive）にして、まわりの光によるリアルな陰影を弱め、アニメ塗りに近づける。
  * 表情（モーフ）は入れない
  */
 
@@ -32,6 +33,12 @@ export type UsdzMotion = {
 
 /** 動きを記録する、1 秒あたりのこま数 */
 const FPS = 30;
+/**
+ * 色の割合。光る色（まわりの光で変わらない）と、まわりの光で陰る色。
+ * 光る色を多くするほど、アニメ塗りのように平らに見える（足して 1 くらいで、元の明るさ）
+ */
+const GLOW_SHARE = 0.75;
+const SHADED_SHARE = 0.3;
 /** USDZ に入れるテクスチャの大きさの上限（iPhone で開くのに時間がかからないよう、小さめ） */
 const TEXTURE_SIZE = 1024;
 
@@ -419,6 +426,10 @@ export async function exportUsdz(
     const path = `/Avatar/Materials/Material${id}`;
     const color = plain.color;
     const useAlpha = plain.transparent || plain.alphaTest > 0;
+    // 色の大半は「光る色」（まわりの光で変わらない）にし、まわりの光で陰る色は少しだけにする。
+    // AR クイックルックは本物の物のように光を当てるので、そのままだと、リアルな陰影でこわく見える
+    const tinted = (share: number) =>
+      `(${num(color.r * share)}, ${num(color.g * share)}, ${num(color.b * share)})`;
     const lines = [
       `        def Material "Material${id}"`,
       '        {',
@@ -429,7 +440,13 @@ export async function exportUsdz(
       '                uniform token info:id = "UsdPreviewSurface"',
       file
         ? `                color3f inputs:diffuseColor.connect = <${path}/Texture.outputs:rgb>`
-        : `                color3f inputs:diffuseColor = (${num(color.r)}, ${num(color.g)}, ${num(color.b)})`,
+        : `                color3f inputs:diffuseColor = ${tinted(SHADED_SHARE)}`,
+      file
+        ? `                color3f inputs:emissiveColor.connect = <${path}/Glow.outputs:rgb>`
+        : `                color3f inputs:emissiveColor = ${tinted(GLOW_SHARE)}`,
+      // てかり（映りこみ）は出さない
+      '                int inputs:useSpecularWorkflow = 1',
+      '                color3f inputs:specularColor = (0, 0, 0)',
       '                float inputs:roughness = 1',
       '                float inputs:metallic = 0',
     ];
@@ -441,6 +458,23 @@ export async function exportUsdz(
     }
     lines.push('                token outputs:surface', '            }');
     if (file) {
+      // 同じテクスチャを、陰る色（Texture）と光る色（Glow）に、割合を変えて2回使う
+      const textureNode = (name: string, share: number) => [
+        '',
+        `            def Shader "${name}"`,
+        '            {',
+        '                uniform token info:id = "UsdUVTexture"',
+        `                asset inputs:file = @${file}@`,
+        `                float2 inputs:st.connect = <${path}/Reader.outputs:result>`,
+        `                float4 inputs:scale = (${num(color.r * share)}, ${num(color.g * share)}, ${num(color.b * share)}, 1)`,
+        // テクスチャは、光の強さのまま（linear）に直して入れてある（textureToPng）
+        '                token inputs:sourceColorSpace = "raw"',
+        '                token inputs:wrapS = "repeat"',
+        '                token inputs:wrapT = "repeat"',
+        '                float3 outputs:rgb',
+        '                float outputs:a',
+        '            }',
+      ];
       lines.push(
         '',
         '            def Shader "Reader"',
@@ -449,19 +483,8 @@ export async function exportUsdz(
         '                string inputs:varname = "st"',
         '                float2 outputs:result',
         '            }',
-        '',
-        '            def Shader "Texture"',
-        '            {',
-        '                uniform token info:id = "UsdUVTexture"',
-        `                asset inputs:file = @${file}@`,
-        `                float2 inputs:st.connect = <${path}/Reader.outputs:result>`,
-        `                float4 inputs:scale = (${num(color.r)}, ${num(color.g)}, ${num(color.b)}, 1)`,
-        '                token inputs:sourceColorSpace = "sRGB"',
-        '                token inputs:wrapS = "repeat"',
-        '                token inputs:wrapT = "repeat"',
-        '                float3 outputs:rgb',
-        '                float outputs:a',
-        '            }',
+        ...textureNode('Texture', SHADED_SHARE),
+        ...textureNode('Glow', GLOW_SHARE),
       );
     }
     lines.push('        }');
@@ -589,7 +612,11 @@ function plainMaterial(THREE: Three, material: Material): PlainMaterial {
   };
 }
 
-/** テクスチャを PNG にする（大きすぎるものは縮める）。読めないものは null */
+/**
+ * テクスチャを PNG にする（大きすぎるものは縮める）。読めないものは null。
+ * 色は、sRGB から光の強さのまま（linear）に直して入れる。AR クイックルックは光る色（emissive）の
+ * テクスチャを sRGB として読まないことがあるため（Google の usd_from_gltf も、こうしている）
+ */
 async function textureToPng(texture: Texture): Promise<Uint8Array | null> {
   const image = texture.image as
     | (CanvasImageSource & { width: number; height: number })
@@ -606,6 +633,19 @@ async function textureToPng(texture: Texture): Promise<Uint8Array | null> {
     context.scale(1, -1);
   }
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+  const toLinear = Array.from({ length: 256 }, (_, i) => {
+    const c = i / 255;
+    const linear = c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    return Math.round(linear * 255);
+  });
+  const data = pixels.data;
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = toLinear[data[i]];
+    data[i + 1] = toLinear[data[i + 1]];
+    data[i + 2] = toLinear[data[i + 2]];
+  }
+  context.putImageData(pixels, 0, 0);
   const blob = await new Promise<Blob | null>((resolve) =>
     canvas.toBlob(resolve, 'image/png'),
   );
