@@ -1,4 +1,4 @@
-import type { Mesh, Object3D, WebGLRenderer } from 'three';
+import type { Box3, Mesh, Object3D, WebGLRenderer } from 'three';
 
 /**
  * AR で、床の上に落ちるモデルの影（components/vrm/ar.ts）。
@@ -64,7 +64,7 @@ export function createGroundShadow({
   /** 腰の骨（足元の丸を、腰の真下について行かせる） */
   hips: Object3D | null;
 }): GroundShadow {
-  // 大きさの目安は、腰の高さ（モデルの足元からの高さ）
+  // 足元の丸の大きさの目安は、腰の高さ（モデルの足元からの高さ）
   const hipsPosition = new THREE.Vector3();
   const hipsHeight = hips
     ? Math.max(
@@ -72,7 +72,22 @@ export function createGroundShadow({
         model.worldToLocal(hips.getWorldPosition(hipsPosition)).y * model.scale.y,
       )
     : 0.7;
-  const height = hipsHeight * 2;
+  // 影を写す範囲は、しっぽまで含めたモデル全体の大きさで決める
+  // （腰の高さから決めると、Quiple の頭より高いしっぽが範囲からはみ出し、影が落ちなかった）
+  const bounds = measureModel(THREE, model);
+  // 踊ってはみ出すぶんの余裕もとる
+  const top = Math.max(bounds.max.y, hipsHeight * 2) * 1.15;
+  const reach =
+    Math.max(
+      -bounds.min.x,
+      bounds.max.x,
+      -bounds.min.z,
+      bounds.max.z,
+      hipsHeight,
+    ) * 1.25;
+  // 光が少し斜めなので、高いところの影は、そのぶん横へずれる
+  const half = reach + top * 0.4;
+  const lightDistance = top * 2 + half;
 
   // 影を落とす光。明るさは 0 で、影だけを使う。
   // lilToon は、場面で最初に見つかった光をおもな光にするので、舞台の光（lighting.ts）より後に置く
@@ -86,7 +101,7 @@ export function createGroundShadow({
   light.position
     .set(...LIGHT_DIRECTION)
     .normalize()
-    .multiplyScalar(height * 2);
+    .multiplyScalar(lightDistance);
   light.castShadow = true;
   light.shadow.mapSize.set(512, 512);
   light.shadow.radius = soft ? SHADOW_BLUR : SHADOW_BLUR_PCF;
@@ -96,7 +111,7 @@ export function createGroundShadow({
 
   // 影を受ける、見えない床
   const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(height * 3, height * 3).rotateX(-Math.PI / 2),
+    new THREE.PlaneGeometry(half * 2, half * 2).rotateX(-Math.PI / 2),
     new THREE.ShadowMaterial({ opacity: SHADOW_OPACITY, depthWrite: false }),
   );
   floor.receiveShadow = true;
@@ -132,13 +147,12 @@ export function createGroundShadow({
   const setScale = (scale: number) => {
     // 光は入れ物の中にあるので、位置は入れ物といっしょに縮む。影を写す範囲は、自分で合わせる
     const camera = light.shadow.camera;
-    const half = height * 0.9 * scale;
-    camera.left = -half;
-    camera.right = half;
-    camera.top = half;
-    camera.bottom = -half;
+    camera.left = -half * scale;
+    camera.right = half * scale;
+    camera.top = half * scale;
+    camera.bottom = -half * scale;
     camera.near = 0.01 * scale;
-    camera.far = height * 4 * scale;
+    camera.far = (lightDistance + half * 2) * scale;
     camera.updateProjectionMatrix();
   };
   setScale(1);
@@ -162,4 +176,34 @@ export function createGroundShadow({
       renderer.shadowMap.enabled = shadowWasEnabled;
     },
   };
+}
+
+/**
+ * モデルの、いまの形での範囲（model の中の座標に、model 自身の大きさをかけたもの。足元が y = 0）。
+ * 骨で動かしている形は three.js の範囲（boundingBox）に入っていないので、頂点を骨で動かしてから測る。
+ * three.js が覚えている範囲は変えない（ほかで使っているため）。時間がかからないよう、頂点は間引く
+ */
+function measureModel(THREE: typeof import('three'), model: Object3D): Box3 {
+  const box = new THREE.Box3();
+  const point = new THREE.Vector3();
+  const toModel = new THREE.Matrix4();
+  model.updateWorldMatrix(true, true);
+  const modelInverse = model.matrixWorld.clone().invert();
+  const modelScale = new THREE.Matrix4().makeScale(
+    model.scale.x,
+    model.scale.y,
+    model.scale.z,
+  );
+  model.traverse((object) => {
+    const mesh = object as Mesh;
+    const position = mesh.isMesh ? mesh.geometry.getAttribute('position') : undefined;
+    if (!position) return;
+    toModel.multiplyMatrices(modelInverse, mesh.matrixWorld).premultiply(modelScale);
+    const step = Math.max(1, Math.floor(position.count / 4000));
+    for (let i = 0; i < position.count; i += step) {
+      mesh.getVertexPosition(i, point);
+      box.expandByPoint(point.applyMatrix4(toModel));
+    }
+  });
+  return box;
 }
