@@ -288,6 +288,9 @@ export async function exportUsdz(
         '            interpolation = "vertex"',
         '        )',
         '        rel skel:skeleton = </Root/Avatar/Skeleton>',
+        // 動きは、メッシュごとにも結ぶ（AR クイックルックは、メッシュに書いた結びつきを読むらしい。
+        // AR クイックルック向けに作られた Google の usd_from_gltf も、この形で書いている）
+        ...(motion ? ['        rel skel:animationSource = </Root/Avatar/Motion>'] : []),
       );
     }
     lines.push('        uniform token subdivisionScheme = "none"');
@@ -369,6 +372,8 @@ export async function exportUsdz(
   // 一部の関節だけの動きや、大きさを動かさない書き方は、USD の決まりでは良いが、読めない再生側がある）
   const animation: string[] = [];
   if (motion) {
+    // USD の決まりでは、動きは Skeleton に結ぶ（メッシュに書いた結びつきは、USD の決まりどおりに読む
+    // ほかのアプリでは使われない）。AR クイックルック用のメッシュの側と、両方に書く
     skeleton.push('        rel skel:animationSource = </Root/Avatar/Motion>');
     const samples = (
       frames: (Vector3 | Quaternion)[][],
@@ -470,7 +475,6 @@ export async function exportUsdz(
         '    startTimeCode = 0',
         `    endTimeCode = ${frameCount}`,
         `    timeCodesPerSecond = ${FPS}`,
-        `    framesPerSecond = ${FPS}`,
       ]
     : [];
   const usda = [
@@ -487,14 +491,9 @@ export async function exportUsdz(
     '    token preliminary:anchoring:type = "plane"',
     '    token preliminary:planeAnchoring:alignment = "horizontal"',
     '',
-    // 骨と動きの結びつきは、SkelRoot にも書く（USD の説明の例と同じ形）
-    '    def SkelRoot "Avatar" (',
-    '        prepend apiSchemas = ["SkelBindingAPI"]',
-    '    )',
+    // 骨・動き・メッシュは、すべて SkelRoot の中に置く（骨と動きの結びつきは、メッシュの側に書く）
+    '    def SkelRoot "Avatar"',
     '    {',
-    '        rel skel:skeleton = </Root/Avatar/Skeleton>',
-    ...(motion ? ['        rel skel:animationSource = </Root/Avatar/Motion>'] : []),
-    '',
     skeleton.map((line) => `    ${line}`).join('\n'),
     '',
     ...(animation.length > 0
