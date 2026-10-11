@@ -145,6 +145,8 @@ export async function exportUsdz(
 
   // --- メッシュの形（モデルから見た座標で、骨を付けたときの形） ---
   const materialIds = new Map<Material, number>();
+  // モデル全体の範囲（いちばん上の SkelRoot に書く）
+  const extent = new THREE.Box3();
   const meshTexts = parts.map(({ mesh, groups }, partIndex) => {
     const skinned = (mesh as SkinnedMesh).isSkinnedMesh
       ? (mesh as SkinnedMesh)
@@ -252,6 +254,7 @@ export async function exportUsdz(
     for (let v = 0; v < vertexCount; v++) {
       box.expandByPoint(point.fromArray(points, v * 3));
     }
+    extent.union(box);
     const bound = skinned || rigidJoint >= 0;
     const lines = [
       `    def Mesh "Mesh${partIndex}" (`,
@@ -287,10 +290,10 @@ export async function exportUsdz(
         '            elementSize = 4',
         '            interpolation = "vertex"',
         '        )',
-        '        rel skel:skeleton = </Root/Avatar/Skeleton>',
-        // 動きは、メッシュごとにも結ぶ（AR クイックルックは、メッシュに書いた結びつきを読むらしい。
-        // AR クイックルック向けに作られた Google の usd_from_gltf も、この形で書いている）
-        ...(motion ? ['        rel skel:animationSource = </Root/Avatar/Motion>'] : []),
+        // 関節の並びと、形の基準の位置も、メッシュに書く（Apple のお手本と同じ）
+        `        uniform token[] skel:joints = [${jointPaths.map((path) => `"${path}"`).join(', ')}]`,
+        `        matrix4d primvars:skel:geomBindTransform = ${matrix(new THREE.Matrix4())}`,
+        '        rel skel:skeleton = </Avatar/Skeleton>',
       );
     }
     lines.push('        uniform token subdivisionScheme = "none"');
@@ -306,7 +309,7 @@ export async function exportUsdz(
         '            uniform token elementType = "face"',
         '            uniform token familyName = "materialBind"',
         `            int[] indices = [${subset.faces.join(', ')}]`,
-        `            rel material:binding = </Root/Materials/Material${subset.material}>`,
+        `            rel material:binding = </Avatar/Materials/Material${subset.material}>`,
         '        }',
       );
     });
@@ -368,13 +371,10 @@ export async function exportUsdz(
     `        uniform matrix4d[] bindTransforms = [${bindTransforms.map(matrix).join(', ')}]`,
     `        uniform matrix4d[] restTransforms = [${restTransforms.map(matrix).join(', ')}]`,
   ];
-  // 動きは、骨と同じ並びの、すべての関節で書く（AR クイックルックが読めるよう、いちばん基本の書き方にする。
-  // 一部の関節だけの動きや、大きさを動かさない書き方は、USD の決まりでは良いが、読めない再生側がある）
-  const animation: string[] = [];
+  // 動きは、骨と同じ並びの、すべての関節で書き、Skeleton の中に置いて Skeleton から結ぶ
+  // （Apple の AR クイックルックのお手本 toy_drummer と同じ形）
   if (motion) {
-    // USD の決まりでは、動きは Skeleton に結ぶ（メッシュに書いた結びつきは、USD の決まりどおりに読む
-    // ほかのアプリでは使われない）。AR クイックルック用のメッシュの側と、両方に書く
-    skeleton.push('        rel skel:animationSource = </Root/Avatar/Motion>');
+    skeleton.push('        rel skel:animationSource = </Avatar/Skeleton/Motion>', '');
     const samples = (
       frames: (Vector3 | Quaternion)[][],
       write: (value: Vector3 & Quaternion) => string,
@@ -385,20 +385,18 @@ export async function exportUsdz(
             `            ${f}: [${frame.map((value) => write(value as Vector3 & Quaternion)).join(', ')}],`,
         )
         .join('\n');
-    animation.push(
-      '    def SkelAnimation "Motion"',
-      '    {',
-      `        uniform token[] joints = [${jointPaths.map((path) => `"${path}"`).join(', ')}]`,
-      '        float3[] translations.timeSamples = {',
+    skeleton.push(
+      '        def SkelAnimation "Motion"',
+      '        {',
+      `            uniform token[] joints = [${jointPaths.map((path) => `"${path}"`).join(', ')}]`,
+      '            float3[] translations.timeSamples = {',
       samples(translations, vec3),
-      '        }',
-      '        quatf[] rotations.timeSamples = {',
+      '            }',
+      '            quatf[] rotations.timeSamples = {',
       samples(rotations, quat),
+      '            }',
+      `            half3[] scales = [${scales[0].map(vec3).join(', ')}]`,
       '        }',
-      '        half3[] scales.timeSamples = {',
-      samples(scales, vec3),
-      '        }',
-      '    }',
     );
   }
   skeleton.push('    }');
@@ -418,7 +416,7 @@ export async function exportUsdz(
         files[file] = png;
       }
     }
-    const path = `/Root/Materials/Material${id}`;
+    const path = `/Avatar/Materials/Material${id}`;
     const color = plain.color;
     const useAlpha = plain.transparent || plain.alphaTest > 0;
     const lines = [
@@ -475,32 +473,31 @@ export async function exportUsdz(
         '    startTimeCode = 0',
         `    endTimeCode = ${frameCount}`,
         `    timeCodesPerSecond = ${FPS}`,
+        `    framesPerSecond = ${FPS}`,
       ]
     : [];
   const usda = [
     '#usda 1.0',
     '(',
-    '    defaultPrim = "Root"',
+    '    defaultPrim = "Avatar"',
     '    metersPerUnit = 1',
     '    upAxis = "Y"',
     ...timing,
     ')',
     '',
-    'def Xform "Root"',
+    // いちばん上を SkelRoot にし、骨・動き・メッシュ・マテリアルを、すべてその中に置く
+    // （Apple のお手本と同じ。いちばん上が Xform だと、動きが再生されない再生側がある）
+    'def SkelRoot "Avatar" (',
+    '    kind = "component"',
+    ')',
     '{',
+    `    float3[] extent = [${vec3(extent.min)}, ${vec3(extent.max)}]`,
     '    token preliminary:anchoring:type = "plane"',
     '    token preliminary:planeAnchoring:alignment = "horizontal"',
     '',
-    // 骨・動き・メッシュは、すべて SkelRoot の中に置く（骨と動きの結びつきは、メッシュの側に書く）
-    '    def SkelRoot "Avatar"',
-    '    {',
-    skeleton.map((line) => `    ${line}`).join('\n'),
+    skeleton.join('\n'),
     '',
-    ...(animation.length > 0
-      ? [animation.map((line) => (line ? `    ${line}` : line)).join('\n'), '']
-      : []),
-    meshTexts.map((text) => indent(text)).join('\n\n'),
-    '    }',
+    meshTexts.join('\n\n'),
     '',
     '    def Scope "Materials"',
     '    {',
@@ -649,13 +646,6 @@ function tuples(values: Float32Array, size: number) {
     out.push(`(${items.join(', ')})`);
   }
   return out.join(', ');
-}
-
-function indent(text: string) {
-  return text
-    .split('\n')
-    .map((line) => (line ? `    ${line}` : line))
-    .join('\n');
 }
 
 function nearlyEqual(a: Matrix4, b: Matrix4) {
