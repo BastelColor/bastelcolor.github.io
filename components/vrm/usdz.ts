@@ -387,6 +387,7 @@ export async function exportUsdz(
       motion.step(dt);
       record();
     }
+    closeLoop(THREE, translations, rotations);
   }
   const restTransforms = joints.map((_, i) =>
     new THREE.Matrix4().compose(translations[0][i], rotations[0][i], scales[0][i]),
@@ -433,22 +434,37 @@ export async function exportUsdz(
 
   // --- マテリアルとテクスチャ ---
   const files: Record<string, Uint8Array> = {};
-  const textureFiles = new Map<Texture, string>();
+  // 同じテクスチャ・同じ形式は、1つのファイルにする
+  const textureFiles = new Map<string, string>();
   const materialTexts: string[] = [];
+  // すけるところが無いテクスチャは JPEG にする（PNG より書き出しがずっと速く、ファイルも小さい）
+  const formatOf = (plain: PlainMaterial): ImageFormat =>
+    plain.transparent || plain.alphaTest > 0 ? 'png' : 'jpg';
+  const plains = new Map(
+    [...materialIds.keys()].map((material) => [material, plainMaterial(THREE, material)]),
+  );
+  // テクスチャは、先に全部いっしょに書き出し始める（1枚ずつ待つより、ずっと早く終わる）
+  await Promise.all(
+    [...plains.values()].map((plain) =>
+      plain.map ? encodeTexture(plain.map, formatOf(plain)) : Promise.resolve(null),
+    ),
+  );
   for (const [material, id] of materialIds) {
-    const plain = plainMaterial(THREE, material);
-    let file = plain.map ? textureFiles.get(plain.map) : undefined;
+    const plain = plains.get(material)!;
+    const useAlpha = plain.transparent || plain.alphaTest > 0;
+    const format = formatOf(plain);
+    const key = plain.map ? `${plain.map.uuid}.${format}` : '';
+    let file = textureFiles.get(key);
     if (plain.map && !file) {
-      const png = await textureToPng(plain.map);
-      if (png) {
-        file = `textures/Texture${textureFiles.size}.png`;
-        textureFiles.set(plain.map, file);
-        files[file] = png;
+      const image = await encodeTexture(plain.map, format);
+      if (image) {
+        file = `textures/Texture${textureFiles.size}.${format}`;
+        textureFiles.set(key, file);
+        files[file] = image;
       }
     }
     const path = `/Avatar/Materials/Material${id}`;
     const color = plain.color;
-    const useAlpha = plain.transparent || plain.alphaTest > 0;
     // 色の大半は「光る色」（まわりの光で変わらない）にし、まわりの光で陰る色は少しだけにする。
     // AR クイックルックは本物の物のように光を当てるので、そのままだと、リアルな陰影でこわく見える
     const tinted = (share: number) =>
@@ -570,6 +586,39 @@ export async function exportUsdz(
   return new Blob([data as BlobPart], { type: 'model/vnd.usdz+zip' });
 }
 
+/** 踊りの終わりを、始まりの形へ寄せていく長さ（秒） */
+const LOOP_BLEND = 0.5;
+
+/**
+ * 最後のこまが最初のこまと同じ形になるよう、終わりの LOOP_BLEND 秒で、関節を少しずつ寄せていく。
+ * 揺れもの（髪・しっぽ）は1周しても同じ形にはもどらないので、そのままだと、AR クイックルックが
+ * 最初にもどってくり返すときに、ピクッと跳ねて見える
+ */
+function closeLoop(THREE: Three, translations: Vector3[][], rotations: Quaternion[][]) {
+  const last = translations.length - 1;
+  const blendFrames = Math.min(last, Math.round(LOOP_BLEND * FPS));
+  if (blendFrames < 1) return;
+  const identity = new THREE.Quaternion();
+  const turn = new THREE.Quaternion();
+  translations[0].forEach((_, i) => {
+    // 最後のこまの回転を、最初のこまの回転へ移す回転と、位置のずれ
+    const toFirst = rotations[0][i].clone().multiply(rotations[last][i].clone().invert());
+    const shift = translations[0][i].clone().sub(translations[last][i]);
+    for (let f = last - blendFrames + 1; f <= last; f++) {
+      const t = (f - (last - blendFrames)) / blendFrames;
+      const weight = t * t * (3 - 2 * t);
+      turn.slerpQuaternions(identity, toFirst, weight);
+      rotations[f][i].premultiply(turn).normalize();
+      // 補間で遠回りしないよう、前のこまと同じ向きの符号にそろえ直す
+      if (rotations[f][i].dot(rotations[f - 1][i]) < 0) {
+        const r = rotations[f][i];
+        r.set(-r.x, -r.y, -r.z, -r.w);
+      }
+      translations[f][i].addScaledVector(shift, weight);
+    }
+  });
+}
+
 // ---------------------------------------------------------------------------
 // マテリアル（基本の色とテクスチャだけ）
 // ---------------------------------------------------------------------------
@@ -634,12 +683,34 @@ function plainMaterial(THREE: Three, material: Material): PlainMaterial {
   };
 }
 
+type ImageFormat = 'png' | 'jpg';
+
+/** 書き出したテクスチャ（同じテクスチャを、次に書き出すときにも使う） */
+const encodedTextures = new WeakMap<Texture, Map<ImageFormat, Promise<Uint8Array | null>>>();
+
+/** JPEG の画質（0〜1） */
+const JPEG_QUALITY = 0.9;
+
 /**
- * テクスチャを PNG にする（大きすぎるものは縮める）。読めないものは null。
+ * テクスチャを PNG・JPEG にする（大きすぎるものは縮める）。読めないものは null。
  * 色は元のまま（sRGB）。光の強さのまま（linear）に直して "raw" として入れると、iPhone では
  * もう一度 sRGB として読まれ、暗く濃くなった
  */
-async function textureToPng(texture: Texture): Promise<Uint8Array | null> {
+function encodeTexture(texture: Texture, format: ImageFormat) {
+  let byFormat = encodedTextures.get(texture);
+  if (!byFormat) {
+    byFormat = new Map();
+    encodedTextures.set(texture, byFormat);
+  }
+  let encoded = byFormat.get(format);
+  if (!encoded) {
+    encoded = drawTexture(texture, format);
+    byFormat.set(format, encoded);
+  }
+  return encoded;
+}
+
+async function drawTexture(texture: Texture, format: ImageFormat): Promise<Uint8Array | null> {
   const image = texture.image as
     | (CanvasImageSource & { width: number; height: number })
     | undefined;
@@ -656,7 +727,9 @@ async function textureToPng(texture: Texture): Promise<Uint8Array | null> {
   }
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
   const blob = await new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, 'image/png'),
+    format === 'png'
+      ? canvas.toBlob(resolve, 'image/png')
+      : canvas.toBlob(resolve, 'image/jpeg', JPEG_QUALITY),
   );
   return blob ? new Uint8Array(await blob.arrayBuffer()) : null;
 }

@@ -45,6 +45,9 @@ const WIP_BADGE = '制作中';
 /** まわすボタン1回で回り込む角度（45°） */
 const ORBIT_STEP = Math.PI / 4;
 
+/** iPhone で、モデルを表示してから AR クイックルック用のファイルを先に作るまでの時間（ミリ秒） */
+const USDZ_PREPARE_DELAY = 3000;
+
 /**
  * モデルのうしろの背景。空はいつもの部屋の色のまま。
  * tone は背景の明るさ（暗いテーマで明るい背景にしたら、部屋の中の文字を明るいテーマの色にもどす）
@@ -310,7 +313,14 @@ export function AvatarRoom() {
     if (arMode === 'quicklook' && stage.exportUsdz) {
       setArBusy(true);
       try {
-        openQuickLook(await stage.exportUsdz());
+        // 画面の下の帯に、名前とサイトの名前、BOOTH へのボタンを出す
+        openQuickLook(await stage.exportUsdz(), {
+          title: t(selected.name, selected.nameEn),
+          subtitle: site.title,
+          action: selected.booth
+            ? { label: t('BOOTH で見る', 'View on BOOTH'), url: selected.booth }
+            : undefined,
+        });
       } catch (error) {
         console.error(error);
       } finally {
@@ -318,6 +328,18 @@ export function AvatarRoom() {
       }
     }
   };
+
+  // iPhone では、モデルを表示して少したったら、AR クイックルック用のファイルを先に作っておく
+  // （押してから作ると、ファイルが大きい子は待ち時間が長いため。作ったものは舞台が覚えている）
+  useEffect(() => {
+    if (arMode !== 'quicklook' || mode !== 'single' || !stage?.exportUsdz) return;
+    const timer = window.setTimeout(() => {
+      stage.exportUsdz?.().catch(() => {
+        // 先に作れなくても、押したときにもう一度作る
+      });
+    }, USDZ_PREPARE_DELAY);
+    return () => window.clearTimeout(timer);
+  }, [arMode, mode, stage, paused]);
 
   // AR のあいだの写真。カメラの映像とモデルを1枚にして、ダウンロードする
   const takeArPhoto = async () => {

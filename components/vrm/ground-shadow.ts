@@ -16,8 +16,16 @@ export type GroundShadow = {
   update: () => void;
   /** 置く場所の入れ物の大きさ（1 が本当の大きさ）に合わせる */
   setScale: (scale: number) => void;
+  /**
+   * 写真を描くあいだだけ、影を濃くする。AR の画面では、影はカメラの映像に sRGB のまま重なるが、
+   * 写真は光の強さのまま（linear）で重ねるので、同じ濃さでも薄く見えるため
+   */
+  setPhoto: (photo: boolean) => void;
   dispose: () => void;
 };
+
+/** sRGB で重ねたときと同じ暗さになる、linear で重ねるときの濃さ */
+const photoOpacity = (opacity: number) => 1 - (1 - opacity) ** 2.2;
 
 /** 床の影の濃さ */
 const SHADOW_OPACITY = 0.32;
@@ -165,6 +173,12 @@ export function createGroundShadow({
       contact.position.z = hipsPosition.z;
     },
     setScale,
+    setPhoto: (photo) => {
+      floor.material.opacity = photo ? photoOpacity(SHADOW_OPACITY) : SHADOW_OPACITY;
+      contact.material.uniforms.opacity.value = photo
+        ? photoOpacity(CONTACT_OPACITY)
+        : CONTACT_OPACITY;
+    },
     dispose: () => {
       parent.remove(light, light.target, floor, contact);
       light.shadow.dispose();

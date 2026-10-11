@@ -237,7 +237,9 @@ export async function startWebXR({
     renderer.xr.enabled = false;
     renderer.setRenderTarget(linear);
     renderer.clear();
+    ground.setPhoto(true);
     renderer.render(scene, photoCamera);
+    ground.setPhoto(false);
     copyQuad.material.uniforms.map.value = linear.texture;
     renderer.setRenderTarget(target);
     renderer.render(copyScene, copyCamera);
@@ -370,19 +372,53 @@ export async function startWebXR({
 // AR クイックルック（iPhone・iPad）
 // ---------------------------------------------------------------------------
 
+/** AR クイックルックの画面の下に出す帯（名前と、押せるボタン） */
+export type QuickLookBanner = {
+  title: string;
+  subtitle?: string;
+  /** 帯のボタン。押すと、このページで url を開く */
+  action?: { label: string; url: string };
+};
+
+/** AR クイックルックのボタンを押したときに、リンクに届く知らせ */
+const QUICK_LOOK_BUTTON = '_apple_ar_quicklook_button_tapped';
+
+/** いま開いている AR クイックルックのリンク（帯のボタンの知らせを受けるので、開いているあいだは残す） */
+let quickLookLink: HTMLAnchorElement | null = null;
+
 /** USDZ を AR クイックルックで開く（iOS が開いてくれるのは、<a rel="ar"> を押したときだけ） */
-export function openQuickLook(blob: Blob) {
+export function openQuickLook(blob: Blob, banner?: QuickLookBanner) {
   const url = URL.createObjectURL(blob);
+  quickLookLink?.remove();
   const anchor = document.createElement('a');
+  quickLookLink = anchor;
   anchor.rel = 'ar';
-  // 指でつまんで大きさを変えられるようにする
-  anchor.href = `${url}#allowsContentScaling=1`;
+  anchor.hidden = true;
+  // 指でつまんで大きさを変えられるようにし、画面の下に帯を出す（Apple の AR クイックルックの決まり）
+  const options: [string, string][] = [['allowsContentScaling', '1']];
+  if (banner) {
+    options.push(['checkoutTitle', banner.title]);
+    if (banner.subtitle) options.push(['checkoutSubtitle', banner.subtitle]);
+    if (banner.action) options.push(['callToAction', banner.action.label]);
+  }
+  anchor.href = `${url}#${options
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+    .join('&')}`;
   anchor.download = 'avatar.usdz';
   // AR クイックルックのリンクには、画像が1つ入っている必要がある
   anchor.append(document.createElement('img'));
+  const action = banner?.action;
+  if (action) {
+    anchor.addEventListener('message', (event) => {
+      if ((event as MessageEvent).data !== QUICK_LOOK_BUTTON) return;
+      // 新しいタブで開けなければ、このタブで開く（noopener を付けると、開けても null が返るので、あとで切る）
+      const opened = window.open(action.url, '_blank');
+      if (opened) opened.opener = null;
+      else window.location.assign(action.url);
+    });
+  }
   document.body.append(anchor);
   anchor.click();
-  anchor.remove();
   // 開くのに時間がかかることがあるので、しばらくしてから片付ける
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }

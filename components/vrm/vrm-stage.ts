@@ -708,6 +708,8 @@ export async function createVrmStage({
     motionPlayer = player;
     // 踊りを止めているか
     let paused = false;
+    // 書き出した USDZ（iPhone の AR クイックルック用。止めていたかと、書き出したもの）
+    let usdz: { paused: boolean; blob: Promise<Blob> } | null = null;
     // 表示の切りかえ（中身を見る）と、マウスのほうを見る動き
     viewModes = createViewModes(THREE, scene, [vrm.scene]);
     const look = createPointerLook(THREE, scene, camera, canvas, [vrm], container);
@@ -912,10 +914,12 @@ export async function createVrmStage({
         return view.session;
       },
       exportUsdz: () => {
+        // 書き出したものは覚えておき、踊りを止めたか動かしているかが同じなら、2回目からはすぐ返す
+        if (usdz && usdz.paused === paused) return usdz.blob;
         // 踊りの1周を、描かずに進めながら記録する（止めているとき・踊らないときは、いまのポーズ）
         const duration = paused ? 0 : player.duration();
         let elapsed = timer.getElapsed();
-        return exportUsdz(
+        const blob = exportUsdz(
           THREE,
           currentVrm.scene,
           duration > 0
@@ -930,6 +934,13 @@ export async function createVrmStage({
               }
             : null,
         );
+        const entry = { paused, blob };
+        usdz = entry;
+        // 失敗したときは覚えず、次に押したときに書き出し直す
+        blob.catch(() => {
+          if (usdz === entry) usdz = null;
+        });
+        return blob;
       },
       capture: () => {
         // 枠の中。しっぽなどが切れにくいよう、細い枠では横を少し広げ、

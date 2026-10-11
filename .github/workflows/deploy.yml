@@ -18,11 +18,12 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # 機械の版は固定する（ubuntu-latest は予告どおりに新しい版へ切りかわり、Chrome の場所などが変わりうる）
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
@@ -42,18 +43,19 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      - uses: actions/upload-pages-artifact@v3
+      # dist/client の、名前が . で始まるファイル（.vite など）は入らない
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist/client
 
   deploy:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
