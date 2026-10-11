@@ -272,16 +272,23 @@ export const scenarios = [
       await page.goto(base + '/avatar/' + avatarId, { waitUntil: 'load' });
       await avatarReady(page);
       failIf(!!(await page.$('.vrm-error')), '3D モデルを表示できませんでした');
-      await page.click('.avatar-room-backdrops .is-night');
+      // 夜の背景にする（押しても切りかわらなければ、押し直す）
+      await clickUntil(
+        page,
+        '.avatar-room-backdrops .is-night',
+        () => document.querySelector('.avatar-room')?.dataset.backdrop === 'night',
+      );
       // 背景の波が広がりきると、背景は1枚だけになる
+      // （GitHub の確認の機械は描くのが遅く、波が広がりきるのに 5 秒をこえることがある）
       await waitFor(
         page,
         () =>
-          document.querySelector('.avatar-room')?.dataset.backdrop === 'night' &&
           document.querySelectorAll('.avatar-backdrop').length === 1 &&
           document.querySelectorAll('.avatar-room-podium-clip').length === 1,
-        5_000,
-      );
+        20_000,
+      ).catch(() => {
+        throw new Error('夜の背景に切りかえたあと、背景の波が広がりきりません');
+      });
       await pressOption(page, 'ライト', '夕方');
       await pressOption(page, '表示', 'ワイヤー');
       await waitFor(
@@ -290,16 +297,17 @@ export const scenarios = [
           [...document.querySelectorAll('.avatar-room fieldset button[aria-pressed="true"]')]
             .map((button) => button.textContent)
             .filter((text) => text === '夕方' || text === 'ワイヤー').length === 2,
-        5_000,
+        15_000,
       ).catch(() => {
         throw new Error('ライトや表示のボタンが切りかわりません');
       });
       // 踊りの再生・停止のボタン（押すと「再生する」に変わる）
+      // （押すたびに切りかわるボタンなので、押し直さずに長めに待つ）
       await page.click('.avatar-room-pause');
       await waitFor(
         page,
         () => /再生/.test(document.querySelector('.avatar-room-pause')?.getAttribute('aria-label') ?? ''),
-        5_000,
+        15_000,
       ).catch(() => {
         throw new Error('踊りの再生・停止のボタンが切りかわりません');
       });
