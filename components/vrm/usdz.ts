@@ -149,6 +149,29 @@ export async function exportUsdz(
     const { x, y, z } = decomposed.scale;
     return (binds[i] ?? full).clone().multiply(new THREE.Matrix4().makeScale(1 / x, 1 / y, 1 / z));
   });
+  // メッシュの形（骨で動かす前の形）は、本当の大きさ・向きで書く。
+  // VRM は、骨を付けたときの形が 1/100 の大きさで寝ている（Blender の Z が上の向き）ことがあり、
+  // いまの骨（一番上が 100 倍で起きている）で動かして、はじめて本当の大きさになる。
+  // そのままだと形の範囲が数 cm になり、AR クイックルックは、その範囲で指が触れたかを決めるらしく、
+  // 指で動かしたり大きさを変えたりできなかった。
+  // 一番根元の骨（ふつうは腰）を、付けたときの位置から、いまの位置へ移す変換を形にかけ、
+  // 同じ変換を骨を付けたときの位置（bindTransforms）にもかけるので、動かした形は変わらない
+  const toRealSize = new THREE.Matrix4();
+  const firstSkinned = parts
+    .map(({ mesh }) => mesh as SkinnedMesh)
+    .find((mesh) => mesh.isSkinnedMesh);
+  if (firstSkinned) {
+    const bones = firstSkinned.skeleton.bones;
+    const depth = (bone: Object3D) => jointPaths[jointIndex.get(bone)!].split('/').length;
+    const root = bones.reduce((best, bone) => (depth(bone) < depth(bones[best]) ? bones.indexOf(bone) : best), 0);
+    const boundAt = modelInverse
+      .clone()
+      .multiply(firstSkinned.skeleton.boneInverses[root].clone().invert());
+    toRealSize
+      .multiplyMatrices(modelInverse, bones[root].matrixWorld)
+      .multiply(boundAt.invert());
+  }
+  for (const bind of bindTransforms) bind.premultiply(toRealSize);
 
   // --- メッシュの形（モデルから見た座標で、骨を付けたときの形） ---
   const materialIds = new Map<Material, number>();
@@ -171,7 +194,7 @@ export async function exportUsdz(
     let toModel: Matrix4;
     let rigidJoint = -1;
     if (skinned) {
-      toModel = modelInverse.clone().multiply(skinned.bindMatrix);
+      toModel = modelInverse.clone().multiply(skinned.bindMatrix).premultiply(toRealSize);
     } else {
       rigidJoint = mesh.parent ? (jointIndex.get(mesh.parent) ?? -1) : -1;
       toModel = modelInverse.clone().multiply(mesh.matrixWorld);
@@ -514,8 +537,8 @@ export async function exportUsdz(
     ')',
     '{',
     `    float3[] extent = [${vec3(extent.min)}, ${vec3(extent.max)}]`,
-    '    token preliminary:anchoring:type = "plane"',
-    '    token preliminary:planeAnchoring:alignment = "horizontal"',
+    // Reality Composer 用の「床に置く」設定（preliminary:anchoring）は書かない（Apple のお手本にも無く、
+    // 指で動かせるふつうのモデルとして開いてほしいため）
     '',
     skeleton.join('\n'),
     '',
