@@ -20,6 +20,8 @@ type VrmViewerProps = {
   brightness?: number;
   /** lilToon の見た目で表示する（vrm-stage.ts の liltoon） */
   liltoon?: boolean;
+  /** 読み込み中に、くるくるの代わりに出す、その子の顔のアイコン */
+  loadingIcon?: string;
   /**
    * full: 操作ボタン・操作ガイド付き（アバターページ用）
    * bare: モデルだけを表示し、ドラッグでの回転のみ可能（ページ内の装飾用）
@@ -44,6 +46,7 @@ export function VrmViewer({
   motionId,
   brightness,
   liltoon,
+  loadingIcon,
   variant = 'full',
   bleedTo,
   onStage,
@@ -129,7 +132,11 @@ export function VrmViewer({
 
       {viewerState === 'loading' && (
         <output className="vrm-loading">
-          <span className="vrm-loading-orb" />
+          {loadingIcon ? (
+            <LoadingIcons icons={[loadingIcon]} />
+          ) : (
+            <span className="vrm-loading-orb" />
+          )}
           <b>{t(`${modelName}をよみこみ中`, `Loading ${modelName}`)}</b>
           <small>
             {progress > 0
@@ -194,5 +201,25 @@ export function VrmViewer({
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * 読み込み中に出す、顔のアイコン（まわりを輪がまわり、アイコンはふわふわ揺れる）。
+ * みんなで並ぶときは、全員のアイコンを並べる（components/vrm/lineup-viewer.tsx）
+ */
+export function LoadingIcons({ icons }: { icons: string[] }) {
+  return (
+    <span className="vrm-loading-icons" aria-hidden="true">
+      {icons.map((icon, i) => (
+        <span
+          key={icon}
+          className="vrm-loading-icon"
+          style={{ animationDelay: `${i * -0.35}s` }}
+        >
+          <img src={icon} alt="" />
+        </span>
+      ))}
+    </span>
   );
 }

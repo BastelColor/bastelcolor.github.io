@@ -527,6 +527,24 @@
   background: #ffe08a;
 }
 
+/* 下の、表情のボタンと、写真・ちいさく・おわるのボタン */
+.avatar-ar-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.avatar-ar-buttons.is-expressions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.avatar-ar-buttons.is-expressions button {
+  min-width: 0;
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
 /* AR で写真を撮った瞬間に、画面が白く光る */
 .avatar-ar-flash {
   position: fixed;
@@ -1190,6 +1208,14 @@
 
 .avatar-room-light {
   min-width: 0;
+  border: 0;
+}
+
+/* ---- ポーズ（ボタンの並びが2つ。2つ目は、踊りを止める・ゆっくり） ---- */
+
+.avatar-room-pose fieldset {
+  min-width: 0;
+  padding: 0;
   border: 0;
 }
 

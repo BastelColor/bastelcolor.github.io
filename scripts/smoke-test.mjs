@@ -34,6 +34,7 @@ const checks = [
   {
     path: '/',
     ready: () => document.querySelectorAll('.home-menu .puni').length === 4,
+    jsonLd: 'WebSite',
   },
   {
     path: '/#profile',
@@ -49,12 +50,14 @@ const checks = [
         {
           path: `/work/${firstWork}`,
           ready: () => !!document.querySelector('.work-dialog[open] h3'),
+          jsonLd: 'CreativeWork',
         },
       ]
     : []),
   // アバターは 3D のモデルを読み込み、表情のボタンが押せるようになるまで待つ
   ...firstAvatars.map((id) => ({
     path: `/avatar/${id}`,
+    jsonLd: '3DModel',
     // モデルを表示できなかったときも、待たずに次へ（下でエラーとして数える）
     // （写真のボタンは、モデルを表示できるまで押せない）
     ready: () =>
@@ -67,6 +70,7 @@ const checks = [
         {
           path: `/blog/${firstPost}`,
           ready: () => !!document.querySelector('.post h1'),
+          jsonLd: 'BlogPosting',
         },
       ]
     : []),
@@ -152,6 +156,21 @@ for (const check of checks) {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     if (await page.$('.vrm-error'))
       errors.push('3D モデルを表示できませんでした');
+    // 検索エンジン向けの説明（lib/structured-data.tsx）が、読める形で入っているか
+    if (check.jsonLd) {
+      const types = await page.$$eval('script[type="application/ld+json"]', (scripts) =>
+        scripts.map((script) => {
+          try {
+            return JSON.parse(script.textContent ?? '')['@type'];
+          } catch {
+            return '（読めない）';
+          }
+        }),
+      );
+      if (!types.includes(check.jsonLd)) {
+        errors.push(`検索エンジン向けの説明（${check.jsonLd}）がありません: ${JSON.stringify(types)}`);
+      }
+    }
   } catch (error) {
     errors.push(
       `表示を確かめられませんでした: ${error.message.split('\n')[0]}`,

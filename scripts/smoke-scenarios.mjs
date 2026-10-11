@@ -202,23 +202,33 @@ export const scenarios = [
     run: async (page, base) => {
       await page.goto(base + '/#works', { waitUntil: 'load' });
       await waitFor(page, () => !!document.querySelector('.room.is-expanded .works-item'));
-      await sleep(900);
-      const all = await page.$$eval('.works-item', (items) => items.length);
+      const count = () => page.$$eval('.works-item', (items) => items.length);
+      const all = await count();
+      // 絞り込んだら、一覧の数が減る（0 より多く、全部より少ない）まで待つ
+      const narrowed = (label) =>
+        waitFor(
+          page,
+          (total) => {
+            const shown = document.querySelectorAll('.works-item').length;
+            return shown > 0 && shown < total;
+          },
+          5_000,
+          all,
+        ).catch(async () => {
+          throw new Error(`${label}で絞り込めません（${all} → ${await count()}）`);
+        });
       await page.evaluate(() =>
         [...document.querySelectorAll('.works-genres button')].find((b) => b.textContent === 'ゲーム').click(),
       );
-      await sleep(300);
-      const games = await page.$$eval('.works-item', (items) => items.length);
-      failIf(!(games > 0 && games < all), `ジャンルで絞り込めません（${all} → ${games}）`);
+      await narrowed('ジャンル');
       await page.evaluate(() =>
         [...document.querySelectorAll('.works-genres button')].find((b) => b.textContent === 'すべて').click(),
       );
+      await waitFor(page, (total) => document.querySelectorAll('.works-item').length === total, 5_000, all);
       const hasTools = await page.evaluate(() => !!document.querySelector('.works-tools'));
       if (hasTools) {
         await page.evaluate(() => document.querySelectorAll('.works-tools button')[1].click());
-        await sleep(300);
-        const tool = await page.$$eval('.works-item', (items) => items.length);
-        failIf(!(tool > 0 && tool < all), `道具で絞り込めません（${all} → ${tool}）`);
+        await narrowed('道具');
       }
       await clickUntil(page, '.works-item', () => !!document.querySelector('.work-dialog[open] h3'));
       // ← → キーと下の矢印で、となりの作品へ移れる
@@ -247,7 +257,7 @@ export const scenarios = [
     },
   },
   {
-    name: 'アバター: 背景・ライト・表示を切りかえ、写真を保存できる',
+    name: 'アバター: 背景・ライト・表示・ポーズを切りかえ、写真を保存できる',
     run: async (page, base, { avatarId }) => {
       // 写真の保存（<a download> を押す）を数える
       await page.evaluateOnNewDocument(() => {
@@ -274,15 +284,20 @@ export const scenarios = [
       );
       await pressOption(page, 'ライト', '夕方');
       await pressOption(page, '表示', 'ワイヤー');
-      await sleep(300);
-      failIf(
-        (await page.$$eval('.avatar-room fieldset button[aria-pressed="true"]', (buttons) =>
-          buttons.map((b) => b.textContent),
-        )).filter((text) => text === '夕方' || text === 'ワイヤー').length !== 2,
-        'ライトや表示のボタンが切りかわりません',
-      );
+      await pressOption(page, 'ポーズ', 'ピース');
+      await waitFor(
+        page,
+        () =>
+          [...document.querySelectorAll('.avatar-room fieldset button[aria-pressed="true"]')]
+            .map((button) => button.textContent)
+            .filter((text) => text === '夕方' || text === 'ワイヤー' || text === 'ピース').length === 3,
+        5_000,
+      ).catch(() => {
+        throw new Error('ライト・表示・ポーズのボタンが切りかわりません');
+      });
       await page.click('.avatar-room-photo');
-      await waitFor(page, () => (window.__downloads ?? 0) > 0, 15_000);
+      // 写真は大きな解像度で描き直すので、GitHub の確認の機械では時間がかかる
+      await waitFor(page, () => (window.__downloads ?? 0) > 0, 30_000);
     },
   },
   {
@@ -413,9 +428,17 @@ export const scenarios = [
         '.log-item',
         () => location.pathname.startsWith('/blog/') && !!document.querySelector('.post h1'),
       );
-      await sleep(800);
-      await page.keyboard.press('Escape');
-      await waitFor(page, () => !location.pathname.startsWith('/blog/'), 5_000);
+      // 開ききる（「もどる」にフォーカスが来る）のを待ってから、Esc で閉じる。閉じなければ押し直す
+      await waitFor(page, () => !!document.activeElement?.closest('.post-layer'), 10_000).catch(() => {});
+      let closed = false;
+      for (let i = 0; i < 3 && !closed; i++) {
+        await page.keyboard.press('Escape');
+        closed = await waitFor(page, () => !location.pathname.startsWith('/blog/'), 5_000).then(
+          () => true,
+          () => false,
+        );
+      }
+      failIf(!closed, 'Esc を押しても、記事が閉じません');
     },
   },
   {
@@ -429,6 +452,21 @@ export const scenarios = [
         [...document.querySelectorAll('.star-catch-button')].find((b) => b.textContent === 'おわる').click(),
       );
       await waitFor(page, () => document.querySelectorAll('.star-catch-star').length === 0, 5_000);
+    },
+  },
+  {
+    name: 'キーボード: ? でキーの一覧が出て、Esc で閉じる',
+    run: async (page, base) => {
+      await page.goto(base + '/', { waitUntil: 'load' });
+      await waitFor(page, () => document.querySelectorAll('.home-menu .puni').length === 4);
+      await page.keyboard.press('?');
+      await waitFor(page, () => !!document.querySelector('.keyboard-help[open]'), 5_000).catch(() => {
+        throw new Error('? を押しても、キーの一覧が出ません');
+      });
+      await page.keyboard.press('Escape');
+      await waitFor(page, () => !document.querySelector('.keyboard-help[open]'), 5_000).catch(() => {
+        throw new Error('Esc を押しても、キーの一覧が閉じません');
+      });
     },
   },
   {

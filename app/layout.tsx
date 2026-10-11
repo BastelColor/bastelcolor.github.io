@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { CursorSparkles } from '@/components/cursor-sparkles';
+import { KeyboardHelp } from '@/components/keyboard-help';
 import { LangToggle } from '@/components/lang';
 import { MotionToggle } from '@/components/motion-toggle';
 import { PageCounter } from '@/components/page-counter';
@@ -99,6 +100,8 @@ export default function RootLayout({
         <CursorSparkles />
         <PageCounter />
         <ServiceWorker />
+        {/* ? キーで出す、キーボードで使えるキーの一覧 */}
+        <KeyboardHelp />
       </body>
     </html>
   );

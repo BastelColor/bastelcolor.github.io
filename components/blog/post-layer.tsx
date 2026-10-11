@@ -65,7 +65,10 @@ export function PostLayer({ children }: { children: ReactNode }) {
   });
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeRef.current();
+      if (event.key !== 'Escape') return;
+      // 記事の上に、大きな画像やキーの一覧（ダイアログ）を開いているときは、それだけを閉じる
+      if (document.querySelector('dialog[open]')) return;
+      closeRef.current();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => {

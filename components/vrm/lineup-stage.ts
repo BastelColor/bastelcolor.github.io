@@ -6,6 +6,11 @@ import { createLightRig, type Lighting } from '@/components/vrm/lighting';
 import { createPointerLook, type PointerLook } from '@/components/vrm/look-at';
 import { createSway, type Sway } from '@/components/vrm/sway';
 import {
+  createPoseControl,
+  type Pose,
+  type PoseControl,
+} from '@/components/vrm/poses';
+import {
   createMotionPlayer,
   type MotionPlayer,
 } from '@/components/vrm/motion-player';
@@ -20,6 +25,8 @@ import {
   disposeObject,
   failsToRender,
   frameDeltas,
+  playbackSpeed,
+  type Playback,
   LilToonRenderError,
   loadThreeModules,
   toonify,
@@ -62,6 +69,9 @@ export type LineupStage = {
   expressionNames: string[];
   setLighting: (lighting: Lighting, instant?: boolean) => void;
   setViewMode: (mode: ViewMode) => void;
+  /** みんなで同じ決めポーズにする・踊りの速さを変える（vrm-stage.ts と同じ） */
+  setPose: (pose: Pose) => void;
+  setPlayback: (playback: Playback) => void;
   capture: () => StageShot;
   dispose: () => void;
 };
@@ -140,6 +150,7 @@ export async function createLineupStage({
     group: Group;
     idle: IdleMotion;
     player: MotionPlayer;
+    pose: PoseControl;
     height: number;
     width: number;
   };
@@ -255,6 +266,7 @@ export async function createLineupStage({
         group,
         idle,
         player: createMotionPlayer({ ...modules, vrm }),
+        pose: createPoseControl(THREE, vrm),
         height: Math.max(
           head
             ? measureHeadTop(
@@ -374,6 +386,7 @@ export async function createLineupStage({
       if (log) throw new LilToonRenderError(log);
     }
 
+    let speed = 1;
     const timer = new THREE.Timer();
     renderer.setAnimationLoop((time) => {
       timer.update(time);
@@ -388,12 +401,14 @@ export async function createLineupStage({
       placed.forEach((item, i) => {
         // 子ごとに少しずらして、そろって揺れないようにする
         item.idle.update(elapsed + i * 1.7);
+        item.pose.rememberIdle();
         const manager = item.vrm.expressionManager;
         if (manager && lastExpression) {
           manager.setValue(lastExpression, weight);
         }
         item.group.rotation.y += (turnGoal - item.group.rotation.y) * k;
-        item.player.update(delta);
+        item.player.update(delta * speed);
+        item.pose.apply(elapsed, delta);
       });
       look.update(delta);
       swaying.update(springDelta);
@@ -424,6 +439,12 @@ export async function createLineupStage({
       expressionNames,
       setLighting: lights.set,
       setViewMode: (mode) => viewModes?.set(mode),
+      setPose: (pose) => {
+        for (const item of placed) item.pose.set(pose);
+      },
+      setPlayback: (playback) => {
+        speed = playbackSpeed(playback);
+      },
       capture: () => {
         // 上のあきすぎた空は写さない（いちばん背の高い子の少し上から）
         const top = Math.max(

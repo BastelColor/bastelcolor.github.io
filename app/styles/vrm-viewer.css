@@ -77,6 +77,51 @@
   font-weight: 750;
 }
 
+/* 読み込み中の顔のアイコン。まわりの輪がまわり、アイコンはふわふわ揺れる */
+.vrm-loading-icons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.vrm-loading-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  animation: vrm-loading-bob 1.6s ease-in-out infinite;
+}
+
+.vrm-loading-icons:has(> :nth-child(3)) .vrm-loading-icon {
+  width: 52px;
+  height: 52px;
+}
+
+.vrm-loading-icon img {
+  width: 82%;
+  height: 82%;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #ffffff;
+}
+
+.vrm-loading-icon::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 4px solid rgba(129, 172, 215, 0.18);
+  border-top-color: #82afe0;
+  border-radius: 50%;
+  animation: vrm-loader-spin 0.9s linear infinite;
+}
+
+@keyframes vrm-loading-bob {
+  50% {
+    translate: 0 -5px;
+  }
+}
+
 .vrm-loading-orb {
   width: 54px;
   height: 54px;

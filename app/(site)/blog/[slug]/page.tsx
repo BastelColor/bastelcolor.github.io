@@ -8,6 +8,7 @@ import { ShareButtons } from '@/components/share-buttons';
 import { site } from '@/content/site';
 import { formatPostDate } from '@/lib/post-meta';
 import { getPost, getPosts } from '@/lib/posts';
+import { JsonLd, postData } from '@/lib/structured-data';
 
 type PostPageProps = {
   params: Promise<{ slug: string }>;
@@ -67,6 +68,8 @@ export default async function PostPage({ params }: PostPageProps) {
 
   return (
     <PostLayer>
+      {/* 検索エンジン向けの、記事の説明（lib/structured-data.tsx） */}
+      <JsonLd data={postData(post)} />
       <article className="post">
         {post.thumbnail && (
           <img

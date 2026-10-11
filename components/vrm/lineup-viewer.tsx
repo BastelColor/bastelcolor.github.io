@@ -9,12 +9,14 @@ import {
   type LineupStage,
 } from '@/components/vrm/lineup-stage';
 import type { MotionId } from '@/components/vrm/motions';
+import { LoadingIcons } from '@/components/vrm/vrm-viewer';
 import { LilToonRenderError } from '@/components/vrm/vrm-stage';
 
 type ViewerState = 'loading' | 'ready' | 'error';
 
 type LineupViewerProps = {
-  models: (LineupModel & { name: string })[];
+  /** icon は、読み込み中に出す顔のアイコン */
+  models: (LineupModel & { name: string; icon?: string })[];
   /** みんなでループ再生するモーション（省略時は、その場で小さく揺れるだけ） */
   motionId?: MotionId;
   /** 見ている人が入れた身長の線（「わたし 160cm」）。省略時は出さない */
@@ -156,7 +158,11 @@ export function LineupViewer({
 
       {viewerState === 'loading' && (
         <output className="vrm-loading">
-          <span className="vrm-loading-orb" />
+          {models.every((model) => model.icon) ? (
+            <LoadingIcons icons={models.map((model) => model.icon!)} />
+          ) : (
+            <span className="vrm-loading-orb" />
+          )}
           <b>{t('みんなをよんでいます', 'Calling everyone over')}</b>
           <small>
             {progress > 0

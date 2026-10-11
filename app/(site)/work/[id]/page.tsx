@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { site } from '@/content/site';
 import { works } from '@/content/works';
+import { JsonLd, workData } from '@/lib/structured-data';
 
 /**
  * 作品の詳細の URL（/work/<作品のid>）。
@@ -40,6 +41,9 @@ export async function generateMetadata({
   };
 }
 
-export default function WorkPage() {
-  return null;
+/** 中身は共通部分が出すので、ここには検索エンジン向けの説明（lib/structured-data.tsx）だけを置く */
+export default async function WorkPage({ params }: WorkPageProps) {
+  const { id } = await params;
+  const work = works.find((item) => item.id === id);
+  return work ? <JsonLd data={workData(work)} /> : null;
 }

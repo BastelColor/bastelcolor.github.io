@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { avatars } from '@/content/avatars';
 import { site } from '@/content/site';
+import { avatarData, JsonLd } from '@/lib/structured-data';
 
 /**
  * アバターの URL（/avatar/<id>）。
@@ -42,6 +43,9 @@ export async function generateMetadata({
   };
 }
 
-export default function AvatarPage() {
-  return null;
+/** 中身は共通部分が出すので、ここには検索エンジン向けの説明（lib/structured-data.tsx）だけを置く */
+export default async function AvatarPage({ params }: AvatarPageProps) {
+  const { id } = await params;
+  const avatar = avatars.find((item) => item.id === id);
+  return avatar ? <JsonLd data={avatarData(avatar)} /> : null;
 }
