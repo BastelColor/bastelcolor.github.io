@@ -34,8 +34,6 @@ export type UsdzMotion = {
 const FPS = 30;
 /** USDZ に入れるテクスチャの大きさの上限（iPhone で開くのに時間がかからないよう、小さめ） */
 const TEXTURE_SIZE = 1024;
-/** 動いていないとみなす差（位置はメートル、回転は四元数の成分） */
-const STILL = 1e-5;
 
 type Three = typeof import('three');
 
@@ -105,9 +103,22 @@ export async function exportUsdz(
     jointPaths.push(parent === undefined ? `j${i}` : `${jointPaths[parent]}/j${i}`);
   });
 
-  // いまの（記録を始めるときの）、モデルから見た関節の位置
+  // 関節の動きは、大きさを抜いて、位置と回転だけで書く。VRM は骨の一番上（Armature）が 100 倍などの
+  // 大きさを持つことがあり、関節の大きさをうまく扱えない再生側があるため。
+  // 抜いた大きさは、骨を付けたときの位置（bindTransforms）の側で割っておくので、形は変わらない
+  const decomposed = {
+    position: new THREE.Vector3(),
+    rotation: new THREE.Quaternion(),
+    scale: new THREE.Vector3(),
+  };
+  const unit = new THREE.Vector3(1, 1, 1);
+  const rigid = (value: Matrix4) => {
+    value.decompose(decomposed.position, decomposed.rotation, decomposed.scale);
+    return value.compose(decomposed.position, decomposed.rotation, unit);
+  };
+  // いまの、モデルから見た関節の位置（大きさなし）
   const modelSpace = (joint: Object3D) =>
-    new THREE.Matrix4().multiplyMatrices(modelInverse, joint.matrixWorld);
+    rigid(new THREE.Matrix4().multiplyMatrices(modelInverse, joint.matrixWorld));
   // 骨を付けたときの位置（bindTransforms）。骨で動くメッシュは、付けたときの形が基準になる
   const binds: (Matrix4 | null)[] = joints.map(() => null);
   for (const { mesh } of parts) {
@@ -124,7 +135,13 @@ export async function exportUsdz(
       }
     });
   }
-  const bindTransforms = joints.map((joint, i) => binds[i] ?? modelSpace(joint));
+  // 動きの側で抜く大きさ（いまの、モデルから見た関節の大きさ。踊っても変わらない）で割る
+  const bindTransforms = joints.map((joint, i) => {
+    const full = new THREE.Matrix4().multiplyMatrices(modelInverse, joint.matrixWorld);
+    full.decompose(decomposed.position, decomposed.rotation, decomposed.scale);
+    const { x, y, z } = decomposed.scale;
+    return (binds[i] ?? full).clone().multiply(new THREE.Matrix4().makeScale(1 / x, 1 / y, 1 / z));
+  });
 
   // --- メッシュの形（モデルから見た座標で、骨を付けたときの形） ---
   const materialIds = new Map<Material, number>();
@@ -294,25 +311,38 @@ export async function exportUsdz(
     return lines.join('\n');
   });
 
-  // --- 動きの記録。こまごとに、関節の位置・回転・大きさ（親から見た） ---
+  // --- 動きの記録。こまごとに、関節の位置・回転（親の関節から見た。大きさはいつも 1） ---
   const frameCount = motion ? Math.max(1, Math.round(motion.duration * FPS)) : 0;
+  const parentJoint = joints.map((joint) =>
+    joint.parent ? (jointIndex.get(joint.parent) ?? -1) : -1,
+  );
   const translations: Vector3[][] = [];
   const rotations: Quaternion[][] = [];
   const scales: Vector3[][] = [];
+  const local = new THREE.Matrix4();
   const record = () => {
-    translations.push(joints.map((joint) => joint.position.clone()));
+    model.updateMatrixWorld(true);
+    const spaces = joints.map(modelSpace);
     const previous = rotations[rotations.length - 1];
-    rotations.push(
-      joints.map((joint, i) => {
-        const rotation = joint.quaternion.clone();
-        // こまの間を補間したときに、遠回りしないよう、前のこまと同じ向きの符号にそろえる
-        if (previous && previous[i].dot(rotation) < 0) {
-          rotation.set(-rotation.x, -rotation.y, -rotation.z, -rotation.w);
-        }
-        return rotation;
-      }),
-    );
-    scales.push(joints.map((joint) => joint.scale.clone()));
+    const frameTranslations: Vector3[] = [];
+    const frameRotations: Quaternion[] = [];
+    joints.forEach((_, i) => {
+      const parent = parentJoint[i];
+      local.copy(spaces[i]);
+      if (parent >= 0) local.premultiply(spaces[parent].clone().invert());
+      const translation = new THREE.Vector3();
+      const rotation = new THREE.Quaternion();
+      local.decompose(translation, rotation, new THREE.Vector3());
+      // こまの間を補間したときに、遠回りしないよう、前のこまと同じ向きの符号にそろえる
+      if (previous && previous[i].dot(rotation) < 0) {
+        rotation.set(-rotation.x, -rotation.y, -rotation.z, -rotation.w);
+      }
+      frameTranslations.push(translation);
+      frameRotations.push(rotation);
+    });
+    translations.push(frameTranslations);
+    rotations.push(frameRotations);
+    scales.push(joints.map(() => unit));
   };
   record();
   if (motion) {
@@ -322,16 +352,6 @@ export async function exportUsdz(
       record();
     }
   }
-  // 動いている関節だけを、動きに入れる（ほかは、最初のこまのまま）
-  const moving = joints
-    .map((_, i) => i)
-    .filter((i) =>
-      translations.some(
-        (frame, f) =>
-          frame[i].distanceTo(translations[0][i]) > STILL ||
-          1 - Math.abs(rotations[f][i].dot(rotations[0][i])) > STILL,
-      ),
-    );
   const restTransforms = joints.map((_, i) =>
     new THREE.Matrix4().compose(translations[0][i], rotations[0][i], scales[0][i]),
   );
@@ -345,7 +365,11 @@ export async function exportUsdz(
     `        uniform matrix4d[] bindTransforms = [${bindTransforms.map(matrix).join(', ')}]`,
     `        uniform matrix4d[] restTransforms = [${restTransforms.map(matrix).join(', ')}]`,
   ];
-  if (motion && moving.length > 0) {
+  // 動きは、骨と同じ並びの、すべての関節で書く（AR クイックルックが読めるよう、いちばん基本の書き方にする。
+  // 一部の関節だけの動きや、大きさを動かさない書き方は、USD の決まりでは良いが、読めない再生側がある）
+  const animation: string[] = [];
+  if (motion) {
+    skeleton.push('        rel skel:animationSource = </Root/Avatar/Motion>');
     const samples = (
       frames: (Vector3 | Quaternion)[][],
       write: (value: Vector3 & Quaternion) => string,
@@ -353,23 +377,23 @@ export async function exportUsdz(
       frames
         .map(
           (frame, f) =>
-            `            ${f}: [${moving.map((i) => write(frame[i] as Vector3 & Quaternion)).join(', ')}],`,
+            `            ${f}: [${frame.map((value) => write(value as Vector3 & Quaternion)).join(', ')}],`,
         )
         .join('\n');
-    skeleton.push(
-      '        rel skel:animationSource = </Root/Avatar/Skeleton/Motion>',
-      '',
-      '        def SkelAnimation "Motion"',
-      '        {',
-      `            uniform token[] joints = [${moving.map((i) => `"${jointPaths[i]}"`).join(', ')}]`,
-      '            float3[] translations.timeSamples = {',
+    animation.push(
+      '    def SkelAnimation "Motion"',
+      '    {',
+      `        uniform token[] joints = [${jointPaths.map((path) => `"${path}"`).join(', ')}]`,
+      '        float3[] translations.timeSamples = {',
       samples(translations, vec3),
-      '            }',
-      '            quatf[] rotations.timeSamples = {',
-      samples(rotations, quat),
-      '            }',
-      `            half3[] scales = [${moving.map((i) => vec3(scales[0][i])).join(', ')}]`,
       '        }',
+      '        quatf[] rotations.timeSamples = {',
+      samples(rotations, quat),
+      '        }',
+      '        half3[] scales.timeSamples = {',
+      samples(scales, vec3),
+      '        }',
+      '    }',
     );
   }
   skeleton.push('    }');
@@ -463,10 +487,19 @@ export async function exportUsdz(
     '    token preliminary:anchoring:type = "plane"',
     '    token preliminary:planeAnchoring:alignment = "horizontal"',
     '',
-    '    def SkelRoot "Avatar"',
+    // 骨と動きの結びつきは、SkelRoot にも書く（USD の説明の例と同じ形）
+    '    def SkelRoot "Avatar" (',
+    '        prepend apiSchemas = ["SkelBindingAPI"]',
+    '    )',
     '    {',
+    '        rel skel:skeleton = </Root/Avatar/Skeleton>',
+    ...(motion ? ['        rel skel:animationSource = </Root/Avatar/Motion>'] : []),
+    '',
     skeleton.map((line) => `    ${line}`).join('\n'),
     '',
+    ...(animation.length > 0
+      ? [animation.map((line) => (line ? `    ${line}` : line)).join('\n'), '']
+      : []),
     meshTexts.map((text) => indent(text)).join('\n\n'),
     '    }',
     '',
