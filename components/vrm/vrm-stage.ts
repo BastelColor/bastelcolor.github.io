@@ -139,6 +139,33 @@ export function failsToRender(
   return logs.length > 0 ? logs.join('\n---\n') : null;
 }
 
+/**
+ * 揺れものを、モデルの大きさに合わせる関数を返す（scale が 1 で元どおり）。
+ * 当たり判定の半径・もどる強さ・重力は、モデルの大きさではなく場面の長さ（メートル）で決まっているので、
+ * モデルだけを小さくすると、頭の当たり判定が相対的に大きくなり、髪が上へ押し上げられたままになる
+ */
+export function scaleSprings(vrm: VRM) {
+  const manager = vrm.springBoneManager;
+  const joints = [...(manager?.joints ?? [])].map((joint) => ({
+    settings: joint.settings,
+    hitRadius: joint.settings.hitRadius,
+    stiffness: joint.settings.stiffness,
+    gravityPower: joint.settings.gravityPower,
+  }));
+  const shapes = [...(manager?.colliders ?? [])]
+    .map((collider) => collider.shape as { radius?: number })
+    .filter((shape) => typeof shape.radius === 'number')
+    .map((shape) => ({ shape, radius: shape.radius! }));
+  return (scale: number) => {
+    for (const joint of joints) {
+      joint.settings.hitRadius = joint.hitRadius * scale;
+      joint.settings.stiffness = joint.stiffness * scale;
+      joint.settings.gravityPower = joint.gravityPower * scale;
+    }
+    for (const { shape, radius } of shapes) shape.radius = radius * scale;
+  };
+}
+
 /** 写真（capture）。画像と、画像の中での枠（container）の位置（画像のピクセル） */
 export type StageShot = {
   image: HTMLCanvasElement;
@@ -866,6 +893,7 @@ export async function createVrmStage({
           scene,
           model: currentVrm.scene,
           hips: currentVrm.humanoid.getRawBoneNode('hips'),
+          onScale: scaleSprings(currentVrm),
           overlay,
           onPlaced,
           onEnd: () => {

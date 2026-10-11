@@ -10,6 +10,7 @@ import type {
   Texture,
   WebGLRenderer,
 } from 'three';
+import { createGroundShadow } from '@/components/vrm/ground-shadow';
 
 /**
  * スマホのカメラ越しに、アバターを机や床の上に立たせる（AR）。
@@ -83,30 +84,6 @@ void main() {
 }
 `;
 
-// 足元の影。まん中が濃く、まわりへ向かってふんわり消える丸
-const SHADOW_VERTEX = `
-varying vec2 vUv;
-void main() {
-  vUv = uv;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}
-`;
-const SHADOW_FRAGMENT = `
-uniform float opacity;
-varying vec2 vUv;
-void main() {
-  float r = length(vUv - 0.5) * 2.0;
-  float soft = 1.0 - smoothstep(0.0, 1.0, r);
-  float core = 1.0 - smoothstep(0.0, 0.45, r);
-  gl_FragColor = vec4(0.0, 0.0, 0.0, opacity * (soft * soft * 0.6 + core * 0.4));
-}
-`;
-
-/** 足元の影の濃さ（まん中） */
-const SHADOW_OPACITY = 0.5;
-/** 足元の影の半径（腰の高さに対する割合） */
-const SHADOW_RADIUS = 0.5;
-
 /** 小さくしたときの大きさ（本当の背丈に対する割合） */
 const SMALL_SCALE = 0.25;
 
@@ -128,6 +105,7 @@ export async function startWebXR({
   scene,
   model,
   hips,
+  onScale,
   overlay,
   onPlaced,
   onEnd,
@@ -138,6 +116,11 @@ export async function startWebXR({
   model: Object3D;
   /** 腰の骨。足元の影を、腰の真下について行かせる */
   hips: Object3D | null;
+  /**
+   * 置く大きさ（1 が本当の大きさ）が変わったとき。揺れものの当たり判定などは、
+   * モデルの大きさではなく場面の長さで決まっているので、モデルに合わせて縮めてもらう
+   */
+  onScale: (scale: number) => void;
   /** カメラの映像の上に重ねる、ボタンなどの入った要素 */
   overlay: HTMLElement;
   onPlaced: () => void;
@@ -163,26 +146,8 @@ export async function startWebXR({
   const parent = model.parent;
   anchor.add(model);
 
-  // 足元の影。床の位置にはモデルの影が落ちないので、腰の真下に、ふんわりした丸い影を置く
-  // （置く場所の入れ物の中に入れるので、小さくしたときは影も小さくなる）
-  const hipsPosition = new THREE.Vector3();
-  const hipsHeight = hips
-    ? model.worldToLocal(hips.getWorldPosition(hipsPosition)).y * model.scale.y
-    : 0.7;
-  const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
-    new THREE.ShaderMaterial({
-      uniforms: { opacity: { value: SHADOW_OPACITY } },
-      vertexShader: SHADOW_VERTEX,
-      fragmentShader: SHADOW_FRAGMENT,
-      transparent: true,
-      depthWrite: false,
-    }),
-  );
-  shadow.scale.set(hipsHeight * SHADOW_RADIUS * 2.3, 1, hipsHeight * SHADOW_RADIUS * 2);
-  shadow.position.y = 0.002;
-  shadow.renderOrder = -1;
-  anchor.add(shadow);
+  // 床に落ちる影（components/vrm/ground-shadow.ts）
+  const ground = createGroundShadow({ THREE, renderer, parent: anchor, model, hips });
 
   // 床の上の、置く場所の輪
   const reticle = new THREE.Mesh(
@@ -352,9 +317,8 @@ export async function startWebXR({
     (reticle.material as Material).dispose();
     background.geometry.dispose();
     (background.material as Material).dispose();
-    anchor.remove(shadow);
-    shadow.geometry.dispose();
-    (shadow.material as Material).dispose();
+    ground.dispose();
+    onScale(1);
     copyQuad.geometry.dispose();
     (copyQuad.material as Material).dispose();
     photoRequest?.(null);
@@ -365,7 +329,12 @@ export async function startWebXR({
 
   return {
     session: {
-      setSmall: (small) => anchor.scale.setScalar(small ? SMALL_SCALE : 1),
+      setSmall: (small) => {
+        const scale = small ? SMALL_SCALE : 1;
+        anchor.scale.setScalar(scale);
+        ground.setScale(scale);
+        onScale(scale);
+      },
       canPhoto,
       photo: () =>
         new Promise((resolve) => {
@@ -381,12 +350,7 @@ export async function startWebXR({
     },
     update: (frame) => {
       if (!frame || ended) return;
-      // 影は、踊って動く腰の真下へ
-      if (hips && anchor.visible) {
-        anchor.worldToLocal(hips.getWorldPosition(hipsPosition));
-        shadow.position.x = hipsPosition.x;
-        shadow.position.z = hipsPosition.z;
-      }
+      if (anchor.visible) ground.update();
       if (photoRequest) {
         const resolve = photoRequest;
         photoRequest = null;
