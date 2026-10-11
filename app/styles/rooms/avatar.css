@@ -279,13 +279,24 @@
   pointer-events: auto;
 }
 
+/* 左下は、踊りの再生・停止のボタンと、その下の向きを変えるボタン */
+.avatar-room-tools-start {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .avatar-room-turn {
   display: flex;
   gap: 6px;
+  margin: 0;
   padding: 0;
+  border: 0;
 }
 
-.avatar-room-turn button {
+.avatar-room-turn button,
+.avatar-room-pause {
   --thickness: 3px;
   display: grid;
   place-items: center;
@@ -306,9 +317,15 @@
   transition: translate 0.15s ease;
 }
 
-.avatar-room-turn svg {
+.avatar-room-turn svg,
+.avatar-room-pause svg {
   width: 14px;
   height: 14px;
+}
+
+.avatar-room-pause {
+  width: 36px;
+  padding: 0;
 }
 
 .avatar-room-backdrops {
@@ -434,6 +451,7 @@
 
 @media (hover: hover) {
   .avatar-room-turn button:not(:disabled):hover,
+  .avatar-room-pause:not(:disabled):hover,
   .avatar-room-photo:not(:disabled):hover,
   .avatar-room-ar:not(:disabled):hover {
     translate: 0 -2px;
@@ -441,6 +459,7 @@
 }
 
 .avatar-room-turn button:not(:disabled):active,
+.avatar-room-pause:not(:disabled):active,
 .avatar-room-photo:not(:disabled):active,
 .avatar-room-ar:not(:disabled):active {
   translate: 0 2px;
@@ -581,12 +600,14 @@
   }
 }
 
-.avatar-room-turn button:disabled {
+.avatar-room-turn button:disabled,
+.avatar-room-pause:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
 .avatar-room-turn button:focus-visible,
+.avatar-room-pause:focus-visible,
 .avatar-room-photo:focus-visible,
 .avatar-room-backdrops button:focus-visible {
   outline: 3px solid var(--ink);
@@ -1131,14 +1152,23 @@
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     grid-template-areas:
+      'pause .'
       'turn row'
       'display display';
     align-items: center;
     gap: 6px 4px;
   }
 
+  .avatar-room-tools-start,
   .avatar-room-tools-end {
     display: contents;
+  }
+
+  .avatar-room-pause {
+    grid-area: pause;
+    justify-self: start;
+    width: 32px;
+    height: 32px;
   }
 
   .avatar-room-turn {
@@ -1208,14 +1238,6 @@
 
 .avatar-room-light {
   min-width: 0;
-  border: 0;
-}
-
-/* ---- ポーズ（ボタンの並びが2つ。2つ目は、踊りを止める・ゆっくり） ---- */
-
-.avatar-room-pose fieldset {
-  min-width: 0;
-  padding: 0;
   border: 0;
 }
 

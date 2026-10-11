@@ -257,7 +257,7 @@ export const scenarios = [
     },
   },
   {
-    name: 'アバター: 背景・ライト・表示・ポーズを切りかえ、写真を保存できる',
+    name: 'アバター: 背景・ライト・表示・踊りの停止を切りかえ、写真を保存できる',
     run: async (page, base, { avatarId }) => {
       // 写真の保存（<a download> を押す）を数える
       await page.evaluateOnNewDocument(() => {
@@ -284,16 +284,24 @@ export const scenarios = [
       );
       await pressOption(page, 'ライト', '夕方');
       await pressOption(page, '表示', 'ワイヤー');
-      await pressOption(page, 'ポーズ', 'ピース');
       await waitFor(
         page,
         () =>
           [...document.querySelectorAll('.avatar-room fieldset button[aria-pressed="true"]')]
             .map((button) => button.textContent)
-            .filter((text) => text === '夕方' || text === 'ワイヤー' || text === 'ピース').length === 3,
+            .filter((text) => text === '夕方' || text === 'ワイヤー').length === 2,
         5_000,
       ).catch(() => {
-        throw new Error('ライト・表示・ポーズのボタンが切りかわりません');
+        throw new Error('ライトや表示のボタンが切りかわりません');
+      });
+      // 踊りの再生・停止のボタン（押すと「再生する」に変わる）
+      await page.click('.avatar-room-pause');
+      await waitFor(
+        page,
+        () => /再生/.test(document.querySelector('.avatar-room-pause')?.getAttribute('aria-label') ?? ''),
+        5_000,
+      ).catch(() => {
+        throw new Error('踊りの再生・停止のボタンが切りかわりません');
       });
       await page.click('.avatar-room-photo');
       // 写真は大きな解像度で描き直すので、GitHub の確認の機械では時間がかかる

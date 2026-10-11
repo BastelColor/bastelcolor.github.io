@@ -23,7 +23,6 @@ import {
   type ARSession,
 } from '@/components/vrm/ar';
 import { LineupViewer } from '@/components/vrm/lineup-viewer';
-import { POSES, type Pose } from '@/components/vrm/poses';
 import {
   VIEW_MODES,
   type ViewMode as DisplayMode,
@@ -79,22 +78,13 @@ type RoomStage = Pick<
   | 'expressionNames'
   | 'setLighting'
   | 'setViewMode'
-  | 'setPose'
-  | 'setPlayback'
+  | 'setPaused'
   | 'capture'
 > &
   // 写す範囲と AR は、ひとりずつのときだけ
   Partial<Pick<VrmStage, 'startAR' | 'exportUsdz'>>;
 
 /** 表示の名前（components/vrm/view-modes.ts） */
-/** 決めポーズの名前（components/vrm/poses.ts）。dance は、踊りを止めているときは「ふつう」 */
-const POSE_LABELS: Record<Pose, [string, string]> = {
-  dance: ['おどる', 'Dance'],
-  peace: ['ピース', 'Peace'],
-  wave: ['手をふる', 'Wave'],
-  banzai: ['ばんざい', 'Hooray'],
-};
-
 const VIEW_MODE_LABELS: Record<DisplayMode, [string, string]> = {
   normal: ['ふつう', 'Normal'],
   wireframe: ['ワイヤー', 'Wireframe'],
@@ -176,10 +166,8 @@ export function AvatarRoom() {
   const [backdrop, setBackdrop] = useState<Backdrop>('sky');
   const [lighting, setLighting] = useState<Lighting>('day');
   const [viewMode, setViewMode] = useState<DisplayMode>('normal');
-  // 決めポーズと、踊りの止め・ゆっくり。別の子を選んでも、そのまま
-  const [pose, setPose] = useState<Pose>('dance');
+  // 踊りを止めているか。別の子を選んでも、そのまま
   const [paused, setPaused] = useState(false);
-  const [slow, setSlow] = useState(false);
   // 背丈くらべの「わたし」の身長（入力のまま。数字として読めて、範囲の中のときだけ線を出す）
   const [myHeight, setMyHeight] = useState('');
   const myHeightCm = Number(myHeight);
@@ -286,13 +274,10 @@ export function AvatarRoom() {
     litStage.current = stage;
   }, [stage, lighting]);
 
-  // 決めポーズと踊りの速さも、選んだままにする
+  // 踊りの止めも、選んだままにする
   useEffect(() => {
-    stage?.setPose(pose);
-  }, [stage, pose]);
-  useEffect(() => {
-    stage?.setPlayback({ paused, slow });
-  }, [stage, paused, slow]);
+    stage?.setPaused(paused);
+  }, [stage, paused]);
 
   // 表示（中身を見る）も、選んだままにする
   useEffect(() => {
@@ -555,6 +540,26 @@ export function AvatarRoom() {
         </div>
         {/* 向きと背景のボタン。モデルの足元の左右に置く */}
         <div className="avatar-room-tools">
+          <div className="avatar-room-tools-start">
+          {/* 踊りを止める・また動かす（動きを減らしているときは、踊らないので出さない） */}
+          {!reduceMotion && (
+            <button
+              type="button"
+              className="avatar-room-pause"
+              aria-label={
+                paused
+                  ? t('踊りを再生する', 'Play the dance')
+                  : t('踊りを止める', 'Pause the dance')
+              }
+              disabled={!stage}
+              onClick={() => {
+                playSound('pop');
+                setPaused((value) => !value);
+              }}
+            >
+              <PlayIcon paused={paused} />
+            </button>
+          )}
           <fieldset
             className="avatar-room-turn"
             aria-label={t('向きを変える', 'Turn the model')}
@@ -592,6 +597,7 @@ export function AvatarRoom() {
               <TurnArrow flip />
             </button>
           </fieldset>
+          </div>
           <div className="avatar-room-tools-end">
           <div className="avatar-room-tools-row">
           <button
@@ -765,63 +771,6 @@ export function AvatarRoom() {
               ))}
           </div>
         </div>
-        {/* 写真用の決めポーズ。踊っているときは、止めたりゆっくりにしたりもできる */}
-        <div className="avatar-room-play avatar-room-pose">
-          <p className="avatar-room-play-title">
-            {t('ポーズをきめる', 'Strike a pose')}
-          </p>
-          <fieldset
-            className="avatar-room-play-buttons"
-            aria-label={t('ポーズ', 'Pose')}
-          >
-            {POSES.map((item) => (
-              <button
-                key={item}
-                type="button"
-                aria-pressed={pose === item}
-                disabled={!stage}
-                onClick={() => {
-                  playSound('pop');
-                  setPose(item);
-                }}
-              >
-                {item === 'dance' && reduceMotion
-                  ? t('ふつう', 'Normal')
-                  : t(...POSE_LABELS[item])}
-              </button>
-            ))}
-          </fieldset>
-          {/* 踊りを止める・ゆっくりにする（動きを減らしているときは、踊らないので出さない） */}
-          {!reduceMotion && pose === 'dance' && (
-            <fieldset
-              className="avatar-room-play-buttons"
-              aria-label={t('踊りの速さ', 'Playback')}
-            >
-              <button
-                type="button"
-                aria-pressed={paused}
-                disabled={!stage}
-                onClick={() => {
-                  playSound('pop');
-                  setPaused((value) => !value);
-                }}
-              >
-                {t('とめる', 'Pause')}
-              </button>
-              <button
-                type="button"
-                aria-pressed={slow}
-                disabled={!stage}
-                onClick={() => {
-                  playSound('pop');
-                  setSlow((value) => !value);
-                }}
-              >
-                {t('ゆっくり', 'Slow')}
-              </button>
-            </fieldset>
-          )}
-        </div>
         {/* ライト */}
         <fieldset
           className="avatar-room-play avatar-room-light"
@@ -926,6 +875,31 @@ export function AvatarRoom() {
 }
 
 /** まわすボタンの矢印（flip で右向き） */
+/** 再生・停止のボタンの絵。止めているときは再生（▶）、動いているときは停止（❚❚） */
+function PlayIcon({ paused }: { paused: boolean }) {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+      {paused ? (
+        <path
+          d="M5 3.2v9.6L12.6 8z"
+          fill="currentColor"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+        />
+      ) : (
+        <path
+          d="M5.2 3.5v9M10.8 3.5v9"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.8"
+          strokeLinecap="round"
+        />
+      )}
+    </svg>
+  );
+}
+
 function TurnArrow({ flip = false }: { flip?: boolean }) {
   return (
     <svg

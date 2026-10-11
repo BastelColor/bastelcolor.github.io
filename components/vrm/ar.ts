@@ -64,7 +64,7 @@ void main() {
   gl_Position = vec4(position.xy, 0.0, 1.0);
 }
 `;
-// 写真は sRGB の入れ物に描く（モデルの色は自動で sRGB に直る）ので、カメラの映像（もともと sRGB）は、一度もどしておく
+// 写真は、まず光の強さのままの入れ物（linear）に描くので、カメラの映像（もともと sRGB）は、一度もどしておく
 const BACKGROUND_FRAGMENT = `
 uniform sampler2D map;
 varying vec2 vUv;
@@ -73,6 +73,39 @@ void main() {
   gl_FragColor = vec4(pow(color, vec3(2.2)), 1.0);
 }
 `;
+
+// 光の強さのままの入れ物から、写真の入れ物（sRGB）へ写す。sRGB への直しは、入れ物が自動でする
+const COPY_FRAGMENT = `
+uniform sampler2D map;
+varying vec2 vUv;
+void main() {
+  gl_FragColor = vec4(texture2D(map, vUv).rgb, 1.0);
+}
+`;
+
+// 足元の影。まん中が濃く、まわりへ向かってふんわり消える丸
+const SHADOW_VERTEX = `
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+const SHADOW_FRAGMENT = `
+uniform float opacity;
+varying vec2 vUv;
+void main() {
+  float r = length(vUv - 0.5) * 2.0;
+  float soft = 1.0 - smoothstep(0.0, 1.0, r);
+  float core = 1.0 - smoothstep(0.0, 0.45, r);
+  gl_FragColor = vec4(0.0, 0.0, 0.0, opacity * (soft * soft * 0.6 + core * 0.4));
+}
+`;
+
+/** 足元の影の濃さ（まん中） */
+const SHADOW_OPACITY = 0.5;
+/** 足元の影の半径（腰の高さに対する割合） */
+const SHADOW_RADIUS = 0.5;
 
 /** 小さくしたときの大きさ（本当の背丈に対する割合） */
 const SMALL_SCALE = 0.25;
@@ -94,6 +127,7 @@ export async function startWebXR({
   renderer,
   scene,
   model,
+  hips,
   overlay,
   onPlaced,
   onEnd,
@@ -102,6 +136,8 @@ export async function startWebXR({
   renderer: WebGLRenderer;
   scene: Scene;
   model: Object3D;
+  /** 腰の骨。足元の影を、腰の真下について行かせる */
+  hips: Object3D | null;
   /** カメラの映像の上に重ねる、ボタンなどの入った要素 */
   overlay: HTMLElement;
   onPlaced: () => void;
@@ -127,6 +163,27 @@ export async function startWebXR({
   const parent = model.parent;
   anchor.add(model);
 
+  // 足元の影。床の位置にはモデルの影が落ちないので、腰の真下に、ふんわりした丸い影を置く
+  // （置く場所の入れ物の中に入れるので、小さくしたときは影も小さくなる）
+  const hipsPosition = new THREE.Vector3();
+  const hipsHeight = hips
+    ? model.worldToLocal(hips.getWorldPosition(hipsPosition)).y * model.scale.y
+    : 0.7;
+  const shadow = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
+    new THREE.ShaderMaterial({
+      uniforms: { opacity: { value: SHADOW_OPACITY } },
+      vertexShader: SHADOW_VERTEX,
+      fragmentShader: SHADOW_FRAGMENT,
+      transparent: true,
+      depthWrite: false,
+    }),
+  );
+  shadow.scale.set(hipsHeight * SHADOW_RADIUS * 2.3, 1, hipsHeight * SHADOW_RADIUS * 2);
+  shadow.position.y = 0.002;
+  shadow.renderOrder = -1;
+  anchor.add(shadow);
+
   // 床の上の、置く場所の輪
   const reticle = new THREE.Mesh(
     new THREE.RingGeometry(0.1, 0.13, 40).rotateX(-Math.PI / 2),
@@ -151,6 +208,23 @@ export async function startWebXR({
   background.renderOrder = -1000;
   background.visible = false;
   scene.add(background);
+  // 写真の入れ物へ写すための、画面いっぱいの板
+  const copyScene = new THREE.Scene();
+  const copyQuad = new THREE.Mesh(
+    new THREE.PlaneGeometry(2, 2),
+    new THREE.ShaderMaterial({
+      uniforms: { map: { value: null } },
+      vertexShader: BACKGROUND_VERTEX,
+      fragmentShader: COPY_FRAGMENT,
+      depthTest: false,
+      depthWrite: false,
+    }),
+  );
+  copyQuad.frustumCulled = false;
+  copyScene.add(copyQuad);
+  const copyCamera = new THREE.Camera();
+  // 光の強さのままの入れ物は、なめらかに残せるよう小数で（使えない端末では 8 ビット）
+  const floatColor = renderer.extensions.has('EXT_color_buffer_float');
   const photoCamera = new THREE.PerspectiveCamera();
   photoCamera.matrixAutoUpdate = false;
   photoCamera.matrixWorldAutoUpdate = false;
@@ -162,7 +236,10 @@ export async function startWebXR({
   /**
    * いまのカメラの映像の上に、モデルを描いて写真にする。
    * AR の画面（カメラの映像はブラウザの外で重ねられる）はページから読めないので、
-   * 写真用の入れ物に、カメラの映像とモデルを描き直す
+   * 写真用の入れ物に、カメラの映像とモデルを描き直す。
+   *
+   * sRGB の入れ物に直接描くと、lilToon は自分で sRGB に直し、入れ物もまた直すので、色が二重に明るく
+   * （薄く）なってしまう。なので、まず光の強さのままの入れ物（linear）に描き、そこから sRGB の入れ物へ写す
    */
   const capture = (frame: XRFrame): HTMLCanvasElement | null => {
     const space = renderer.xr.getReferenceSpace();
@@ -188,17 +265,25 @@ export async function startWebXR({
     background.visible = true;
     const reticleShown = reticle.visible;
     reticle.visible = false;
+    const linear = new THREE.WebGLRenderTarget(width, height, {
+      type: floatColor ? THREE.HalfFloatType : THREE.UnsignedByteType,
+      samples: 4,
+    });
     const target = new THREE.WebGLRenderTarget(width, height, {
       colorSpace: THREE.SRGBColorSpace,
     });
     const previous = renderer.getRenderTarget();
     // AR の描き方（スマホのカメラで描く）をいったん止めて、写真用のカメラで描く
     renderer.xr.enabled = false;
-    renderer.setRenderTarget(target);
+    renderer.setRenderTarget(linear);
     renderer.clear();
     renderer.render(scene, photoCamera);
+    copyQuad.material.uniforms.map.value = linear.texture;
+    renderer.setRenderTarget(target);
+    renderer.render(copyScene, copyCamera);
     renderer.xr.enabled = true;
     renderer.setRenderTarget(previous);
+    linear.dispose();
     background.visible = false;
     reticle.visible = reticleShown;
     const pixels = new Uint8Array(width * height * 4);
@@ -267,6 +352,11 @@ export async function startWebXR({
     (reticle.material as Material).dispose();
     background.geometry.dispose();
     (background.material as Material).dispose();
+    anchor.remove(shadow);
+    shadow.geometry.dispose();
+    (shadow.material as Material).dispose();
+    copyQuad.geometry.dispose();
+    (copyQuad.material as Material).dispose();
     photoRequest?.(null);
     photoRequest = null;
     renderer.xr.enabled = false;
@@ -291,6 +381,12 @@ export async function startWebXR({
     },
     update: (frame) => {
       if (!frame || ended) return;
+      // 影は、踊って動く腰の真下へ
+      if (hips && anchor.visible) {
+        anchor.worldToLocal(hips.getWorldPosition(hipsPosition));
+        shadow.position.x = hipsPosition.x;
+        shadow.position.z = hipsPosition.z;
+      }
       if (photoRequest) {
         const resolve = photoRequest;
         photoRequest = null;

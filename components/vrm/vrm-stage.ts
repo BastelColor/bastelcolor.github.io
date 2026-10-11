@@ -13,7 +13,6 @@ import { createIdleMotion } from '@/components/vrm/idle-motion';
 import { createLightRig, type Lighting } from '@/components/vrm/lighting';
 import { createPointerLook, type PointerLook } from '@/components/vrm/look-at';
 import { createSway, type Sway } from '@/components/vrm/sway';
-import { createPoseControl, type Pose } from '@/components/vrm/poses';
 import { slimLilToonUniforms } from '@/components/vrm/liltoon-slim';
 import {
   exportUsdz,
@@ -56,10 +55,8 @@ export type VrmStage = {
   expressionNames: string[];
   /** ライトの組み合わせを切りかえる（components/vrm/lighting.ts） */
   setLighting: (lighting: Lighting, instant?: boolean) => void;
-  /** 写真用の決めポーズにする（'dance' でいつもの踊りにもどす。components/vrm/poses.ts） */
-  setPose: (pose: Pose) => void;
-  /** 踊りを止める・ゆっくりにする */
-  setPlayback: (playback: Playback) => void;
+  /** 踊りを止める・また動かす */
+  setPaused: (paused: boolean) => void;
   /**
    * AR（WebXR）を始める。押したときの操作の中で呼ぶ。overlay はカメラの映像に重ねる要素
    * （components/vrm/ar.ts）
@@ -140,14 +137,6 @@ export function failsToRender(
     renderer.debug.onShaderError = previous;
   }
   return logs.length > 0 ? logs.join('\n---\n') : null;
-}
-
-/** 踊りの再生のしかた。paused で止め、slow で 1/3 の速さにする */
-export type Playback = { paused: boolean; slow: boolean };
-
-/** 踊りの速さ（paused・slow のとき） */
-export function playbackSpeed({ paused, slow }: Playback) {
-  return paused ? 0 : slow ? 1 / 3 : 1;
 }
 
 /** 写真（capture）。画像と、画像の中での枠（container）の位置（画像のピクセル） */
@@ -690,9 +679,8 @@ export async function createVrmStage({
 
     const player = createMotionPlayer({ ...modules, vrm });
     motionPlayer = player;
-    // 写真用の決めポーズと、踊りの速さ
-    const posing = createPoseControl(THREE, vrm);
-    let speed = 1;
+    // 踊りを止めているか
+    let paused = false;
     // 表示の切りかえ（中身を見る）と、マウスのほうを見る動き
     viewModes = createViewModes(THREE, scene, [vrm.scene]);
     const look = createPointerLook(THREE, scene, camera, canvas, [vrm], container);
@@ -810,10 +798,8 @@ export async function createVrmStage({
       timer.update(time);
       const { delta, springDelta } = frameDeltas(timer.getDelta());
       idleMotion.update(timer.getElapsed());
-      posing.rememberIdle();
       updateExpressions(timer.getElapsed(), delta);
-      player.update(delta * speed);
-      posing.apply(timer.getElapsed(), delta);
+      player.update(paused ? 0 : delta);
       look.update(delta);
       swaying.update(springDelta);
       currentVrm.update(springDelta);
@@ -870,9 +856,8 @@ export async function createVrmStage({
       setViewMode: (mode) => viewModes?.set(mode),
       expressionNames,
       setLighting: lights.set,
-      setPose: posing.set,
-      setPlayback: (playback) => {
-        speed = playbackSpeed(playback);
+      setPaused: (value) => {
+        paused = value;
       },
       startAR: async (overlay, { onPlaced, onEnd }) => {
         const view = await startWebXR({
@@ -880,6 +865,7 @@ export async function createVrmStage({
           renderer,
           scene,
           model: currentVrm.scene,
+          hips: currentVrm.humanoid.getRawBoneNode('hips'),
           overlay,
           onPlaced,
           onEnd: () => {
