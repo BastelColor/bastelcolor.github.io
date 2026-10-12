@@ -6,6 +6,7 @@ import { createLightRig, type Lighting } from '@/components/vrm/lighting';
 import { createPointerLook, type PointerLook } from '@/components/vrm/look-at';
 import { createSway, type Sway } from '@/components/vrm/sway';
 import { startWebXR, type ARSession, type ARView } from '@/components/vrm/ar';
+import type { ARGrabbable } from '@/components/vrm/ar-gestures';
 import {
   createMotionPlayer,
   type MotionPlayer,
@@ -166,8 +167,12 @@ export async function createLineupStage({
     /** 出ているか。appear は、出てくる・消えていく途中の大きさ（0〜1） */
     shown: boolean;
     appear: number;
-    /** 並び直したときの、横の位置 */
+    /** 並び直したときの、横の位置。AR で指で動かしたときは、前後（targetZ）も */
     targetX: number;
+    targetZ: number;
+    /** AR で指で動かした・まわした子（並び直しでは動かさない）と、まわした角度 */
+    moved: boolean;
+    turnOffset: number;
     /** 揺れものを、置く大きさに合わせる（AR の「ちいさく」） */
     scaleSprings: (scale: number) => void;
   };
@@ -297,6 +302,9 @@ export async function createLineupStage({
         shown: true,
         appear: 1,
         targetX: 0,
+        targetZ: 0,
+        moved: false,
+        turnOffset: 0,
         scaleSprings: scaleSprings(vrm),
       });
     });
@@ -307,14 +315,16 @@ export async function createLineupStage({
     let tallest = 0;
     const arrange = () => {
       const shown = placed.filter((item) => item.shown);
+      // AR で指で動かした子は、その場所のまま（並ぶのは、ほかの子だけ）
+      const lined = shown.filter((item) => !item.moved);
       let cursor = 0;
-      for (const item of shown) {
+      for (const item of lined) {
         cursor += item.rightWidth;
         item.targetX = cursor;
         cursor += item.leftWidth + GAP;
       }
       totalWidth = Math.max(cursor - GAP, 0.01);
-      for (const item of shown) item.targetX -= totalWidth / 2;
+      for (const item of lined) item.targetX -= totalWidth / 2;
       tallest = Math.max(0.01, ...shown.map((item) => item.height));
     };
     arrange();
@@ -447,6 +457,7 @@ export async function createLineupStage({
         item.group.visible = item.appear > 0;
         item.group.scale.setScalar(Math.max(0.001, popOut(item.appear)));
         item.group.position.x += (item.targetX - item.group.position.x) * slide;
+        item.group.position.z += (item.targetZ - item.group.position.z) * slide;
         if (!item.group.visible) return;
         // 子ごとに少しずらして、そろって揺れないようにする
         item.idle.update(elapsed + i * 1.7);
@@ -454,7 +465,7 @@ export async function createLineupStage({
         if (manager && lastExpression) {
           manager.setValue(lastExpression, weight);
         }
-        item.group.rotation.y += (turnGoal - item.group.rotation.y) * k;
+        item.group.rotation.y += (turnGoal + item.turnOffset - item.group.rotation.y) * k;
         item.player.update(paused ? 0 : delta);
       });
       look.update(delta);
@@ -512,8 +523,32 @@ export async function createLineupStage({
         // AR が終わったら（始められなかったときも）、いつもの写し方にもどす
         const restore = () => {
           inAR = false;
+          for (const item of placed) {
+            item.moved = false;
+            item.targetZ = 0;
+            item.turnOffset = 0;
+          }
+          arrange();
           resize();
         };
+        // 指でつかんで、1人ずつ動かす・まわす（components/vrm/ar-gestures.ts）
+        const point = new THREE.Vector3();
+        const grabbables = (): ARGrabbable[] =>
+          placed
+            .filter((item) => item.shown)
+            .map((item) => ({
+              object: item.group,
+              moveTo: (x, z) => {
+                lineup.worldToLocal(point.set(x, 0, z));
+                item.targetX = point.x;
+                item.targetZ = point.z;
+                item.moved = true;
+              },
+              turn: (angle) => {
+                item.turnOffset += angle;
+                item.moved = true;
+              },
+            }));
         let view: ARView;
         try {
           view = await startWebXR({
@@ -521,6 +556,7 @@ export async function createLineupStage({
             renderer,
             scene,
             model: lineup,
+            grabbables,
             hips: placed
               .map((item) => item.vrm.humanoid.getRawBoneNode('hips'))
               .filter((bone): bone is Object3D => bone !== null),
@@ -544,7 +580,7 @@ export async function createLineupStage({
         }
         arView = view;
         // AR のあいだは、スマホのカメラを「見ている人」にする
-        look.setCamera(renderer.xr.getCamera());
+        look.setCamera(renderer.xr.getCamera(), true);
         swaying.setCamera(renderer.xr.getCamera());
         return view.session;
       },

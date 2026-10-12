@@ -5,6 +5,7 @@ import type {
   Scene,
   WebGLRenderer,
 } from 'three';
+import { createARGestures, type ARGrabbable } from '@/components/vrm/ar-gestures';
 import { createGroundShadow } from '@/components/vrm/ground-shadow';
 
 /**
@@ -100,6 +101,7 @@ export async function startWebXR({
   scene,
   model,
   hips,
+  grabbables,
   onScale,
   overlay,
   onPlaced,
@@ -112,6 +114,11 @@ export async function startWebXR({
   model: Object3D;
   /** それぞれの子の腰の骨。足元の影を、腰の真下について行かせる */
   hips: Object3D[];
+  /**
+   * 指でつかんで動かせる子（components/vrm/ar-gestures.ts）。省略すると、model をまるごと動かす
+   * （みんなで並ぶときは、1人ずつ動かせるよう、子ごとに渡す）
+   */
+  grabbables?: () => ARGrabbable[];
   /**
    * 置く大きさ（1 が本当の大きさ）が変わったとき。揺れものの当たり判定などは、
    * モデルの大きさではなく場面の長さで決まっているので、モデルに合わせて縮めてもらう
@@ -280,8 +287,46 @@ export async function startWebXR({
   };
   overlay.addEventListener('beforexrselect', keepButtons);
 
+  // 置く大きさ（1 が本当の大きさ）。影を写す範囲と揺れものも合わせる
+  const applyScale = (scale: number) => {
+    anchor.scale.setScalar(scale);
+    ground.setScale(scale);
+    onScale(scale);
+  };
+
+  // 指でつかんで動かす・2本指で大きさを変える・ひねってまわす
+  const modelPosition = new THREE.Vector3();
+  const gestures = createARGestures({
+    THREE,
+    anchor,
+    grabbables:
+      grabbables ??
+      (() => [
+        {
+          object: model,
+          // model をまるごと動かす（model の足元が、そこへ来るように、置く場所の入れ物を動かす）
+          moveTo: (x, z) => {
+            model.getWorldPosition(modelPosition);
+            anchor.position.x += x - modelPosition.x;
+            anchor.position.z += z - modelPosition.z;
+          },
+          turn: (angle) => {
+            anchor.rotation.y += angle;
+          },
+        },
+      ]),
+    getScale: () => anchor.scale.x,
+    setScale: applyScale,
+  });
+  const onSelectStart = (event: XRInputSourceEvent) => gestures.start(event.inputSource);
+  const onSelectEnd = (event: XRInputSourceEvent) => gestures.end(event.inputSource);
+  session.addEventListener('selectstart', onSelectStart);
+  session.addEventListener('selectend', onSelectEnd);
+
   const cameraPosition = new THREE.Vector3();
-  const onSelect = () => {
+  const onSelect = (event: XRInputSourceEvent) => {
+    // 子をつかんで動かした・さわったタップでは、置き直さない
+    if (gestures.used(event.inputSource)) return;
     if (!reticle.visible) return;
     anchor.position.setFromMatrixPosition(reticle.matrix);
     // 見ている人のほうを向けて置く
@@ -307,6 +352,8 @@ export async function startWebXR({
     hitTestSource?.cancel();
     overlay.removeEventListener('beforexrselect', keepButtons);
     session.removeEventListener('select', onSelect);
+    session.removeEventListener('selectstart', onSelectStart);
+    session.removeEventListener('selectend', onSelectEnd);
     // モデルを元の場所へもどす
     anchor.remove(model);
     parent?.add(model);
@@ -327,12 +374,7 @@ export async function startWebXR({
 
   return {
     session: {
-      setSmall: (small) => {
-        const scale = small ? SMALL_SCALE : 1;
-        anchor.scale.setScalar(scale);
-        ground.setScale(scale);
-        onScale(scale);
-      },
+      setSmall: (small) => applyScale(small ? SMALL_SCALE : 1),
       canPhoto,
       photo: () =>
         new Promise((resolve) => {
@@ -361,6 +403,7 @@ export async function startWebXR({
       }
       if (!hitTestSource) return;
       const space = renderer.xr.getReferenceSpace();
+      if (space) gestures.update(frame, space);
       const hit = space && frame.getHitTestResults(hitTestSource)[0];
       const pose = hit?.getPose(space!);
       reticle.visible = !!pose;

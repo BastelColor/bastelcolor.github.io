@@ -14,12 +14,16 @@ import type { VRM } from '@pixiv/three-vrm';
  *   モーションや待機の動きのあとに足すので、踊っている最中でも、顔だけちらっとこちらを向く
  * - マウスがしばらく動かなかったら、カメラを見る
  *
+ * AR のあいだ（setCamera の ar）は、スマホ（見ている人）のほうへ、上下もふくめて顔を向ける。
+ * 首と頭で分けて少しずつ向け（かんたんな IK）、向けられる角度には上限をつける。
+ * 踊ってうしろを向いているときは、無理にふり向かない
+ *
  * 毎フレーム、モーションの更新のあと・vrm.update() の前に update() を呼ぶ
  */
 export type PointerLook = {
   update: (delta: number) => void;
-  /** 「見ている人」のカメラを替える（AR のあいだは、スマホのカメラ） */
-  setCamera: (camera: Camera) => void;
+  /** 「見ている人」のカメラを替える（AR のあいだは、スマホのカメラで、ar を true にする） */
+  setCamera: (camera: Camera, ar?: boolean) => void;
   dispose: () => void;
 };
 
@@ -34,6 +38,16 @@ const MAX_DOWN = 0.1;
  * ループのモーションは顔が少し下を向いているので、これで少しだけ起こして、こちらを見ているようにする
  */
 const HEAD_WEIGHT = 0.5;
+/** AR のとき、見ている人のほうへ見上げる・見下ろす角度の上限（ラジアン。上 約 34°、下 約 20°） */
+const AR_MAX_UP = 0.6;
+const AR_MAX_DOWN = 0.35;
+/** AR のとき、首と頭がそれぞれ向ける割合（合わせて、見る方向の 9 割ほど） */
+const AR_NECK_WEIGHT = 0.4;
+const AR_HEAD_WEIGHT = 0.8;
+/** AR のとき、首・頭それぞれが向けられる角度の上限（ラジアン。約 40°） */
+const AR_MAX_TURN = 0.7;
+/** 顔の正面と見る方向がこれより開いているとき（うしろのほうを向いているとき）は、ふり向かない（約 115°） */
+const AR_BEHIND = 2;
 /** 視線を合わせる速さ（大きいほど速い） */
 const EASE = 5;
 /** マウスがこの時間（秒）動かなかったら、カメラのほうを見る */
@@ -74,6 +88,8 @@ export function createPointerLook(
   area: HTMLElement = canvas,
 ): PointerLook {
   let camera = initialCamera;
+  // AR のあいだか（見ている人のほうへ、上下もふくめて首と頭を向ける）
+  let ar = false;
   const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   // マウスの位置（canvas 全体に対する -1〜1）。null ならカメラを見る
   let pointer: { x: number; y: number } | null = null;
@@ -121,8 +137,9 @@ export function createPointerLook(
   });
   // いま見ている向き（「カメラを見る向き」からのずれ。なめらかに近づける）
   const offsets = vrms.map(() => ({ yaw: 0, pitch: 0 }));
-  // 頭の向きをずらす量
+  // 頭の向きをずらす量（AR のときは、首も）
   const turns = vrms.map(() => new THREE.Quaternion());
+  const neckTurns = vrms.map(() => new THREE.Quaternion());
 
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
@@ -140,6 +157,32 @@ export function createPointerLook(
   const full = new THREE.Quaternion();
   const goal = new THREE.Quaternion();
   const identity = new THREE.Quaternion();
+
+  /**
+   * bone を、見る方向（look）へ向ける。親から見た、いまの正面と見る方向の回転のうち、weight の割合
+   * （ただし maxAngle まで）を、turn になめらかに近づけてから足す。正面と見る方向が behind より開いていたら向けない
+   */
+  const turnToward = (
+    bone: Object3D,
+    turn: Quaternion,
+    weight: number,
+    maxAngle: number,
+    behind: number,
+    k: number,
+  ) => {
+    const parent = bone.parent;
+    if (!parent) return;
+    parent.getWorldQuaternion(parentQuaternion).invert();
+    toward.copy(look).applyQuaternion(parentQuaternion).normalize();
+    forward.set(0, 0, 1).applyQuaternion(bone.quaternion).normalize();
+    const angle = forward.angleTo(toward);
+    const amount = angle > behind ? 0 : Math.min(weight, maxAngle / Math.max(angle, 1e-6));
+    full.setFromUnitVectors(forward, toward);
+    // （slerpQuaternions の書き込み先に、読み込む側と同じものを渡すと回らなくなるので、別に分ける）
+    goal.slerpQuaternions(identity, full, amount);
+    turn.slerp(goal, k);
+    bone.quaternion.premultiply(turn);
+  };
 
   const yawOf = (v: Vector3) => Math.atan2(v.x, v.z);
   const pitchOf = (v: Vector3) => Math.asin(Math.max(-1, Math.min(1, v.y)));
@@ -165,7 +208,10 @@ export function createPointerLook(
         // マウスの方向（頭を通り、カメラに向いた面の上の点）を、「カメラを見る向き」からのずれにする
         let yaw = 0;
         let pitch = 0;
-        if (pointer) {
+        if (ar) {
+          // AR: 見ている人（スマホ）の高さへ、見上げる・見下ろす
+          pitch = Math.max(-AR_MAX_DOWN, Math.min(AR_MAX_UP, pitchOf(toCamera)));
+        } else if (pointer) {
           ndc.set(pointer.x, pointer.y);
           ray.setFromCamera(ndc, camera);
           plane.setFromNormalAndCoplanarPoint(cameraForward, head);
@@ -195,26 +241,21 @@ export function createPointerLook(
         );
         targets[i].position.copy(head).addScaledVector(look, distance);
 
-        // 頭の向き: 親（首）から見た、いまの顔の正面と、見る方向。そのうち HEAD_WEIGHT だけ向ける
-        const parent = headBone.parent as Object3D | null;
-        if (!parent) return;
-        parent.getWorldQuaternion(parentQuaternion).invert();
-        toward.copy(look).applyQuaternion(parentQuaternion).normalize();
-        forward
-          .set(0, 0, 1)
-          .applyQuaternion(headBone.quaternion as Quaternion)
-          .normalize();
-        // うしろのほうを向いているとき（踊ってくるっと回っているときなど）は、無理にふり向かない
-        const weight = forward.angleTo(toward) > 1.4 ? 0 : HEAD_WEIGHT;
-        full.setFromUnitVectors(forward, toward);
-        // （slerpQuaternions の書き込み先に、読み込む側と同じものを渡すと回らなくなるので、別に分ける）
-        goal.slerpQuaternions(identity, full, weight);
-        turns[i].slerp(goal, k);
-        headBone.quaternion.premultiply(turns[i]);
+        if (ar) {
+          // AR: 首、頭の順に、見る方向へ少しずつ向ける（首を向けたぶん、頭は残りを向ける）
+          const neck = vrm.humanoid.getNormalizedBoneNode('neck');
+          if (neck) turnToward(neck, neckTurns[i], AR_NECK_WEIGHT, AR_MAX_TURN, AR_BEHIND, k);
+          turnToward(headBone, turns[i], AR_HEAD_WEIGHT, AR_MAX_TURN, AR_BEHIND, k);
+        } else {
+          // 頭の向き: いまの顔の正面と、見る方向。そのうち HEAD_WEIGHT だけ向ける
+          // （うしろのほうを向いているとき（踊ってくるっと回っているときなど）は、無理にふり向かない）
+          turnToward(headBone, turns[i], HEAD_WEIGHT, Math.PI, 1.4, k);
+        }
       });
     },
-    setCamera: (next) => {
+    setCamera: (next, nextAr = false) => {
       camera = next;
+      ar = nextAr;
     },
     dispose: () => {
       window.removeEventListener('pointermove', onMove);

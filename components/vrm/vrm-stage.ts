@@ -911,7 +911,7 @@ export async function createVrmStage({
         });
         arView = view;
         // AR のあいだは、スマホのカメラを「見ている人」にする
-        look.setCamera(renderer.xr.getCamera());
+        look.setCamera(renderer.xr.getCamera(), true);
         swaying.setCamera(renderer.xr.getCamera());
         return view.session;
       },

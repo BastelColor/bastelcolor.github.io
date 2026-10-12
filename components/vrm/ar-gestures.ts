@@ -1,0 +1,255 @@
+import type { Box3, Mesh, Object3D, Quaternion, Ray, Vector3 } from 'three';
+
+/**
+ * AR（WebXR）で、置いた子を指でつかんで動かす（components/vrm/ar.ts）。
+ *
+ *   1本指  子をつかんで、床の上を動かす（みんなで並ぶときは、つかんだ子だけ）
+ *   2本指  広げる・すぼめると、みんなの大きさが変わる。ひねると、さわった子（いなければ、みんな）がまわる
+ *
+ * 画面へのタッチは、ページのイベントではなく、WebXR の「画面の指」（targetRayMode が screen の入力）から読む。
+ * 指ごとに、毎フレーム、カメラから部屋の中へ伸びる光線（ray）がわかる。
+ * - つかんで動かすときは、さわった点の高さの水平な面と光線が交わる点を追う（さわった点が、指の下からずれない）
+ * - 2本指の広げ方・ひねり方は、カメラから見た2本の光線の向きの差で測る（画面の上での、指と指の距離と角度）
+ * 子にさわらずにタップしたときは、これまでどおり、そこへみんなを置き直す（ar.ts の select）
+ */
+export type ARGrabbable = {
+  /** さわったかを調べるもの（この中の、メッシュの範囲） */
+  object: Object3D;
+  /** object の足元（ワールドの x, z）を、そこへ動かす */
+  moveTo: (x: number, z: number) => void;
+  /** その場でまわす（ラジアン。上から見て左回りが正） */
+  turn: (angle: number) => void;
+};
+
+export type ARGestures = {
+  /** 指が画面にふれたとき（session の selectstart） */
+  start: (source: XRInputSource) => void;
+  /** 指を離したとき（session の selectend） */
+  end: (source: XRInputSource) => void;
+  /** その指で、子を動かした・さわったか（そのときは、タップで置き直さない） */
+  used: (source: XRInputSource) => boolean;
+  /** 毎フレーム呼ぶ */
+  update: (frame: XRFrame, space: XRReferenceSpace) => void;
+};
+
+/** 2本指で変えられる大きさの範囲（本当の大きさに対する割合） */
+const MIN_SCALE = 0.1;
+const MAX_SCALE = 2;
+/** さわったかを調べる範囲を、まわりへ広げる量（子の大きさに対する割合）。指は太いので */
+const TOUCH_MARGIN = 0.15;
+
+type Touch = {
+  ray: Ray;
+  hasRay: boolean;
+  /** さわった子を調べ終えたか */
+  checked: boolean;
+  target: ARGrabbable | null;
+  /** つかんだ点の高さ（この高さの水平な面の上で、指を追う） */
+  grabY: number;
+  /** つかんだ子の足元と、指を追う面の上の点とのずれ */
+  offsetX: number;
+  offsetZ: number;
+  used: boolean;
+};
+
+export function createARGestures({
+  THREE,
+  anchor,
+  grabbables,
+  getScale,
+  setScale,
+}: {
+  THREE: typeof import('three');
+  /** 置く場所の入れ物（scene の直下） */
+  anchor: Object3D;
+  /** いまつかめる子（見えている子） */
+  grabbables: () => ARGrabbable[];
+  getScale: () => number;
+  setScale: (scale: number) => void;
+}): ARGestures {
+  const touches = new Map<XRInputSource, Touch>();
+  let pinch: {
+    spread: number;
+    angle: number;
+    scale: number;
+    target: ARGrabbable | null;
+  } | null = null;
+
+  const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const point = new THREE.Vector3();
+  const position = new THREE.Vector3();
+  const localRay = new THREE.Ray();
+  const inverse = new THREE.Matrix4();
+  const hit = new THREE.Vector3();
+  const quaternion = new THREE.Quaternion();
+  const toCamera = new THREE.Quaternion();
+  const dirA = new THREE.Vector3();
+  const dirB = new THREE.Vector3();
+  const boxes = new WeakMap<Object3D, Box3>();
+
+  /** 光線と、高さ y の水平な面が交わる点。交わらなければ false */
+  const onPlane = (ray: Ray, y: number, out: Vector3) => {
+    plane.constant = -y;
+    return ray.intersectPlane(plane, out) !== null;
+  };
+
+  /** 光線が最初にさわる子と、さわった点（ワールド） */
+  const touched = (ray: Ray): { grabbable: ARGrabbable; point: Vector3 } | null => {
+    let best: { grabbable: ARGrabbable; point: Vector3 } | null = null;
+    let bestDistance = Infinity;
+    for (const grabbable of grabbables()) {
+      const object = grabbable.object;
+      object.updateWorldMatrix(true, false);
+      let box = boxes.get(object);
+      if (!box) {
+        box = measureLocal(THREE, object);
+        const size = box.getSize(new THREE.Vector3());
+        box.expandByVector(size.multiplyScalar(TOUCH_MARGIN));
+        boxes.set(object, box);
+      }
+      localRay.copy(ray).applyMatrix4(inverse.copy(object.matrixWorld).invert());
+      if (!localRay.intersectBox(box, hit)) continue;
+      hit.applyMatrix4(object.matrixWorld);
+      const distance = hit.distanceTo(ray.origin);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = { grabbable, point: hit.clone() };
+      }
+    }
+    return best;
+  };
+
+  /**
+   * 2本の光線の、カメラから見た差（画面の上での指と指のはなれ具合と、向き）。
+   * camera はカメラの向き（ワールド）。向きの差をカメラの座標になおして、横・縦の成分で見る
+   */
+  const screenSpread = (a: Ray, b: Ray, camera: Quaternion) => {
+    toCamera.copy(camera).invert();
+    dirA.copy(a.direction).applyQuaternion(toCamera);
+    dirB.copy(b.direction).applyQuaternion(toCamera);
+    // 奥行き 1 の面の上の点にそろえる（画面の上の位置と同じ比になる）
+    const ax = dirA.x / -dirA.z;
+    const ay = dirA.y / -dirA.z;
+    const bx = dirB.x / -dirB.z;
+    const by = dirB.y / -dirB.z;
+    return { spread: Math.hypot(bx - ax, by - ay), angle: Math.atan2(by - ay, bx - ax) };
+  };
+
+  const wrap = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
+
+  return {
+    start: (source) => {
+      if (source.targetRayMode !== 'screen') return;
+      touches.set(source, {
+        ray: new THREE.Ray(),
+        hasRay: false,
+        checked: false,
+        target: null,
+        grabY: 0,
+        offsetX: 0,
+        offsetZ: 0,
+        used: false,
+      });
+    },
+    end: (source) => {
+      touches.delete(source);
+      if (touches.size < 2) pinch = null;
+    },
+    used: (source) => touches.get(source)?.used ?? false,
+    update: (frame, space) => {
+      // それぞれの指の光線
+      for (const [source, touch] of touches) {
+        const pose = frame.getPose(source.targetRaySpace, space);
+        touch.hasRay = !!pose;
+        if (!pose) continue;
+        const { position: p, orientation: o } = pose.transform;
+        touch.ray.origin.set(p.x, p.y, p.z);
+        touch.ray.direction
+          .set(0, 0, -1)
+          .applyQuaternion(quaternion.set(o.x, o.y, o.z, o.w))
+          .normalize();
+      }
+      // まだ置いていないあいだは、タップで置くだけ
+      if (!anchor.visible) return;
+      const active = [...touches.values()].filter((touch) => touch.hasRay);
+
+      // さわりはじめに、どの子にさわったかを調べる
+      for (const touch of active) {
+        if (touch.checked) continue;
+        touch.checked = true;
+        const found = touched(touch.ray);
+        if (!found) continue;
+        touch.target = found.grabbable;
+        touch.used = true;
+        touch.grabY = found.point.y;
+        found.grabbable.object.getWorldPosition(position);
+        touch.offsetX = position.x - found.point.x;
+        touch.offsetZ = position.z - found.point.z;
+      }
+
+      if (active.length >= 2) {
+        // 2本指: 広げる・すぼめるで大きさ、ひねるでまわす
+        const viewer = frame.getViewerPose(space);
+        if (!viewer) return;
+        const o = viewer.transform.orientation;
+        const [a, b] = active;
+        const now = screenSpread(a.ray, b.ray, quaternion.set(o.x, o.y, o.z, o.w));
+        if (!pinch) {
+          // 1本目の指でさわった子をまわす（さわっていなければ、みんな）
+          pinch = {
+            spread: Math.max(now.spread, 1e-3),
+            angle: now.angle,
+            scale: getScale(),
+            target: a.target ?? b.target,
+          };
+          a.used = true;
+          b.used = true;
+          // 2本指のあいだと、そのあと残った指では、つかんでいた子を動かさない
+          a.target = null;
+          b.target = null;
+          return;
+        }
+        setScale(
+          Math.max(MIN_SCALE, Math.min(MAX_SCALE, (pinch.scale * now.spread) / pinch.spread)),
+        );
+        // 画面の上で左回りにひねると、上から見て左回りにまわる
+        const turn = wrap(now.angle - pinch.angle);
+        pinch.angle = now.angle;
+        if (pinch.target) pinch.target.turn(turn);
+        else anchor.rotation.y += turn;
+        return;
+      }
+
+      if (active.length === 1 && !pinch) {
+        const touch = active[0];
+        if (!touch.target || !onPlane(touch.ray, touch.grabY, point)) return;
+        touch.target.moveTo(point.x + touch.offsetX, point.z + touch.offsetZ);
+      }
+    },
+  };
+}
+
+/**
+ * object の中のメッシュの、いまの形での範囲（object から見た座標）。
+ * 骨で動かしている形は three.js の範囲（boundingBox）に入っていないので、頂点を骨で動かしてから測る。
+ * 時間がかからないよう、頂点は間引く
+ */
+function measureLocal(THREE: typeof import('three'), object: Object3D): Box3 {
+  const box = new THREE.Box3();
+  const vertex = new THREE.Vector3();
+  const toLocal = new THREE.Matrix4();
+  object.updateWorldMatrix(true, true);
+  const inverse = object.matrixWorld.clone().invert();
+  object.traverse((child) => {
+    const mesh = child as Mesh;
+    const position = mesh.isMesh ? mesh.geometry.getAttribute('position') : undefined;
+    if (!position) return;
+    toLocal.multiplyMatrices(inverse, mesh.matrixWorld);
+    const step = Math.max(1, Math.floor(position.count / 2000));
+    for (let i = 0; i < position.count; i += step) {
+      mesh.getVertexPosition(i, vertex);
+      box.expandByPoint(vertex.applyMatrix4(toLocal));
+    }
+  });
+  return box;
+}
