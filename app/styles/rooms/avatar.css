@@ -501,7 +501,10 @@
   justify-content: space-between;
   padding: max(16px, env(safe-area-inset-top)) 16px
     max(20px, env(safe-area-inset-bottom));
-  pointer-events: none;
+  /* 2本指の操作（大きさ・まわす）は、この層で指を読む（components/vrm/ar-gestures.ts）。
+     この層を押しても、AR の「タップ」（置く・つかむ）は、そのまま届く */
+  pointer-events: auto;
+  touch-action: none;
 }
 
 .avatar-ar-overlay[hidden] {

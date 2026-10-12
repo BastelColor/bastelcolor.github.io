@@ -299,6 +299,7 @@ export async function startWebXR({
   const gestures = createARGestures({
     THREE,
     anchor,
+    overlay,
     grabbables:
       grabbables ??
       (() => [
@@ -354,6 +355,7 @@ export async function startWebXR({
     session.removeEventListener('select', onSelect);
     session.removeEventListener('selectstart', onSelectStart);
     session.removeEventListener('selectend', onSelectEnd);
+    gestures.dispose();
     // モデルを元の場所へもどす
     anchor.remove(model);
     parent?.add(model);
