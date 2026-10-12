@@ -511,10 +511,17 @@
   display: none;
 }
 
+/* 上の段: 左上の「おわる」と、まんなかの案内 */
+.avatar-ar-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
 .avatar-ar-hint {
-  align-self: center;
+  flex: 1;
   max-width: 30em;
-  margin: 0;
+  margin: 0 auto;
   padding: 10px 16px;
   border-radius: 16px;
   background: rgba(255, 255, 255, 0.88);
@@ -548,6 +555,121 @@
 
 .avatar-ar-buttons button[aria-pressed='true'] {
   background: #ffe08a;
+}
+
+/* 下の段の、アイコンのボタン（白い丸）。押しているもの（オン）は黄色 */
+.avatar-ar-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  /* せまいスマホ（幅 360px）でも、ボタン 6 つが1列に入るように */
+  width: clamp(40px, 11.5vw, 46px);
+  height: clamp(40px, 11.5vw, 46px);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+  color: #3a4256;
+  pointer-events: auto;
+}
+
+.avatar-ar-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.avatar-ar-icon[aria-pressed='true'],
+.avatar-ar-icon[aria-expanded='true'] {
+  background: #ffe08a;
+}
+
+.avatar-ar-icon:active,
+.avatar-ar-shutter:active {
+  translate: 0 2px;
+}
+
+/* 写真は、カメラのアプリのように、真ん中に大きく */
+.avatar-ar-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.avatar-ar-side {
+  display: flex;
+  flex: 1;
+  gap: 6px;
+}
+
+.avatar-ar-side.is-start {
+  justify-content: flex-end;
+}
+
+.avatar-ar-side.is-end {
+  justify-content: flex-start;
+}
+
+.avatar-ar-shutter {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: clamp(58px, 17vw, 68px);
+  height: clamp(58px, 17vw, 68px);
+  margin: 0 2px;
+  padding: 0;
+  border: 4px solid rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  background: #fff;
+  background-clip: padding-box;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+  color: #3a4256;
+  pointer-events: auto;
+}
+
+.avatar-ar-shutter svg {
+  width: 32px;
+  height: 32px;
+}
+
+.avatar-ar-shutter-count {
+  font-family: var(--display);
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* アイコンのボタンを押したときの短い説明（画面のまんなかに、少しだけ出る） */
+.avatar-ar-note {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(58, 66, 86, 0.92);
+  font-size: 14px;
+  font-weight: 900;
+  color: #fff;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: avatar-ar-note 1.6s ease-out forwards;
+}
+
+@keyframes avatar-ar-note {
+  0% {
+    opacity: 0;
+    scale: 0.9;
+  }
+  12%,
+  70% {
+    opacity: 1;
+    scale: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /* 下の、表情のボタンと、写真・ちいさく・おわるのボタン */

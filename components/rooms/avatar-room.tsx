@@ -32,6 +32,15 @@ import { preloadVrmStage, type VrmStage } from '@/components/vrm/vrm-stage';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
 import { avatars, boothUrl } from '@/content/avatars';
 import { avatarExpressions, avatarMotion } from '@/content/motions';
+import {
+  BackIcon,
+  BoxIcon,
+  CameraIcon,
+  HeightIcon,
+  MoodIcon,
+  PersonIcon,
+  StopwatchIcon,
+} from '@/components/rooms/ar-icons';
 import { site } from '@/content/site';
 import { readLayers, replaceLayers } from '@/lib/history-layers';
 import { reportError } from '@/lib/report-error';
@@ -219,6 +228,12 @@ export function AvatarRoom() {
   const [arCountdown, setArCountdown] = useState<number | null>(null);
   // AR の中に「わたし」の柱を立てるか（背丈くらべで身長を入れたときだけ）
   const [arMark, setArMark] = useState(true);
+  // AR の表情のボタンの列を開いているか（ふだんは、顔のボタン1つにまとめておく）
+  const [arExpressionsOpen, setArExpressionsOpen] = useState(false);
+  // アイコンのボタンを押したときに、何をしたかを短く出す（アイコンだけでは分かりにくいので）
+  const [arNote, setArNote] = useState<{ text: string; key: number } | null>(null);
+  const showArNote = (text: string) =>
+    setArNote((current) => ({ text, key: (current?.key ?? 0) + 1 }));
   const [arBusy, setArBusy] = useState(false);
   const arSession = useRef<ARSession | null>(null);
   const arOverlay = useRef<HTMLDivElement>(null);
@@ -361,6 +376,8 @@ export function AvatarRoom() {
         });
         setArCanPhoto(arSession.current.canPhoto);
         setArMark(true);
+        setArExpressionsOpen(false);
+        setArNote(null);
         setArCanOcclude(arSession.current.canOcclude);
         setArOcclude(true);
         setArState('searching');
@@ -616,26 +633,37 @@ export function AvatarRoom() {
           className="avatar-ar-overlay"
           hidden={arState === 'off'}
         >
-          <p className="avatar-ar-hint" aria-live="polite">
-            {arState === 'placed'
-              ? t(
-                  'ほかの場所をタップすると、そこへ移ります',
-                  'Tap somewhere else to move it',
-                )
-              : t(
-                  '床や机をゆっくり映して、白い輪が出たところをタップしてください',
-                  'Slowly scan the floor or a table, then tap where the white ring appears',
-                )}
-            {/* 本当の大きさでないときは、いまの大きさを出す（2本指で変えたのに気づけるように） */}
-            {arState === 'placed' && !arRealSize && (
-              <span className="avatar-ar-scale">
-                {t(
-                  `いまの大きさ: 本当の ${Math.round(arScale * 100)}%`,
-                  `Size: ${Math.round(arScale * 100)}% of real`,
-                )}
-              </span>
-            )}
-          </p>
+          {/* 上: おわる（左上）と、案内 */}
+          <div className="avatar-ar-top">
+            <button
+              type="button"
+              className="avatar-ar-icon"
+              aria-label={t('AR をおわる', 'Exit AR')}
+              onClick={() => arSession.current?.end()}
+            >
+              <BackIcon />
+            </button>
+            <p className="avatar-ar-hint" aria-live="polite">
+              {arState === 'placed'
+                ? t(
+                    'ほかの場所をタップすると、そこへ移ります',
+                    'Tap somewhere else to move it',
+                  )
+                : t(
+                    '床や机をゆっくり映して、白い輪が出たところをタップしてください',
+                    'Slowly scan the floor or a table, then tap where the white ring appears',
+                  )}
+              {/* 本当の大きさでないときは、いまの大きさを出す（2本指で変えたのに気づけるように） */}
+              {arState === 'placed' && !arRealSize && (
+                <span className="avatar-ar-scale">
+                  {t(
+                    `いまの大きさ: 本当の ${Math.round(arScale * 100)}%`,
+                    `Size: ${Math.round(arScale * 100)}% of real`,
+                  )}
+                </span>
+              )}
+            </p>
+          </div>
           {arFlash > 0 && (
             <span key={arFlash} className="avatar-ar-flash" aria-hidden="true" />
           )}
@@ -645,87 +673,155 @@ export function AvatarRoom() {
               {arCountdown}
             </span>
           )}
-          <div className="avatar-ar-bottom">
-          {/* みんなで並ぶときは、1人ずつ出したりしまったりできる */}
-          {mode === 'lineup' && (
-            <ShownToggles hiddenIds={hiddenIds} onToggle={toggleShown} />
+          {/* アイコンのボタンを押したときの、短い説明 */}
+          {arNote && (
+            <output key={arNote.key} className="avatar-ar-note">
+              {arNote.text}
+            </output>
           )}
-          {/* 置いたあとは、表情も変えられる */}
-          {arState === 'placed' && stage && (
-            <div className="avatar-ar-buttons is-expressions">
-              {avatarExpressions
-                .filter((expression) => stage.expressionNames.includes(expression.id))
-                .map((expression) => (
+          <div className="avatar-ar-bottom">
+            {/* みんなで並ぶときは、1人ずつ出したりしまったりできる */}
+            {mode === 'lineup' && (
+              <ShownToggles hiddenIds={hiddenIds} onToggle={toggleShown} />
+            )}
+            {/* 表情の列（顔のボタンで開く） */}
+            {arState === 'placed' && stage && arExpressionsOpen && (
+              <div className="avatar-ar-buttons is-expressions">
+                {avatarExpressions
+                  .filter((expression) => stage.expressionNames.includes(expression.id))
+                  .map((expression) => (
+                    <button
+                      key={expression.id}
+                      type="button"
+                      onClick={() => {
+                        playSound('pop');
+                        stage.showExpression(expression.id, { seconds: 3 });
+                      }}
+                    >
+                      {t(expression.label, expression.labelEn)}
+                    </button>
+                  ))}
+              </div>
+            )}
+            {/* カメラのアプリのように、写真を真ん中に大きく、ほかは左右にアイコンで */}
+            <div className="avatar-ar-bar">
+              <div className="avatar-ar-side is-start">
+                {/* 本当の大きさのときは「ちいさく」（小さい人）、ちがう大きさのときは「本当の大きさ」（大きい人） */}
+                <button
+                  type="button"
+                  className="avatar-ar-icon"
+                  aria-label={
+                    arRealSize
+                      ? t('ちいさくする', 'Make it small')
+                      : t('本当の大きさにもどす', 'Back to real size')
+                  }
+                  onClick={() => {
+                    playSound('pop');
+                    arSession.current?.setSmall(arRealSize);
+                    showArNote(
+                      arRealSize ? t('ちいさく', 'Small') : t('本当の大きさ', 'Real size'),
+                    );
+                  }}
+                >
+                  <PersonIcon small={arRealSize} />
+                </button>
+                {/* 背丈くらべで入れた身長の、「わたし」の柱（入れたときだけ） */}
+                {myHeightMeters !== undefined && arState === 'placed' && (
                   <button
-                    key={expression.id}
                     type="button"
+                    className="avatar-ar-icon"
+                    aria-label={t('わたしの身長の柱', 'Your height pole')}
+                    aria-pressed={arMark}
                     onClick={() => {
                       playSound('pop');
-                      stage.showExpression(expression.id, { seconds: 3 });
+                      setArMark(!arMark);
+                      showArNote(
+                        arMark
+                          ? t('わたしの柱: かくす', 'Height pole: off')
+                          : t('わたしの柱: だす', 'Height pole: on'),
+                      );
                     }}
                   >
-                    {t(expression.label, expression.labelEn)}
+                    <HeightIcon />
                   </button>
-                ))}
+                )}
+                {/* 表情（押すと、表情のボタンの列が開く） */}
+                {arState === 'placed' && stage && stage.expressionNames.length > 0 && (
+                  <button
+                    type="button"
+                    className="avatar-ar-icon"
+                    aria-label={t('表情', 'Expressions')}
+                    aria-expanded={arExpressionsOpen}
+                    onClick={() => {
+                      playSound('pop');
+                      setArExpressionsOpen((value) => !value);
+                    }}
+                  >
+                    <MoodIcon />
+                  </button>
+                )}
+              </div>
+              {arCanPhoto && arState === 'placed' && (
+                <button
+                  type="button"
+                  className="avatar-ar-shutter"
+                  aria-label={
+                    arCountdown !== null ? t('タイマーをやめる', 'Cancel timer') : t('写真を撮る', 'Take a photo')
+                  }
+                  onClick={pressArPhoto}
+                >
+                  {arCountdown !== null ? (
+                    <span className="avatar-ar-shutter-count">{arCountdown}</span>
+                  ) : (
+                    <CameraIcon />
+                  )}
+                </button>
+              )}
+              <div className="avatar-ar-side is-end">
+                {/* 押してから 3 秒後に撮る（スマホを置いて、自分もいっしょに写れる） */}
+                {arCanPhoto && arState === 'placed' && (
+                  <button
+                    type="button"
+                    className="avatar-ar-icon"
+                    aria-label={t(`タイマー ${AR_TIMER_SECONDS}秒`, `${AR_TIMER_SECONDS}s timer`)}
+                    aria-pressed={arTimer}
+                    onClick={() => {
+                      playSound('pop');
+                      setArTimer(!arTimer);
+                      showArNote(
+                        arTimer
+                          ? t('タイマー: なし', 'Timer: off')
+                          : t(`タイマー: ${AR_TIMER_SECONDS}秒`, `Timer: ${AR_TIMER_SECONDS}s`),
+                      );
+                    }}
+                  >
+                    <StopwatchIcon />
+                  </button>
+                )}
+                {/* 手前の本物の物のうしろに隠れる（奥行きを測れる端末だけ。うまく隠れないときは切れるように） */}
+                {arCanOcclude && arState === 'placed' && (
+                  <button
+                    type="button"
+                    className="avatar-ar-icon"
+                    aria-label={t('物のうしろに隠れる', 'Hide behind objects')}
+                    aria-pressed={arOcclude}
+                    onClick={() => {
+                      playSound('pop');
+                      const next = !arOcclude;
+                      setArOcclude(next);
+                      arSession.current?.setOcclusion(next);
+                      showArNote(
+                        next
+                          ? t('物のうしろに隠れる', 'Hides behind objects')
+                          : t('物のうしろに隠れない', 'Always in front'),
+                      );
+                    }}
+                  >
+                    <BoxIcon />
+                  </button>
+                )}
+              </div>
             </div>
-          )}
-          <div className="avatar-ar-buttons">
-            {arCanPhoto && arState === 'placed' && (
-              <button type="button" onClick={pressArPhoto}>
-                {arCountdown !== null ? t('やめる', 'Cancel') : t('写真', 'Photo')}
-              </button>
-            )}
-            {/* 押してから 3 秒後に撮る（スマホを置いて、自分もいっしょに写れる） */}
-            {arCanPhoto && arState === 'placed' && (
-              <button
-                type="button"
-                aria-pressed={arTimer}
-                onClick={() => {
-                  playSound('pop');
-                  setArTimer((value) => !value);
-                }}
-              >
-                {t(`タイマー ${AR_TIMER_SECONDS}秒`, `${AR_TIMER_SECONDS}s timer`)}
-              </button>
-            )}
-            {/* 背丈くらべで入れた身長の、「わたし」の柱（入れたときだけ） */}
-            {myHeightMeters !== undefined && arState === 'placed' && (
-              <button
-                type="button"
-                aria-pressed={arMark}
-                onClick={() => {
-                  playSound('pop');
-                  setArMark((value) => !value);
-                }}
-              >
-                {t('わたし', 'Me')}
-              </button>
-            )}
-            {/* 手前の本物の物のうしろに隠れる（奥行きを測れる端末だけ。うまく隠れないときは切れるように） */}
-            {arCanOcclude && arState === 'placed' && (
-              <button
-                type="button"
-                aria-pressed={arOcclude}
-                onClick={() => {
-                  const next = !arOcclude;
-                  setArOcclude(next);
-                  arSession.current?.setOcclusion(next);
-                }}
-              >
-                {t('かくれる', 'Occlude')}
-              </button>
-            )}
-            {/* 本当の大きさのときは「ちいさく」、ちがう大きさ（ちいさく・2本指）のときは、本当の大きさにもどす */}
-            <button
-              type="button"
-              onClick={() => arSession.current?.setSmall(arRealSize)}
-            >
-              {arRealSize ? t('ちいさく', 'Small') : t('本当の大きさ', 'Real size')}
-            </button>
-            <button type="button" onClick={() => arSession.current?.end()}>
-              {t('おわる', 'Done')}
-            </button>
-          </div>
           </div>
         </div>
         {/* 向きと背景のボタン。モデルの足元の左右に置く */}
