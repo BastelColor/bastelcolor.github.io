@@ -34,6 +34,7 @@ import { avatars, boothUrl } from '@/content/avatars';
 import { avatarExpressions, avatarMotion } from '@/content/motions';
 import { site } from '@/content/site';
 import { readLayers, replaceLayers } from '@/lib/history-layers';
+import { reportError } from '@/lib/report-error';
 import { localizeAvatar } from '@/lib/localize';
 import { reducesMotion, useReducedMotion } from '@/lib/motion';
 import { playSound } from '@/lib/sound';
@@ -201,7 +202,12 @@ export function AvatarRoom() {
   const [arState, setArState] = useState<'off' | 'searching' | 'placed'>(
     'off',
   );
-  const [arSmall, setArSmall] = useState(false);
+  // AR で置いた大きさ（1 が本当の大きさ。「ちいさく」・2本指で変わる）
+  const [arScale, setArScale] = useState(1);
+  const arRealSize = Math.abs(arScale - 1) < 0.005;
+  // AR で、手前の本物の物のうしろに隠れられるか（奥行きを測れる端末だけ）と、隠れるか
+  const [arCanOcclude, setArCanOcclude] = useState(false);
+  const [arOcclude, setArOcclude] = useState(true);
   // AR のあいだに写真を撮れるか（カメラの映像を読めるブラウザだけ）
   const [arCanPhoto, setArCanPhoto] = useState(false);
   const [arFlash, setArFlash] = useState(0);
@@ -296,6 +302,27 @@ export function AvatarRoom() {
     stage?.setPaused(paused);
   }, [stage, paused]);
 
+  // キーボード: P で、踊りを止める・また動かす。ボタンなどを選んでいないときは Space でも
+  // （ボタンを選んでいるときの Space は、そのボタンを押すのに使う。入力欄では文字を打つ）
+  useEffect(() => {
+    if (reduceMotion) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey || event.repeat) return;
+      const target = event.target as Element | null;
+      if (target?.closest('input, textarea, select, [contenteditable]')) return;
+      // ほかのダイアログ（作品の詳細・キーの一覧など）が開いているときは、何もしない
+      if (document.querySelector('dialog[open]')) return;
+      const isP = event.key === 'p' || event.key === 'P';
+      const isSpace = event.key === ' ' && !target?.closest('button, a, [role="button"]');
+      if (!isP && !isSpace) return;
+      event.preventDefault();
+      playSound('pop');
+      setPaused((value) => !value);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [reduceMotion]);
+
   // みんなで並ぶときに、しまった子を舞台に伝える
   useEffect(() => {
     if (!stage?.setShown) return;
@@ -313,19 +340,23 @@ export function AvatarRoom() {
     playSound('pop');
     countEvent(`ar/${mode === 'lineup' ? 'everyone' : selected.id}`);
     if (arMode === 'webxr' && stage.startAR && arOverlay.current) {
-      setArSmall(false);
+      setArScale(1);
       try {
         arSession.current = await stage.startAR(arOverlay.current, {
           onPlaced: () => setArState('placed'),
+          onScaleChange: setArScale,
           onEnd: () => {
             arSession.current = null;
             setArState('off');
           },
         });
         setArCanPhoto(arSession.current.canPhoto);
+        setArCanOcclude(arSession.current.canOcclude);
+        setArOcclude(true);
         setArState('searching');
       } catch (error) {
         console.error(error);
+        reportError('ar-start', error);
         setArState('off');
       }
       return;
@@ -349,6 +380,7 @@ export function AvatarRoom() {
         });
       } catch (error) {
         console.error(error);
+        reportError('ar-quicklook', error);
       } finally {
         setArBusy(false);
       }
@@ -543,6 +575,15 @@ export function AvatarRoom() {
                   '床や机をゆっくり映して、白い輪が出たところをタップしてください',
                   'Slowly scan the floor or a table, then tap where the white ring appears',
                 )}
+            {/* 本当の大きさでないときは、いまの大きさを出す（2本指で変えたのに気づけるように） */}
+            {arState === 'placed' && !arRealSize && (
+              <span className="avatar-ar-scale">
+                {t(
+                  `いまの大きさ: 本当の ${Math.round(arScale * 100)}%`,
+                  `Size: ${Math.round(arScale * 100)}% of real`,
+                )}
+              </span>
+            )}
           </p>
           {arFlash > 0 && (
             <span key={arFlash} className="avatar-ar-flash" aria-hidden="true" />
@@ -577,16 +618,26 @@ export function AvatarRoom() {
                 {t('写真', 'Photo')}
               </button>
             )}
+            {/* 手前の本物の物のうしろに隠れる（奥行きを測れる端末だけ。うまく隠れないときは切れるように） */}
+            {arCanOcclude && arState === 'placed' && (
+              <button
+                type="button"
+                aria-pressed={arOcclude}
+                onClick={() => {
+                  const next = !arOcclude;
+                  setArOcclude(next);
+                  arSession.current?.setOcclusion(next);
+                }}
+              >
+                {t('かくれる', 'Occlude')}
+              </button>
+            )}
+            {/* 本当の大きさのときは「ちいさく」、ちがう大きさ（ちいさく・2本指）のときは、本当の大きさにもどす */}
             <button
               type="button"
-              aria-pressed={arSmall}
-              onClick={() => {
-                const next = !arSmall;
-                setArSmall(next);
-                arSession.current?.setSmall(next);
-              }}
+              onClick={() => arSession.current?.setSmall(arRealSize)}
             >
-              {t('ちいさく', 'Small')}
+              {arRealSize ? t('ちいさく', 'Small') : t('本当の大きさ', 'Real size')}
             </button>
             <button type="button" onClick={() => arSession.current?.end()}>
               {t('おわる', 'Done')}

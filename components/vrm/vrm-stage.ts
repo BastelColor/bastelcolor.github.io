@@ -63,7 +63,12 @@ export type VrmStage = {
    */
   startAR: (
     overlay: HTMLElement,
-    events: { onPlaced: () => void; onEnd: () => void },
+    events: {
+      onPlaced: () => void;
+      /** 置く大きさ（1 が本当の大きさ）が変わったとき */
+      onScaleChange?: (scale: number) => void;
+      onEnd: () => void;
+    },
   ) => Promise<ARSession>;
   /** いまのポーズのモデルを USDZ にする（iPhone の AR クイックルック用。components/vrm/ar.ts） */
   exportUsdz: () => Promise<Blob>;
@@ -888,7 +893,7 @@ export async function createVrmStage({
       setPaused: (value) => {
         paused = value;
       },
-      startAR: async (overlay, { onPlaced, onEnd }) => {
+      startAR: async (overlay, { onPlaced, onScaleChange, onEnd }) => {
         const view = await startWebXR({
           THREE,
           renderer,
@@ -900,6 +905,7 @@ export async function createVrmStage({
           onScale: scaleSprings(currentVrm),
           overlay,
           onPlaced,
+          onScaleChange,
           onEnd: () => {
             arView = null;
             // 目と揺れものは、またいつものカメラを見る。canvas の大きさも元にもどす

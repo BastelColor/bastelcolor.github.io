@@ -3,6 +3,7 @@ import { CursorSparkles } from '@/components/cursor-sparkles';
 import { KeyboardHelp } from '@/components/keyboard-help';
 import { LangToggle } from '@/components/lang';
 import { MotionToggle } from '@/components/motion-toggle';
+import { ErrorWatcher } from '@/components/error-watcher';
 import { PageCounter } from '@/components/page-counter';
 import { ServiceWorker } from '@/components/service-worker';
 import { SkyClock } from '@/components/sky-clock';
@@ -99,6 +100,7 @@ export default function RootLayout({
         <SkyClock />
         <CursorSparkles />
         <PageCounter />
+        <ErrorWatcher />
         <ServiceWorker />
         {/* ? キーで出す、キーボードで使えるキーの一覧 */}
         <KeyboardHelp />

@@ -6,6 +6,7 @@ import type {
   WebGLRenderer,
 } from 'three';
 import { createARGestures, type ARGrabbable } from '@/components/vrm/ar-gestures';
+import { createAROcclusion } from '@/components/vrm/ar-occlusion';
 import { createGroundShadow } from '@/components/vrm/ground-shadow';
 
 /**
@@ -59,6 +60,12 @@ export type ARSession = {
    * 読めないときは、写真のボタンを出さない（スマホのスクリーンショットで撮ってもらう）
    */
   canPhoto: boolean;
+  /**
+   * 手前にある本物の物のうしろに隠れられるか（奥行きを測れる端末だけ。components/vrm/ar-occlusion.ts）。
+   * 隠れられるときは、はじめから隠れる
+   */
+  canOcclude: boolean;
+  setOcclusion: (enabled: boolean) => void;
   /** カメラの映像とモデルを1枚にした写真を撮る（次に描くときに撮る）。撮れなければ null */
   photo: () => Promise<HTMLCanvasElement | null>;
   end: () => void;
@@ -119,6 +126,7 @@ export async function startWebXR({
   onScale,
   overlay,
   onPlaced,
+  onScaleChange,
   onEnd,
 }: {
   THREE: typeof import('three');
@@ -141,15 +149,31 @@ export async function startWebXR({
   /** カメラの映像の上に重ねる、ボタンなどの入った要素 */
   overlay: HTMLElement;
   onPlaced: () => void;
+  /** 置く大きさ（1 が本当の大きさ）が変わったとき（「ちいさく」・2本指） */
+  onScaleChange?: (scale: number) => void;
   onEnd: () => void;
 }): Promise<ARView> {
   const xr = (navigator as Navigator & { xr?: XRSystem }).xr;
   if (!xr) throw new Error('WebXR に対応していません');
-  const session = await xr.requestSession('immersive-ar', {
+  const options = {
     requiredFeatures: ['hit-test'],
     // camera-access: 写真を撮るときに、カメラの映像を読む
-    optionalFeatures: ['dom-overlay', 'camera-access'],
+    // depth-sensing: 奥行きの地図（手前の本物の物のうしろに隠れる。components/vrm/ar-occlusion.ts）
+    optionalFeatures: ['dom-overlay', 'camera-access', 'depth-sensing'],
     domOverlay: { root: overlay },
+    depthSensing: {
+      usagePreference: ['cpu-optimized'],
+      dataFormatPreference: ['luminance-alpha', 'float32'],
+    },
+  } as XRSessionInit;
+  // 奥行きの設定を知らないブラウザでは、設定を読むところで断られることがあるので、そのときは奥行きなしで始め直す
+  // （断られるのは、始める前の、書き方を調べるところなので、押した操作の中のまま、すぐ始め直せる）
+  const session = await xr.requestSession('immersive-ar', options).catch(() => {
+    const { depthSensing: _, ...rest } = options as XRSessionInit & { depthSensing?: unknown };
+    return xr.requestSession('immersive-ar', {
+      ...rest,
+      optionalFeatures: ['dom-overlay', 'camera-access'],
+    });
   });
 
   renderer.xr.enabled = true;
@@ -306,10 +330,14 @@ export async function startWebXR({
     anchor.scale.setScalar(scale);
     ground.setScale(scale);
     onScale(scale);
+    onScaleChange?.(scale);
   };
 
   // 指でつかんで動かす・2本指で大きさを変える・ひねってまわす
   const modelPosition = new THREE.Vector3();
+  // 手前の本物の物のうしろに隠れる（奥行きを測れる端末だけ）
+  const occlusion = createAROcclusion({ THREE, scene, session });
+
   const gestures = createARGestures({
     THREE,
     anchor,
@@ -370,6 +398,7 @@ export async function startWebXR({
     session.removeEventListener('selectstart', onSelectStart);
     session.removeEventListener('selectend', onSelectEnd);
     gestures.dispose();
+    occlusion.dispose();
     // モデルを元の場所へもどす
     anchor.remove(model);
     parent?.add(model);
@@ -392,6 +421,8 @@ export async function startWebXR({
     session: {
       setSmall: (small) => applyScale(small ? SMALL_SCALE : 1),
       canPhoto,
+      canOcclude: occlusion.available,
+      setOcclusion: occlusion.setEnabled,
       photo: () =>
         new Promise((resolve) => {
           if (!canPhoto || ended) {
@@ -419,7 +450,10 @@ export async function startWebXR({
       }
       if (!hitTestSource) return;
       const space = renderer.xr.getReferenceSpace();
-      if (space) gestures.update(frame, space);
+      if (space) {
+        gestures.update(frame, space);
+        occlusion.update(frame, space);
+      }
       const hit = space && frame.getHitTestResults(hitTestSource)[0];
       const pose = hit?.getPose(space!);
       reticle.visible = !!pose;

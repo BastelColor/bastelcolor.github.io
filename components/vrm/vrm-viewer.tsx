@@ -8,6 +8,7 @@ import {
   LilToonRenderError,
   type VrmStage,
 } from '@/components/vrm/vrm-stage';
+import { firstLine, reportError } from '@/lib/report-error';
 
 type ViewerState = 'loading' | 'ready' | 'error';
 
@@ -103,9 +104,12 @@ export function VrmViewer({
         if (controller.signal.aborted) return;
         console.error(error);
         if (error instanceof LilToonRenderError) {
+          // lilToon で描けなかった端末も数える（ふつうの見た目で表示し直すので、見る人には問題ない）
+          reportError('liltoon', firstLine(error.log));
           setLilToonFailed(error.log);
           return;
         }
+        reportError('vrm-load', error);
         setViewerState('error');
       });
 

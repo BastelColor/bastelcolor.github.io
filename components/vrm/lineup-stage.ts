@@ -76,7 +76,12 @@ export type LineupStage = {
   /** AR（WebXR）で、出ている子をみんなで並べて立たせる（vrm-stage.ts の startAR と同じ） */
   startAR: (
     overlay: HTMLElement,
-    events: { onPlaced: () => void; onEnd: () => void },
+    events: {
+      onPlaced: () => void;
+      /** 置く大きさ（1 が本当の大きさ）が変わったとき */
+      onScaleChange?: (scale: number) => void;
+      onEnd: () => void;
+    },
   ) => Promise<ARSession>;
   /**
    * 出ている子みんなを、並んだまま USDZ にする（iPhone の AR クイックルック用。components/vrm/usdz.ts）。
@@ -520,7 +525,7 @@ export async function createLineupStage({
         if (shown && item.appear === 0) item.group.position.x = item.targetX;
         resize();
       },
-      startAR: async (overlay, { onPlaced, onEnd }) => {
+      startAR: async (overlay, { onPlaced, onScaleChange, onEnd }) => {
         // AR は、このカメラの近さ・遠さの範囲（near・far）だけを描く。背丈くらべ用のカメラは遠くから
         // 望遠で写すので、手前 十数 m は描かない設定になっていて、そのままだと目の前の床の輪も、
         // 置いたみんなも描かれなかった。AR のあいだは、1cm 先から 100m 先までを描く
@@ -573,6 +578,7 @@ export async function createLineupStage({
             },
             overlay,
             onPlaced,
+            onScaleChange,
             onEnd: () => {
               arView = null;
               // 目と揺れものは、またいつものカメラを見る。カメラと canvas の大きさも元にもどす

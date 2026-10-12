@@ -10,6 +10,7 @@ const KEYS: { keys: string[]; ja: string; en: string }[] = [
   { keys: ['Esc'], ja: '部屋・作品の詳細・記事・大きな画像を閉じる', en: 'Close a room, work details, a post, or a large image' },
   { keys: ['←', '→'], ja: '作品の詳細で、となりの作品へ。大きな画像で、となりの画像へ', en: 'Next/previous work in work details, or image in the image viewer' },
   { keys: ['+', '-', '0'], ja: '大きな画像を拡大・縮小・もとの大きさに', en: 'Zoom in, zoom out, or reset a large image' },
+  { keys: ['P'], ja: 'アバターの部屋で、踊りを止める・また動かす（ボタンを選んでいないときは Space でも）', en: 'Pause or play the dance in the avatar room (also Space when no button is focused)' },
   { keys: ['?'], ja: 'この一覧を出す・閉じる', en: 'Show or hide this list' },
 ];
 

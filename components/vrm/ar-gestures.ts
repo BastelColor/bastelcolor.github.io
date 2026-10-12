@@ -124,28 +124,24 @@ export function createARGestures({
   const wrap = (angle: number) => Math.atan2(Math.sin(angle), Math.cos(angle));
 
   // --- 2本指（ページの指のイベント。画面の上の位置 px） ---
-  const fingers = new Map<number, { x: number; y: number }>();
-  /** 画面の上での、2本の指のはなれ具合と向き（上へ y が増える向きにして、左回りを正にする） */
-  const spreadOf = () => {
-    const [a, b] = [...fingers.values()];
-    return { spread: Math.hypot(b.x - a.x, b.y - a.y), angle: Math.atan2(a.y - b.y, b.x - a.x) };
-  };
-  const onFingerDown = (event: PointerEvent) => {
-    if (event.pointerType !== 'touch') return;
-    if ((event.target as Element | null)?.closest('button')) return;
-    fingers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-  };
-  const onFingerMove = (event: PointerEvent) => {
-    const finger = fingers.get(event.pointerId);
-    if (!finger || !anchor.visible) return;
-    finger.x = event.clientX;
-    finger.y = event.clientY;
-    if (fingers.size < 2) return;
-    const now = spreadOf();
+  // 指の数は、ブラウザが毎回教えてくれる「いま触れている指の一覧」（touches）から読む。
+  // 自分で指を数えていたときは、AR の中で「指を離した」知らせが届かないことがあり、離したはずの指が残って、
+  // 1本指で触っただけで2本指として大きさが変わってしまった（キャラがやたら大きくなった）
+  const onTouches = (event: TouchEvent) => {
+    const list = event.touches;
+    if (list.length < 2 || !anchor.visible) {
+      pinch = null;
+      return;
+    }
+    const a = list[0];
+    const b = list[1];
+    // 画面の上での、2本の指のはなれ具合と向き（上へ y が増える向きにして、左回りを正にする）
+    const spread = Math.hypot(b.clientX - a.clientX, b.clientY - a.clientY);
+    const angle = Math.atan2(a.clientY - b.clientY, b.clientX - a.clientX);
     if (!pinch) {
       // 1本目の指でつかんでいた子をまわす（つかんでいなければ、みんな）
       const holding = [...touches.values()].find((touch) => touch.target)?.target ?? null;
-      pinch = { spread: Math.max(now.spread, 1), angle: now.angle, scale: getScale(), target: holding };
+      pinch = { spread: Math.max(spread, 1), angle, scale: getScale(), target: holding };
       // 2本指のあいだと、そのあと残った指では、つかんでいた子を動かさず、離しても置き直さない
       for (const touch of touches.values()) {
         touch.used = true;
@@ -153,21 +149,17 @@ export function createARGestures({
       }
       return;
     }
-    setScale(Math.max(MIN_SCALE, Math.min(MAX_SCALE, (pinch.scale * now.spread) / pinch.spread)));
+    setScale(Math.max(MIN_SCALE, Math.min(MAX_SCALE, (pinch.scale * spread) / pinch.spread)));
     // 画面の上で左回りにひねると、上から見て左回りにまわる
-    const turn = wrap(now.angle - pinch.angle);
-    pinch.angle = now.angle;
+    const turn = wrap(angle - pinch.angle);
+    pinch.angle = angle;
     if (pinch.target) pinch.target.turn(turn);
     else anchor.rotation.y += turn;
   };
-  const onFingerUp = (event: PointerEvent) => {
-    fingers.delete(event.pointerId);
-    if (fingers.size < 2) pinch = null;
-  };
-  overlay.addEventListener('pointerdown', onFingerDown);
-  overlay.addEventListener('pointermove', onFingerMove);
-  overlay.addEventListener('pointerup', onFingerUp);
-  overlay.addEventListener('pointercancel', onFingerUp);
+  const touchEvents = ['touchstart', 'touchmove', 'touchend', 'touchcancel'] as const;
+  for (const name of touchEvents) {
+    overlay.addEventListener(name, onTouches, { passive: true });
+  }
 
   return {
     start: (source) => {
@@ -188,10 +180,7 @@ export function createARGestures({
     },
     used: (source) => touches.get(source)?.used ?? false,
     dispose: () => {
-      overlay.removeEventListener('pointerdown', onFingerDown);
-      overlay.removeEventListener('pointermove', onFingerMove);
-      overlay.removeEventListener('pointerup', onFingerUp);
-      overlay.removeEventListener('pointercancel', onFingerUp);
+      for (const name of touchEvents) overlay.removeEventListener(name, onTouches);
     },
     update: (frame, space) => {
       // それぞれの指の光線

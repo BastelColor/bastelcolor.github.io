@@ -11,6 +11,7 @@ import {
 import type { MotionId } from '@/components/vrm/motions';
 import { LoadingIcons } from '@/components/vrm/vrm-viewer';
 import { LilToonRenderError } from '@/components/vrm/vrm-stage';
+import { firstLine, reportError } from '@/lib/report-error';
 
 type ViewerState = 'loading' | 'ready' | 'error';
 
@@ -85,9 +86,11 @@ export function LineupViewer({
         if (controller.signal.aborted) return;
         console.error(error);
         if (error instanceof LilToonRenderError) {
+          reportError('liltoon-lineup', firstLine(error.log));
           setLilToonFailed(true);
           return;
         }
+        reportError('lineup-load', error);
         setViewerState('error');
       });
     return () => {

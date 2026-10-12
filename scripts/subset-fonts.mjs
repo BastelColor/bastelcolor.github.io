@@ -101,12 +101,25 @@ const homeFaces = fonts
   )
   .join('');
 const homeStyle = `<style data-home-fonts>${homeFaces}</style>`;
+// -home のフォントは、<head> のはじめで先読みしておく。書かないと、ブラウザは CSS を読み終えて
+// 文字に当ててから、やっとフォントを読み始めるので、トップの文字が出るのが 1 秒ほど遅れていた
+const homePreloads = fonts
+  .map(
+    ({ name }) =>
+      `<link rel="preload" as="font" type="font/woff2" href="/fonts/${name}-home.woff2" crossorigin>`,
+  )
+  .join('');
 let pages = 0;
 for (const file of await listFiles(dist)) {
   if (!file.endsWith('.html')) continue;
   const html = await readFile(file, 'utf8');
   if (html.includes('data-home-fonts') || !html.includes('</head>')) continue;
-  await writeFile(file, html.replace('</head>', `${homeStyle}</head>`));
+  await writeFile(
+    file,
+    html
+      .replace('<head>', `<head>${homePreloads}`)
+      .replace('</head>', `${homeStyle}</head>`),
+  );
   pages += 1;
 }
 console.log(

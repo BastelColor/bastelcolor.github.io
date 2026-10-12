@@ -527,6 +527,7 @@
 
 .avatar-ar-buttons {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 12px;
 }
@@ -1359,4 +1360,11 @@
 .avatar-ar-overlay .avatar-room-shown-toggles button {
   background: #fff;
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* AR の案内の下の、いまの大きさ（本当の大きさでないときだけ） */
+.avatar-ar-scale {
+  display: block;
+  font-size: 12px;
+  color: #6a7183;
 }
