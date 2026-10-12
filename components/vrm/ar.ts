@@ -25,12 +25,26 @@ export async function detectAR(): Promise<ARMode | null> {
   try {
     const anchor = document.createElement('a');
     if (anchor.relList.supports('ar')) return 'quicklook';
+    // iPhone・iPad は、どのブラウザでも AR クイックルックを開ける。ただ、Safari 以外（Chrome や、
+    // LINE・X などのアプリの中で開いたページ）では、上の調べ方が「使えない」と答えることがあり、
+    // AR のボタンが出なかった
+    if (isAppleTouchDevice()) return 'quicklook';
     const xr = (navigator as Navigator & { xr?: XRSystem }).xr;
     if (xr && (await xr.isSessionSupported('immersive-ar'))) return 'webxr';
   } catch {
     // 調べられないときは、使えないものとして扱う
   }
   return null;
+}
+
+/**
+ * iPhone・iPad か。iPad の Safari は、パソコン（Mac）と同じ名乗り方をするので、
+ * Mac と名乗っていて、指で触れる画面のときも iPad とみなす
+ */
+function isAppleTouchDevice() {
+  const agent = navigator.userAgent;
+  if (/iPhone|iPad|iPod/.test(agent)) return true;
+  return /Macintosh/.test(agent) && navigator.maxTouchPoints > 1;
 }
 
 // ---------------------------------------------------------------------------
