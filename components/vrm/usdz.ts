@@ -155,23 +155,26 @@ export async function exportUsdz(
   // そのままだと形の範囲が数 cm になり、AR クイックルックは、その範囲で指が触れたかを決めるらしく、
   // 指で動かしたり大きさを変えたりできなかった。
   // 一番根元の骨（ふつうは腰）を、付けたときの位置から、いまの位置へ移す変換を形にかけ、
-  // 同じ変換を骨を付けたときの位置（bindTransforms）にもかけるので、動かした形は変わらない
-  const toRealSize = new THREE.Matrix4();
-  const firstSkinned = parts
-    .map(({ mesh }) => mesh as SkinnedMesh)
-    .find((mesh) => mesh.isSkinnedMesh);
-  if (firstSkinned) {
-    const bones = firstSkinned.skeleton.bones;
-    const depth = (bone: Object3D) => jointPaths[jointIndex.get(bone)!].split('/').length;
-    const root = bones.reduce((best, bone) => (depth(bone) < depth(bones[best]) ? bones.indexOf(bone) : best), 0);
+  // 同じ変換を骨を付けたときの位置（bindTransforms）にもかけるので、動かした形は変わらない。
+  // みんなで並ぶときは、子ごとに骨のまとまり（skeleton）が別なので、変換も skeleton ごとに求める
+  const depth = (bone: Object3D) => jointPaths[jointIndex.get(bone)!].split('/').length;
+  const realSizeOf = new Map<object, Matrix4>();
+  const jointRealSize = joints.map(() => new THREE.Matrix4());
+  for (const { mesh } of parts) {
+    const skinned = mesh as SkinnedMesh;
+    if (!skinned.isSkinnedMesh || realSizeOf.has(skinned.skeleton)) continue;
+    const bones = skinned.skeleton.bones;
+    const root = bones.reduce((best, bone, i) => (depth(bone) < depth(bones[best]) ? i : best), 0);
     const boundAt = modelInverse
       .clone()
-      .multiply(firstSkinned.skeleton.boneInverses[root].clone().invert());
-    toRealSize
+      .multiply(skinned.skeleton.boneInverses[root].clone().invert());
+    const toRealSize = new THREE.Matrix4()
       .multiplyMatrices(modelInverse, bones[root].matrixWorld)
       .multiply(boundAt.invert());
+    realSizeOf.set(skinned.skeleton, toRealSize);
+    for (const bone of bones) jointRealSize[jointIndex.get(bone)!].copy(toRealSize);
   }
-  for (const bind of bindTransforms) bind.premultiply(toRealSize);
+  bindTransforms.forEach((bind, i) => bind.premultiply(jointRealSize[i]));
 
   // --- メッシュの形（モデルから見た座標で、骨を付けたときの形） ---
   const materialIds = new Map<Material, number>();
@@ -194,7 +197,10 @@ export async function exportUsdz(
     let toModel: Matrix4;
     let rigidJoint = -1;
     if (skinned) {
-      toModel = modelInverse.clone().multiply(skinned.bindMatrix).premultiply(toRealSize);
+      toModel = modelInverse
+        .clone()
+        .multiply(skinned.bindMatrix)
+        .premultiply(realSizeOf.get(skinned.skeleton)!);
     } else {
       rigidJoint = mesh.parent ? (jointIndex.get(mesh.parent) ?? -1) : -1;
       toModel = modelInverse.clone().multiply(mesh.matrixWorld);

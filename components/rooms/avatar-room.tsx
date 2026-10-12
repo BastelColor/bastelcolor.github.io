@@ -30,7 +30,7 @@ import {
 import type { LineupStage } from '@/components/vrm/lineup-stage';
 import { preloadVrmStage, type VrmStage } from '@/components/vrm/vrm-stage';
 import { VrmViewer } from '@/components/vrm/vrm-viewer';
-import { avatars } from '@/content/avatars';
+import { avatars, boothUrl } from '@/content/avatars';
 import { avatarExpressions, avatarMotion } from '@/content/motions';
 import { site } from '@/content/site';
 import { readLayers, replaceLayers } from '@/lib/history-layers';
@@ -85,7 +85,7 @@ type RoomStage = Pick<
   | 'setPaused'
   | 'capture'
 > &
-  // AR（Android の WebXR）は、ひとりずつでも、みんなで並んでいても。iPhone の AR クイックルックは、ひとりずつだけ
+  // AR は、ひとりずつでも、みんなで並んでいても（Android は WebXR、iPhone は AR クイックルック）
   Partial<Pick<VrmStage, 'startAR' | 'exportUsdz'>> &
   // 出す・しまうのは、みんなで並ぶときだけ（components/vrm/lineup-stage.ts）
   Partial<Pick<LineupStage, 'setShown'>>;
@@ -334,11 +334,17 @@ export function AvatarRoom() {
       setArBusy(true);
       try {
         // 画面の下の帯に、名前とサイトの名前、BOOTH へのボタンを出す
+        // （みんなで並ぶときは、出ている子の名前と、BOOTH のお店のページ）
+        const shown = avatars.filter((avatar) => !hiddenIds.has(avatar.id));
+        const boothLink = mode === 'lineup' ? boothUrl : selected.booth;
         openQuickLook(await stage.exportUsdz(), {
-          title: t(selected.name, selected.nameEn),
+          title:
+            mode === 'lineup'
+              ? shown.map((avatar) => t(avatar.name, avatar.nameEn)).join(' & ')
+              : t(selected.name, selected.nameEn),
           subtitle: site.title,
-          action: selected.booth
-            ? { label: t('BOOTH で見る', 'View on BOOTH'), url: selected.booth }
+          action: boothLink
+            ? { label: t('BOOTH で見る', 'View on BOOTH'), url: boothLink }
             : undefined,
         });
       } catch (error) {
@@ -352,14 +358,14 @@ export function AvatarRoom() {
   // iPhone では、モデルを表示して少したったら、AR クイックルック用のファイルを先に作っておく
   // （押してから作ると、ファイルが大きい子は待ち時間が長いため。作ったものは舞台が覚えている）
   useEffect(() => {
-    if (arMode !== 'quicklook' || mode !== 'single' || !stage?.exportUsdz) return;
+    if (arMode !== 'quicklook' || !stage?.exportUsdz) return;
     const timer = window.setTimeout(() => {
       stage.exportUsdz?.().catch(() => {
         // 先に作れなくても、押したときにもう一度作る
       });
     }, USDZ_PREPARE_DELAY);
     return () => window.clearTimeout(timer);
-  }, [arMode, mode, stage, paused]);
+  }, [arMode, stage, paused, hiddenIds]);
 
   // みんなで並ぶときに、出ている子の名前（写真の右下に入れる）
   const shownNames = avatars
@@ -663,8 +669,8 @@ export function AvatarRoom() {
               <circle cx="12" cy="12.5" r="3.6" />
             </svg>
           </button>
-          {/* AR で見る（使えるスマホだけ。みんなで並ぶのは、ページの中で AR を描ける Android などだけ） */}
-          {arMode && (mode === 'single' || arMode === 'webxr') && (
+          {/* AR で見る（使えるスマホだけ。ひとりずつでも、みんなで並んでいても） */}
+          {arMode && (
             <button
               type="button"
               className="avatar-room-ar"

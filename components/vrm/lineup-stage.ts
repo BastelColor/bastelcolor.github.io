@@ -7,6 +7,7 @@ import { createPointerLook, type PointerLook } from '@/components/vrm/look-at';
 import { createSway, type Sway } from '@/components/vrm/sway';
 import { startWebXR, type ARSession, type ARView } from '@/components/vrm/ar';
 import type { ARGrabbable } from '@/components/vrm/ar-gestures';
+import { exportUsdz } from '@/components/vrm/usdz';
 import {
   createMotionPlayer,
   type MotionPlayer,
@@ -77,6 +78,11 @@ export type LineupStage = {
     overlay: HTMLElement,
     events: { onPlaced: () => void; onEnd: () => void },
   ) => Promise<ARSession>;
+  /**
+   * 出ている子みんなを、並んだまま USDZ にする（iPhone の AR クイックルック用。components/vrm/usdz.ts）。
+   * 骨は1つのまとまりにまとめて書き出す（AR クイックルックは、骨のまとまりを1つしか読めないため）
+   */
+  exportUsdz: () => Promise<Blob>;
   capture: () => StageShot;
   dispose: () => void;
 };
@@ -435,6 +441,8 @@ export async function createLineupStage({
     }
 
     let paused = false;
+    // 書き出した USDZ（出ている子と、止めていたかが同じなら、2回目からはすぐ返す）
+    let usdz: { key: string; blob: Promise<Blob> } | null = null;
     // AR のあいだの、床の位置を調べる係（components/vrm/ar.ts）
     let arView: ARView | null = null;
     const timer = new THREE.Timer();
@@ -583,6 +591,39 @@ export async function createLineupStage({
         look.setCamera(renderer.xr.getCamera(), true);
         swaying.setCamera(renderer.xr.getCamera());
         return view.session;
+      },
+      exportUsdz: () => {
+        const shown = placed.filter((item) => item.shown);
+        const key = `${paused}:${shown.map((item) => item.id).join(',')}`;
+        if (usdz && usdz.key === key) return usdz.blob;
+        // 踊りの1周を、描かずに進めながら記録する（止めているとき・踊らないときは、いまのポーズ）
+        const duration = paused ? 0 : (shown[0]?.player.duration() ?? 0);
+        let elapsed = timer.getElapsed();
+        const blob = exportUsdz(
+          THREE,
+          lineup,
+          duration > 0
+            ? {
+                duration,
+                step: (dt) => {
+                  elapsed += dt;
+                  placed.forEach((item, i) => {
+                    if (!item.group.visible) return;
+                    item.idle.update(elapsed + i * 1.7);
+                    item.player.update(dt);
+                    item.vrm.update(dt);
+                  });
+                },
+              }
+            : null,
+        );
+        const entry = { key, blob };
+        usdz = entry;
+        // 失敗したときは覚えず、次に押したときに書き出し直す
+        blob.catch(() => {
+          if (usdz === entry) usdz = null;
+        });
+        return blob;
       },
       capture: () => {
         // 上のあきすぎた空は写さない（いちばん背の高い子の少し上から）
