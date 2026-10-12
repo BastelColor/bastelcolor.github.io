@@ -49,6 +49,8 @@ const ORBIT_STEP = Math.PI / 4;
 
 /** iPhone で、モデルを表示してから AR クイックルック用のファイルを先に作るまでの時間（ミリ秒） */
 const USDZ_PREPARE_DELAY = 3000;
+/** AR の写真のタイマーの秒数 */
+const AR_TIMER_SECONDS = 3;
 
 /**
  * モデルのうしろの背景。空はいつもの部屋の色のまま。
@@ -211,6 +213,12 @@ export function AvatarRoom() {
   // AR のあいだに写真を撮れるか（カメラの映像を読めるブラウザだけ）
   const [arCanPhoto, setArCanPhoto] = useState(false);
   const [arFlash, setArFlash] = useState(0);
+  // AR の写真のタイマー（押してから AR_TIMER_SECONDS 秒後に撮る。スマホを置いて、自分もいっしょに写れる）と、
+  // 撮るまでの残りの秒（数えていないときは null）
+  const [arTimer, setArTimer] = useState(false);
+  const [arCountdown, setArCountdown] = useState<number | null>(null);
+  // AR の中に「わたし」の柱を立てるか（背丈くらべで身長を入れたときだけ）
+  const [arMark, setArMark] = useState(true);
   const [arBusy, setArBusy] = useState(false);
   const arSession = useRef<ARSession | null>(null);
   const arOverlay = useRef<HTMLDivElement>(null);
@@ -347,10 +355,12 @@ export function AvatarRoom() {
           onScaleChange: setArScale,
           onEnd: () => {
             arSession.current = null;
+            stopArCountdown();
             setArState('off');
           },
         });
         setArCanPhoto(arSession.current.canPhoto);
+        setArMark(true);
         setArCanOcclude(arSession.current.canOcclude);
         setArOcclude(true);
         setArState('searching');
@@ -405,6 +415,16 @@ export function AvatarRoom() {
     .map((avatar) => avatar.nameEn)
     .join(' & ');
 
+  // AR の中の「わたし」の柱。身長を入れていて、出すを選んでいるときだけ立てる
+  useEffect(() => {
+    if (arState === 'off') return;
+    arSession.current?.setMark(
+      arMark && myHeightMeters !== undefined
+        ? { label: lang === 'en' ? 'Me' : 'わたし', meters: myHeightMeters }
+        : null,
+    );
+  }, [arState, arMark, myHeightMeters, lang]);
+
   // AR のあいだの写真。カメラの映像とモデルを1枚にして、ダウンロードする
   const takeArPhoto = async () => {
     const session = arSession.current;
@@ -417,6 +437,37 @@ export function AvatarRoom() {
     countEvent(`ar-photo/${id}`);
     drawCaption(photo, `${mode === 'lineup' ? shownNames : selected.nameEn} · Yzmo`, true);
     void savePhoto(photo, `yzmo-${id}-ar.png`, { share: false });
+  };
+
+  // AR の写真のタイマー（1 秒ずつ数える係）
+  const arCountdownTimer = useRef<number | null>(null);
+  const stopArCountdown = () => {
+    if (arCountdownTimer.current !== null) window.clearTimeout(arCountdownTimer.current);
+    arCountdownTimer.current = null;
+    setArCountdown(null);
+  };
+  // 写真のボタン。タイマーのときは 3・2・1 と数えてから撮る（数えているあいだに押すと、やめる）
+  const pressArPhoto = () => {
+    if (arCountdown !== null) {
+      stopArCountdown();
+      return;
+    }
+    if (!arTimer) {
+      void takeArPhoto();
+      return;
+    }
+    const tick = (left: number) => {
+      if (left === 0) {
+        arCountdownTimer.current = null;
+        setArCountdown(null);
+        void takeArPhoto();
+        return;
+      }
+      playSound('pop');
+      setArCountdown(left);
+      arCountdownTimer.current = window.setTimeout(() => tick(left - 1), 1000);
+    };
+    tick(AR_TIMER_SECONDS);
   };
 
   const takePhoto = () => {
@@ -588,6 +639,12 @@ export function AvatarRoom() {
           {arFlash > 0 && (
             <span key={arFlash} className="avatar-ar-flash" aria-hidden="true" />
           )}
+          {/* タイマーで撮るまでの残りの秒 */}
+          {arCountdown !== null && arCountdown > 0 && (
+            <span key={arCountdown} className="avatar-ar-countdown" aria-live="assertive">
+              {arCountdown}
+            </span>
+          )}
           <div className="avatar-ar-bottom">
           {/* みんなで並ぶときは、1人ずつ出したりしまったりできる */}
           {mode === 'lineup' && (
@@ -614,8 +671,34 @@ export function AvatarRoom() {
           )}
           <div className="avatar-ar-buttons">
             {arCanPhoto && arState === 'placed' && (
-              <button type="button" onClick={() => void takeArPhoto()}>
-                {t('写真', 'Photo')}
+              <button type="button" onClick={pressArPhoto}>
+                {arCountdown !== null ? t('やめる', 'Cancel') : t('写真', 'Photo')}
+              </button>
+            )}
+            {/* 押してから 3 秒後に撮る（スマホを置いて、自分もいっしょに写れる） */}
+            {arCanPhoto && arState === 'placed' && (
+              <button
+                type="button"
+                aria-pressed={arTimer}
+                onClick={() => {
+                  playSound('pop');
+                  setArTimer((value) => !value);
+                }}
+              >
+                {t(`タイマー ${AR_TIMER_SECONDS}秒`, `${AR_TIMER_SECONDS}s timer`)}
+              </button>
+            )}
+            {/* 背丈くらべで入れた身長の、「わたし」の柱（入れたときだけ） */}
+            {myHeightMeters !== undefined && arState === 'placed' && (
+              <button
+                type="button"
+                aria-pressed={arMark}
+                onClick={() => {
+                  playSound('pop');
+                  setArMark((value) => !value);
+                }}
+              >
+                {t('わたし', 'Me')}
               </button>
             )}
             {/* 手前の本物の物のうしろに隠れる（奥行きを測れる端末だけ。うまく隠れないときは切れるように） */}

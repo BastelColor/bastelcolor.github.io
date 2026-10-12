@@ -231,15 +231,20 @@ export function createARGestures({
 /**
  * object の中のメッシュの、いまの形での範囲（object から見た座標）。
  * 骨で動かしている形は three.js の範囲（boundingBox）に入っていないので、頂点を骨で動かしてから測る。
- * 時間がかからないよう、頂点は間引く
+ * 時間がかからないよう、頂点は間引く。space を渡すと、space から見た座標で測る
  */
-function measureLocal(THREE: typeof import('three'), object: Object3D): Box3 {
+export function measureLocal(
+  THREE: typeof import('three'),
+  object: Object3D,
+  space: Object3D = object,
+): Box3 {
   const box = new THREE.Box3();
   const vertex = new THREE.Vector3();
   const toLocal = new THREE.Matrix4();
   object.updateWorldMatrix(true, true);
-  const inverse = object.matrixWorld.clone().invert();
-  object.traverse((child) => {
+  space.updateWorldMatrix(true, false);
+  const inverse = space.matrixWorld.clone().invert();
+  object.traverseVisible((child) => {
     const mesh = child as Mesh;
     const position = mesh.isMesh ? mesh.geometry.getAttribute('position') : undefined;
     if (!position) return;

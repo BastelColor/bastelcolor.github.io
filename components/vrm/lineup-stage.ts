@@ -129,6 +129,8 @@ const EXPRESSION_FADE = 0.2;
 const APPEAR_SECONDS = 0.35;
 /** 並び直すときの速さ（大きいほど速い） */
 const SLIDE_EASE = 8;
+/** iPhone の AR クイックルック用の書き出しの、1 秒あたりのこま数（2人以上のとき） */
+const LINEUP_USDZ_FPS = 15;
 
 export async function createLineupStage({
   canvas,
@@ -622,6 +624,8 @@ export async function createLineupStage({
                 },
               }
             : null,
+          // 2人以上のときは、こま数を減らして軽くする（4人だと、骨も形も 4 人ぶんで重い）
+          shown.length > 1 ? { fps: LINEUP_USDZ_FPS } : {},
         );
         const entry = { key, blob };
         usdz = entry;

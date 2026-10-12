@@ -6,6 +6,7 @@ import type {
   WebGLRenderer,
 } from 'three';
 import { createARGestures, type ARGrabbable } from '@/components/vrm/ar-gestures';
+import { createARHeightMark } from '@/components/vrm/ar-height-mark';
 import { createAROcclusion } from '@/components/vrm/ar-occlusion';
 import { createGroundShadow } from '@/components/vrm/ground-shadow';
 
@@ -66,6 +67,10 @@ export type ARSession = {
    */
   canOcclude: boolean;
   setOcclusion: (enabled: boolean) => void;
+  /**
+   * 子の横に立てる「わたし」の柱（背丈くらべで入れた身長。components/vrm/ar-height-mark.ts）。null で隠す
+   */
+  setMark: (mark: { label: string; meters: number } | null) => void;
   /** カメラの映像とモデルを1枚にした写真を撮る（次に描くときに撮る）。撮れなければ null */
   photo: () => Promise<HTMLCanvasElement | null>;
   end: () => void;
@@ -338,13 +343,25 @@ export async function startWebXR({
   // 手前の本物の物のうしろに隠れる（奥行きを測れる端末だけ）
   const occlusion = createAROcclusion({ THREE, scene, session });
 
-  const gestures = createARGestures({
-    THREE,
-    anchor,
-    overlay,
-    grabbables:
-      grabbables ??
-      (() => [
+  // 「わたし」の柱。はじめて置いたときに、子の右どなりに立てる
+  const mark = createARHeightMark({ THREE, parent: anchor, model });
+  let markShown = false;
+  let markPlaced = false;
+  const markPosition = new THREE.Vector3();
+  const markGrabbable: ARGrabbable = {
+    object: mark.object,
+    moveTo: (x, z) => {
+      markPosition.set(x, 0, z);
+      anchor.worldToLocal(markPosition);
+      mark.moveTo(markPosition.x, markPosition.z);
+    },
+    // 柱は丸いので、まわしても変わらない
+    turn: () => {},
+  };
+
+  const baseGrabbables =
+    grabbables ??
+    (() => [
         {
           object: model,
           // model をまるごと動かす（model の足元が、そこへ来るように、置く場所の入れ物を動かす）
@@ -357,7 +374,12 @@ export async function startWebXR({
             anchor.rotation.y += angle;
           },
         },
-      ]),
+      ]);
+  const gestures = createARGestures({
+    THREE,
+    anchor,
+    overlay,
+    grabbables: () => (markShown ? [...baseGrabbables(), markGrabbable] : baseGrabbables()),
     getScale: () => anchor.scale.x,
     setScale: applyScale,
   });
@@ -384,6 +406,10 @@ export async function startWebXR({
     );
     if (!anchor.visible) {
       anchor.visible = true;
+      if (!markPlaced) {
+        mark.reset();
+        markPlaced = true;
+      }
       onPlaced();
     }
   };
@@ -399,6 +425,7 @@ export async function startWebXR({
     session.removeEventListener('selectend', onSelectEnd);
     gestures.dispose();
     occlusion.dispose();
+    mark.dispose();
     // モデルを元の場所へもどす
     anchor.remove(model);
     parent?.add(model);
@@ -423,6 +450,10 @@ export async function startWebXR({
       canPhoto,
       canOcclude: occlusion.available,
       setOcclusion: occlusion.setEnabled,
+      setMark: (next) => {
+        markShown = !!next;
+        mark.set(next);
+      },
       photo: () =>
         new Promise((resolve) => {
           if (!canPhoto || ended) {
@@ -437,7 +468,10 @@ export async function startWebXR({
     },
     update: (frame) => {
       if (!frame || ended) return;
-      if (anchor.visible) ground.update();
+      if (anchor.visible) {
+        ground.update();
+        mark.update(anchor.scale.x);
+      }
       if (photoRequest) {
         const resolve = photoRequest;
         photoRequest = null;

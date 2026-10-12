@@ -586,6 +586,36 @@
   }
 }
 
+/* AR の写真のタイマーの、残りの秒（画面のまんなかに大きく。1 秒ごとに、ぽんと出る） */
+.avatar-ar-countdown {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  font-family: var(--display);
+  font-size: 120px;
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.25), 0 0 24px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  animation: avatar-ar-countdown 1s ease-out forwards;
+}
+
+@keyframes avatar-ar-countdown {
+  from {
+    scale: 1.4;
+    opacity: 0;
+  }
+  20% {
+    scale: 1;
+    opacity: 1;
+  }
+  to {
+    opacity: 0.6;
+  }
+}
+
 /* 写真を撮った瞬間に、枠が白く光る */
 .avatar-room-flash {
   position: absolute;

@@ -31,7 +31,7 @@ export type UsdzMotion = {
   step: (dt: number) => void;
 };
 
-/** 動きを記録する、1 秒あたりのこま数 */
+/** 動きを記録する、1 秒あたりのこま数（ふだん） */
 const FPS = 30;
 /**
  * 色の割合。光る色（まわりの光で変わらない）と、まわりの光で陰る色。
@@ -51,6 +51,15 @@ export async function exportUsdz(
   THREE: Three,
   model: Object3D,
   motion: UsdzMotion | null,
+  {
+    fps = FPS,
+  }: {
+    /**
+     * 1 秒あたりのこま数。少ないほど軽くなる（AR クイックルックは、こまの間をなめらかにつなぐ）。
+     * みんなで並ぶときは、骨が 4 人ぶんあって重いので減らす
+     */
+    fps?: number;
+  } = {},
 ): Promise<Blob> {
   const { strToU8, zipSync } = await import(
     'three/examples/jsm/libs/fflate.module.js'
@@ -230,6 +239,8 @@ export async function exportUsdz(
     const uvs = sourceUv ? new Float32Array(vertexCount * 2) : null;
     const jointIndices = new Int32Array(vertexCount * 4);
     const jointWeights = new Float32Array(vertexCount * 4);
+    // 1つの頂点を動かす骨の数（このメッシュでいちばん多い頂点に合わせる。髪などは 1〜2 本で済む）
+    let influences = 1;
     const point = new THREE.Vector3();
     const writeVertex = (source: number, target: number, flip: boolean) => {
       point.fromBufferAttribute(position, source).applyMatrix4(toModel);
@@ -249,12 +260,17 @@ export async function exportUsdz(
       if (skinned && skinIndex && skinWeight) {
         let total = 0;
         for (let k = 0; k < 4; k++) total += skinWeight.getComponent(source, k);
-        for (let k = 0; k < 4; k++) {
+        // 重いものから順に並べる（効いている骨が少ない頂点は、うしろが 0 になる）
+        const order = [0, 1, 2, 3].sort(
+          (a, b) => skinWeight.getComponent(source, b) - skinWeight.getComponent(source, a),
+        );
+        order.forEach((k, slot) => {
           const weight = skinWeight.getComponent(source, k);
           const bone = skinned.skeleton.bones[skinIndex.getComponent(source, k)];
-          jointIndices[target * 4 + k] = weight > 0 && bone ? jointIndex.get(bone)! : 0;
-          jointWeights[target * 4 + k] = total > 0 ? weight / total : 0;
-        }
+          jointIndices[target * 4 + slot] = weight > 0 && bone ? jointIndex.get(bone)! : 0;
+          jointWeights[target * 4 + slot] = total > 0 ? weight / total : 0;
+          if (weight > 0) influences = Math.max(influences, slot + 1);
+        });
       } else if (rigidJoint >= 0) {
         jointIndices[target * 4] = rigidJoint;
         jointWeights[target * 4] = 1;
@@ -298,32 +314,32 @@ export async function exportUsdz(
       '    )',
       '    {',
       `        float3[] extent = [${vec3(box.min)}, ${vec3(box.max)}]`,
-      `        int[] faceVertexCounts = [${Array.from({ length: faces.length / 3 }, () => 3).join(', ')}]`,
-      `        int[] faceVertexIndices = [${faces.join(', ')}]`,
-      `        point3f[] points = [${tuples(points, 3)}]`,
+      `        int[] faceVertexCounts = [${Array.from({ length: faces.length / 3 }, () => 3).join(',')}]`,
+      `        int[] faceVertexIndices = [${faces.join(',')}]`,
+      `        point3f[] points = [${tuples(points, 3, POINT_DIGITS)}]`,
     ];
     if (normals) {
       lines.push(
-        `        normal3f[] normals = [${tuples(normals, 3)}] (`,
+        `        normal3f[] normals = [${tuples(normals, 3, NORMAL_DIGITS)}] (`,
         '            interpolation = "vertex"',
         '        )',
       );
     }
     if (uvs) {
       lines.push(
-        `        texCoord2f[] primvars:st = [${tuples(uvs, 2)}] (`,
+        `        texCoord2f[] primvars:st = [${tuples(uvs, 2, UV_DIGITS)}] (`,
         '            interpolation = "vertex"',
         '        )',
       );
     }
     if (bound) {
       lines.push(
-        `        int[] primvars:skel:jointIndices = [${Array.from(jointIndices).join(', ')}] (`,
-        '            elementSize = 4',
+        `        int[] primvars:skel:jointIndices = [${perVertex(jointIndices, influences, String)}] (`,
+        `            elementSize = ${influences}`,
         '            interpolation = "vertex"',
         '        )',
-        `        float[] primvars:skel:jointWeights = [${Array.from(jointWeights, num).join(', ')}] (`,
-        '            elementSize = 4',
+        `        float[] primvars:skel:jointWeights = [${perVertex(jointWeights, influences, (value) => num(value, WEIGHT_DIGITS))}] (`,
+        `            elementSize = ${influences}`,
         '            interpolation = "vertex"',
         '        )',
         // 関節の並びと、形の基準の位置も、メッシュに書く（Apple のお手本と同じ）
@@ -333,6 +349,14 @@ export async function exportUsdz(
       );
     }
     lines.push('        uniform token subdivisionScheme = "none"');
+    // マテリアルが1つだけのメッシュは、メッシュに直接つける（面の番号の一覧を書かずに済む）
+    if (subsets.length === 1) {
+      lines.push(
+        `        rel material:binding = </Avatar/Materials/Material${subsets[0].material}>`,
+        '    }',
+      );
+      return lines.join('\n');
+    }
     // 面はどれも、ちょうど1つのマテリアルの組に入る
     lines.push('        uniform token subsetFamily:materialBind:familyType = "partition"');
     subsets.forEach((subset, i) => {
@@ -344,7 +368,7 @@ export async function exportUsdz(
         '        {',
         '            uniform token elementType = "face"',
         '            uniform token familyName = "materialBind"',
-        `            int[] indices = [${subset.faces.join(', ')}]`,
+        `            int[] indices = [${subset.faces.join(',')}]`,
         `            rel material:binding = </Avatar/Materials/Material${subset.material}>`,
         '        }',
       );
@@ -354,7 +378,7 @@ export async function exportUsdz(
   });
 
   // --- 動きの記録。こまごとに、関節の位置・回転（親の関節から見た。大きさはいつも 1） ---
-  const frameCount = motion ? Math.max(1, Math.round(motion.duration * FPS)) : 0;
+  const frameCount = motion ? Math.max(1, Math.round(motion.duration * fps)) : 0;
   const parentJoint = joints.map((joint) =>
     joint.parent ? (jointIndex.get(joint.parent) ?? -1) : -1,
   );
@@ -393,7 +417,7 @@ export async function exportUsdz(
       motion.step(dt);
       record();
     }
-    closeLoop(THREE, translations, rotations);
+    closeLoop(THREE, translations, rotations, fps);
   }
   const restTransforms = joints.map((_, i) =>
     new THREE.Matrix4().compose(translations[0][i], rotations[0][i], scales[0][i]),
@@ -419,7 +443,7 @@ export async function exportUsdz(
       frames
         .map(
           (frame, f) =>
-            `            ${f}: [${frame.map((value) => write(value as Vector3 & Quaternion)).join(', ')}],`,
+            `            ${f}: [${frame.map((value) => write(value as Vector3 & Quaternion)).join(',')}],`,
         )
         .join('\n');
     skeleton.push(
@@ -427,12 +451,12 @@ export async function exportUsdz(
       '        {',
       `            uniform token[] joints = [${jointPaths.map((path) => `"${path}"`).join(', ')}]`,
       '            float3[] translations.timeSamples = {',
-      samples(translations, vec3),
+      samples(translations, (value) => vec3(value, MOTION_DIGITS)),
       '            }',
       '            quatf[] rotations.timeSamples = {',
-      samples(rotations, quat),
+      samples(rotations, (value) => quat(value, MOTION_DIGITS)),
       '            }',
-      `            half3[] scales = [${scales[0].map(vec3).join(', ')}]`,
+      `            half3[] scales = [${scales[0].map((value) => vec3(value)).join(', ')}]`,
       '        }',
     );
   }
@@ -539,8 +563,8 @@ export async function exportUsdz(
     ? [
         '    startTimeCode = 0',
         `    endTimeCode = ${frameCount}`,
-        `    timeCodesPerSecond = ${FPS}`,
-        `    framesPerSecond = ${FPS}`,
+        `    timeCodesPerSecond = ${fps}`,
+        `    framesPerSecond = ${fps}`,
       ]
     : [];
   const usda = [
@@ -600,9 +624,14 @@ const LOOP_BLEND = 0.5;
  * 揺れもの（髪・しっぽ）は1周しても同じ形にはもどらないので、そのままだと、AR クイックルックが
  * 最初にもどってくり返すときに、ピクッと跳ねて見える
  */
-function closeLoop(THREE: Three, translations: Vector3[][], rotations: Quaternion[][]) {
+function closeLoop(
+  THREE: Three,
+  translations: Vector3[][],
+  rotations: Quaternion[][],
+  fps: number,
+) {
   const last = translations.length - 1;
-  const blendFrames = Math.min(last, Math.round(LOOP_BLEND * FPS));
+  const blendFrames = Math.min(last, Math.round(LOOP_BLEND * fps));
   if (blendFrames < 1) return;
   const identity = new THREE.Quaternion();
   const turn = new THREE.Quaternion();
@@ -744,18 +773,42 @@ async function drawTexture(texture: Texture, format: ImageFormat): Promise<Uint8
 // USD の文章の書き方
 // ---------------------------------------------------------------------------
 
-/** 数を短く書く（小数 5 けたまで） */
-function num(value: number) {
-  return String(+value.toFixed(5));
+/**
+ * 書く小数のけた数。USDZ はほとんどが数の文章なので、けたを減らすほど軽くなる
+ * （みんなで並ぶときは 25MB あった）。見た目が変わらない細かさまでにする
+ */
+/** 形の位置（m）: 0.1mm まで */
+const POINT_DIGITS = 4;
+/** 面の向き: 0.01 まで（向きのずれは 1° 以下。色の大半は光る色なので、陰影の差は見えない） */
+const NORMAL_DIGITS = 2;
+/** 骨の重み: 0.001 まで */
+const WEIGHT_DIGITS = 3;
+/** テクスチャの位置: 1024 の画像の 1/10 画素まで */
+const UV_DIGITS = 4;
+/** 動き（関節の位置 m・回転の四元数）: 0.1mm・およそ 0.01° まで */
+const MOTION_DIGITS = 4;
+
+/** 数を短く書く（小数 digits けたまで） */
+function num(value: number, digits = 5) {
+  return String(+value.toFixed(digits));
 }
 
-function vec3(value: { x: number; y: number; z: number }) {
-  return `(${num(value.x)}, ${num(value.y)}, ${num(value.z)})`;
+function vec3(value: { x: number; y: number; z: number }, digits = 5) {
+  return `(${num(value.x, digits)},${num(value.y, digits)},${num(value.z, digits)})`;
 }
 
 /** 四元数は (w, x, y, z) の順 */
-function quat(value: Quaternion) {
-  return `(${num(value.w)}, ${num(value.x)}, ${num(value.y)}, ${num(value.z)})`;
+function quat(value: Quaternion, digits = 5) {
+  return `(${num(value.w, digits)},${num(value.x, digits)},${num(value.y, digits)},${num(value.z, digits)})`;
+}
+
+/** 頂点ごとに 4 つずつ並んだ値の、はじめの count 個ずつ */
+function perVertex(values: ArrayLike<number>, count: number, write: (value: number) => string) {
+  const out: string[] = [];
+  for (let i = 0; i < values.length; i += 4) {
+    for (let k = 0; k < count; k++) out.push(write(values[i + k]));
+  }
+  return out.join(',');
 }
 
 /** 行列。USD は行ベクトルの書き方なので、three.js の列の並びが、そのまま USD の行になる */
@@ -766,14 +819,14 @@ function matrix(value: Matrix4) {
   return `(${row(0)}, ${row(4)}, ${row(8)}, ${row(12)})`;
 }
 
-function tuples(values: Float32Array, size: number) {
+function tuples(values: Float32Array, size: number, digits: number) {
   const out: string[] = [];
   for (let i = 0; i < values.length; i += size) {
     const items: string[] = [];
-    for (let k = 0; k < size; k++) items.push(num(values[i + k]));
-    out.push(`(${items.join(', ')})`);
+    for (let k = 0; k < size; k++) items.push(num(values[i + k], digits));
+    out.push(`(${items.join(',')})`);
   }
-  return out.join(', ');
+  return out.join(',');
 }
 
 function nearlyEqual(a: Matrix4, b: Matrix4) {

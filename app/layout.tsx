@@ -9,6 +9,7 @@ import { ServiceWorker } from '@/components/service-worker';
 import { SkyClock } from '@/components/sky-clock';
 import { SoundToggle } from '@/components/sound-toggle';
 import { ThemeToggle } from '@/components/theme';
+import { UpdateNotice } from '@/components/update-notice';
 import { site } from '@/content/site';
 import { SKY_SCRIPT } from '@/lib/sky';
 import './globals.css';
@@ -102,6 +103,8 @@ export default function RootLayout({
         <PageCounter />
         <ErrorWatcher />
         <ServiceWorker />
+        {/* 公開し直したあと、古い版のまま開いているときの「新しい版があります」 */}
+        <UpdateNotice />
         {/* ? キーで出す、キーボードで使えるキーの一覧 */}
         <KeyboardHelp />
       </body>
