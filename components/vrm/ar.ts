@@ -322,9 +322,9 @@ export async function startWebXR({
     space: viewerSpace,
   });
 
-  // ボタンを押したときは、置く操作（select）にしない
+  // ボタンや、写真・説明の画面（data-ar-block）を押したときは、置く操作（select）にしない
   const keepButtons = (event: Event) => {
-    if ((event.target as Element | null)?.closest('button')) {
+    if ((event.target as Element | null)?.closest('button, [data-ar-block]')) {
       event.preventDefault();
     }
   };

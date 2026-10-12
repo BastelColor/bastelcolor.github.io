@@ -248,11 +248,20 @@ export async function savePhoto(
   /** false なら、共有の画面を出さずにダウンロードする（AR のあいだは、共有の画面で AR が止まってしまうため） */
   { share = true }: { share?: boolean } = {},
 ) {
+  const file = await photoFile(photo, fileName);
+  if (file) await saveFile(file, { share });
+}
+
+/** 写真を PNG のファイルにする */
+export async function photoFile(photo: HTMLCanvasElement, fileName: string) {
   const blob = await new Promise<Blob | null>((resolve) =>
     photo.toBlob(resolve, 'image/png'),
   );
-  if (!blob) return;
-  const file = new File([blob], fileName, { type: 'image/png' });
+  return blob ? new File([blob], fileName, { type: 'image/png' }) : null;
+}
+
+/** 写真のファイルを、スマホでは共有の画面で（share が true のとき）、それ以外はダウンロードで保存する */
+export async function saveFile(file: File, { share = true }: { share?: boolean } = {}) {
   const isTouch = window.matchMedia('(pointer: coarse)').matches;
   if (share && isTouch && navigator.canShare?.({ files: [file] })) {
     try {
@@ -263,10 +272,10 @@ export async function savePhoto(
       if (error instanceof DOMException && error.name === 'AbortError') return;
     }
   }
-  const url = URL.createObjectURL(blob);
+  const url = URL.createObjectURL(file);
   const link = document.createElement('a');
   link.href = url;
-  link.download = fileName;
+  link.download = file.name;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }

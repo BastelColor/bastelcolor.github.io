@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from 'react';
 import modelStats from 'virtual:model-stats';
 import { useLang, useT } from '@/components/lang';
@@ -12,6 +13,8 @@ import { countEvent } from '@/components/page-counter';
 import {
   composePhoto,
   drawCaption,
+  photoFile,
+  saveFile,
   savePhoto,
 } from '@/components/rooms/avatar-photo';
 import { ShareButtons } from '@/components/share-buttons';
@@ -60,6 +63,23 @@ const ORBIT_STEP = Math.PI / 4;
 const USDZ_PREPARE_DELAY = 3000;
 /** AR の写真のタイマーの秒数 */
 const AR_TIMER_SECONDS = 3;
+
+/** AR のボタンの説明を、もう見たか（はじめて置いたときに一度だけ出す） */
+const AR_GUIDE_KEY = 'yzmo-ar-guide';
+function arGuideSeen() {
+  try {
+    return window.localStorage.getItem(AR_GUIDE_KEY) === 'seen';
+  } catch {
+    return false;
+  }
+}
+function markArGuideSeen() {
+  try {
+    window.localStorage.setItem(AR_GUIDE_KEY, 'seen');
+  } catch {
+    // 覚えられなくても、次にまた出るだけ
+  }
+}
 
 /**
  * モデルのうしろの背景。空はいつもの部屋の色のまま。
@@ -234,6 +254,12 @@ export function AvatarRoom() {
   const [arNote, setArNote] = useState<{ text: string; key: number } | null>(null);
   const showArNote = (text: string) =>
     setArNote((current) => ({ text, key: (current?.key ?? 0) + 1 }));
+  // AR で最後に撮った写真（右上に小さく出し、押すと大きく見て、共有もできる）
+  const [arPhoto, setArPhoto] = useState<{ file: File; url: string } | null>(null);
+  const [arPhotoOpen, setArPhotoOpen] = useState(false);
+  const arPhotoUrl = useRef<string | null>(null);
+  // はじめて置いたときの、ボタンの説明
+  const [arGuide, setArGuide] = useState(false);
   const [arBusy, setArBusy] = useState(false);
   const arSession = useRef<ARSession | null>(null);
   const arOverlay = useRef<HTMLDivElement>(null);
@@ -366,7 +392,10 @@ export function AvatarRoom() {
       setArScale(1);
       try {
         arSession.current = await stage.startAR(arOverlay.current, {
-          onPlaced: () => setArState('placed'),
+          onPlaced: () => {
+            setArState('placed');
+            if (!arGuideSeen()) setArGuide(true);
+          },
           onScaleChange: setArScale,
           onEnd: () => {
             arSession.current = null;
@@ -378,6 +407,8 @@ export function AvatarRoom() {
         setArMark(true);
         setArExpressionsOpen(false);
         setArNote(null);
+        setArPhotoOpen(false);
+        setArGuide(false);
         setArCanOcclude(arSession.current.canOcclude);
         setArOcclude(true);
         setArState('searching');
@@ -453,7 +484,21 @@ export function AvatarRoom() {
     const id = mode === 'lineup' ? 'everyone' : selected.id;
     countEvent(`ar-photo/${id}`);
     drawCaption(photo, `${mode === 'lineup' ? shownNames : selected.nameEn} · Yzmo`, true);
-    void savePhoto(photo, `yzmo-${id}-ar.png`, { share: false });
+    const file = await photoFile(photo, `yzmo-${id}-ar.png`);
+    if (!file) return;
+    // AR のあいだは、共有の画面を出すと AR が止まるので、まずダウンロードに保存する
+    void saveFile(file, { share: false });
+    // 撮れたのが分かるよう、右上に小さく出す（前の写真の分は片付ける）
+    if (arPhotoUrl.current) URL.revokeObjectURL(arPhotoUrl.current);
+    arPhotoUrl.current = URL.createObjectURL(file);
+    setArPhoto({ file, url: arPhotoUrl.current });
+    showArNote(t('写真を保存しました', 'Photo saved'));
+  };
+
+  const closeArGuide = () => {
+    playSound('pop');
+    setArGuide(false);
+    markArGuideSeen();
   };
 
   // AR の写真のタイマー（1 秒ずつ数える係）
@@ -506,6 +551,35 @@ export function AvatarRoom() {
       `yzmo-${mode === 'lineup' ? 'everyone' : selected.id}.png`,
     );
   };
+
+  // AR のボタンの説明（はじめて置いたときに出す）。いまの画面に出ているボタンだけ
+  const arGuideItems: { key: string; icon: ReactNode; label: string }[] = [
+    ...(arCanPhoto
+      ? [
+          { key: 'photo', icon: <CameraIcon />, label: t('写真を撮る', 'Take a photo') },
+          {
+            key: 'timer',
+            icon: <StopwatchIcon />,
+            label: t(`${AR_TIMER_SECONDS} 秒たってから撮る`, `Take it after ${AR_TIMER_SECONDS} seconds`),
+          },
+        ]
+      : []),
+    {
+      key: 'size',
+      icon: <PersonIcon small />,
+      label: t('ちいさくする・本当の大きさにもどす', 'Make it small / real size'),
+    },
+    ...(myHeightMeters !== undefined
+      ? [{ key: 'me', icon: <HeightIcon />, label: t('わたしの身長の柱を出す', 'Show your height pole') }]
+      : []),
+    { key: 'mood', icon: <MoodIcon />, label: t('表情を変える', 'Change the expression') },
+    ...(arCanOcclude
+      ? [{ key: 'hide', icon: <BoxIcon />, label: t('物のうしろに隠れる', 'Hide behind real objects') }]
+      : []),
+    { key: 'back', icon: <BackIcon />, label: t('AR をおわる', 'Exit AR') },
+  ];
+  const canShareArPhoto =
+    !!arPhoto && typeof navigator !== 'undefined' && !!navigator.canShare?.({ files: [arPhoto.file] });
 
   const backdropTone = BACKDROPS.find((item) => item.id === backdrop)!.tone;
   const lineupModels = avatars.map((avatar) => ({
@@ -663,6 +737,20 @@ export function AvatarRoom() {
                 </span>
               )}
             </p>
+            {arPhoto && arState === 'placed' && (
+              <button
+                key={arPhoto.url}
+                type="button"
+                className="avatar-ar-thumb"
+                aria-label={t('撮った写真を見る', 'View the photo')}
+                onClick={() => {
+                  playSound('pop');
+                  setArPhotoOpen(true);
+                }}
+              >
+                <img src={arPhoto.url} alt="" />
+              </button>
+            )}
           </div>
           {arFlash > 0 && (
             <span key={arFlash} className="avatar-ar-flash" aria-hidden="true" />
@@ -678,6 +766,63 @@ export function AvatarRoom() {
             <output key={arNote.key} className="avatar-ar-note">
               {arNote.text}
             </output>
+          )}
+          {/* 撮った写真を大きく見る（この上をタップしても、置き直さない） */}
+          {arPhoto && arPhotoOpen && arState === 'placed' && (
+            <div className="avatar-ar-sheet" data-ar-block>
+              <div className="avatar-ar-sheet-card">
+                <img
+                  className="avatar-ar-preview"
+                  src={arPhoto.url}
+                  alt={t('AR で撮った写真', 'Photo taken in AR')}
+                />
+                <p className="avatar-ar-sheet-small">
+                  {t('ダウンロードに保存しました', 'Saved to your downloads')}
+                </p>
+                <div className="avatar-ar-sheet-buttons">
+                  {canShareArPhoto && (
+                    <button type="button" onClick={() => void saveFile(arPhoto.file)}>
+                      {t('共有する', 'Share')}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setArPhotoOpen(false)}>
+                    {t('とじる', 'Close')}
+                  </button>
+                </div>
+                {canShareArPhoto && (
+                  <p className="avatar-ar-sheet-small">
+                    {t('共有すると、AR はおわります', 'Sharing ends AR')}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+          {/* はじめて置いたときだけの、ボタンの説明 */}
+          {arGuide && arState === 'placed' && (
+            <div className="avatar-ar-sheet" data-ar-block>
+              <div className="avatar-ar-sheet-card">
+                <p className="avatar-ar-guide-title">{t('ボタンの使い方', 'What the buttons do')}</p>
+                <ul className="avatar-ar-guide">
+                  {arGuideItems.map((item) => (
+                    <li key={item.key}>
+                      <span className="avatar-ar-guide-icon">{item.icon}</span>
+                      {item.label}
+                    </li>
+                  ))}
+                </ul>
+                <p className="avatar-ar-sheet-small">
+                  {t(
+                    '1本指でつかむと動かせて、2本指で大きさを変えたり、ひねってまわしたりできます。',
+                    'Drag with one finger to move. Pinch to resize, twist to turn.',
+                  )}
+                </p>
+                <div className="avatar-ar-sheet-buttons">
+                  <button type="button" onClick={closeArGuide}>
+                    {t('わかった', 'Got it')}
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
           <div className="avatar-ar-bottom">
             {/* みんなで並ぶときは、1人ずつ出したりしまったりできる */}

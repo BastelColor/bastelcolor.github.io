@@ -640,6 +640,135 @@
   line-height: 1;
 }
 
+/* 右上の、最後に撮った写真（押すと大きく見られる） */
+.avatar-ar-thumb {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  overflow: hidden;
+  border: 3px solid #fff;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+  animation: avatar-ar-thumb 0.35s ease-out;
+}
+
+.avatar-ar-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+@keyframes avatar-ar-thumb {
+  from {
+    scale: 1.6;
+    opacity: 0;
+  }
+}
+
+/* 写真を大きく見る・はじめてのボタンの説明（カメラの映像の上に、白いカードで） */
+.avatar-ar-sheet {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(31, 45, 70, 0.45);
+  pointer-events: auto;
+}
+
+.avatar-ar-sheet-card {
+  width: min(100%, 360px);
+  max-height: 100%;
+  overflow: auto;
+  padding: 16px;
+  border-radius: 24px;
+  background: #fff;
+  color: #3a4256;
+  text-align: center;
+}
+
+.avatar-ar-preview {
+  display: block;
+  width: 100%;
+  max-height: 55vh;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #eef0f4;
+}
+
+.avatar-ar-sheet-small {
+  margin: 10px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6a7183;
+}
+
+.avatar-ar-sheet-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.avatar-ar-sheet-buttons button {
+  min-width: 96px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #ffe08a;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12);
+  font-family: var(--body);
+  font-size: 15px;
+  font-weight: 900;
+  color: #3a4256;
+}
+
+.avatar-ar-sheet-buttons button:last-child:not(:first-child) {
+  background: #eef0f4;
+}
+
+.avatar-ar-guide-title {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.avatar-ar-guide {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.avatar-ar-guide li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar-ar-guide-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #eef0f4;
+}
+
+.avatar-ar-guide-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
 /* アイコンのボタンを押したときの短い説明（画面のまんなかに、少しだけ出る） */
 .avatar-ar-note {
   position: fixed;

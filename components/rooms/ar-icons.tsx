@@ -64,7 +64,7 @@ export function BoxIcon() {
 export function PersonIcon({ small = false }: { small?: boolean }) {
   return (
     <Icon>
-      <g transform={small ? 'translate(5.6 8.6) scale(0.55)' : undefined}>
+      <g transform={small ? 'translate(3.6 6.3) scale(0.7)' : undefined}>
         <circle cx="12" cy="7" r="4" vectorEffect="non-scaling-stroke" />
         <path
           d="M5 21v-1a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v1"

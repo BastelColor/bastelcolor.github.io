@@ -128,6 +128,11 @@ export function createARGestures({
   // 自分で指を数えていたときは、AR の中で「指を離した」知らせが届かないことがあり、離したはずの指が残って、
   // 1本指で触っただけで2本指として大きさが変わってしまった（キャラがやたら大きくなった）
   const onTouches = (event: TouchEvent) => {
+    // 写真・説明の画面（data-ar-block）の上の指では、大きさを変えない
+    if ((event.target as Element | null)?.closest('[data-ar-block]')) {
+      pinch = null;
+      return;
+    }
     const list = event.touches;
     if (list.length < 2 || !anchor.visible) {
       pinch = null;
