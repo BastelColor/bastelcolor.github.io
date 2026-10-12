@@ -322,7 +322,10 @@ export async function createLineupStage({
 
     // --- 枠の大きさに合わせて、カメラの写す範囲を決める ---
     const view = { width: 1, height: 1, scale: 1, ground: 0 };
+    // AR のあいだか（カメラは AR 用の近さにしてあるので、枠に合わせて写し直さない）
+    let inAR = false;
     const resize = () => {
+      if (inAR) return;
       const width = Math.max(1, container.clientWidth);
       const height = Math.max(1, container.clientHeight);
       renderer.setSize(width, height, false);
@@ -499,28 +502,46 @@ export async function createLineupStage({
         resize();
       },
       startAR: async (overlay, { onPlaced, onEnd }) => {
-        const view = await startWebXR({
-          THREE,
-          renderer,
-          scene,
-          model: lineup,
-          hips: placed
-            .map((item) => item.vrm.humanoid.getRawBoneNode('hips'))
-            .filter((bone): bone is Object3D => bone !== null),
-          onScale: (scale) => {
-            for (const item of placed) item.scaleSprings(scale);
-          },
-          overlay,
-          onPlaced,
-          onEnd: () => {
-            arView = null;
-            // 目と揺れものは、またいつものカメラを見る。canvas の大きさも元にもどす
-            look.setCamera(camera);
-            swaying.setCamera(camera);
-            resize();
-            onEnd();
-          },
-        });
+        // AR は、このカメラの近さ・遠さの範囲（near・far）だけを描く。背丈くらべ用のカメラは遠くから
+        // 望遠で写すので、手前 十数 m は描かない設定になっていて、そのままだと目の前の床の輪も、
+        // 置いたみんなも描かれなかった。AR のあいだは、1cm 先から 100m 先までを描く
+        inAR = true;
+        camera.near = 0.01;
+        camera.far = 100;
+        camera.updateProjectionMatrix();
+        // AR が終わったら（始められなかったときも）、いつもの写し方にもどす
+        const restore = () => {
+          inAR = false;
+          resize();
+        };
+        let view: ARView;
+        try {
+          view = await startWebXR({
+            THREE,
+            renderer,
+            scene,
+            model: lineup,
+            hips: placed
+              .map((item) => item.vrm.humanoid.getRawBoneNode('hips'))
+              .filter((bone): bone is Object3D => bone !== null),
+            onScale: (scale) => {
+              for (const item of placed) item.scaleSprings(scale);
+            },
+            overlay,
+            onPlaced,
+            onEnd: () => {
+              arView = null;
+              // 目と揺れものは、またいつものカメラを見る。カメラと canvas の大きさも元にもどす
+              look.setCamera(camera);
+              swaying.setCamera(camera);
+              restore();
+              onEnd();
+            },
+          });
+        } catch (error) {
+          restore();
+          throw error;
+        }
         arView = view;
         // AR のあいだは、スマホのカメラを「見ている人」にする
         look.setCamera(renderer.xr.getCamera());
