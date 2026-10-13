@@ -238,7 +238,7 @@ export function AvatarRoom() {
   const arRealSize = Math.abs(arScale - 1) < 0.005;
   // AR で、手前の本物の物のうしろに隠れられるか（奥行きを測れる端末だけ）と、隠れるか
   const [arCanOcclude, setArCanOcclude] = useState(false);
-  const [arOcclude, setArOcclude] = useState(true);
+  const [arOcclude, setArOcclude] = useState(false);
   // AR のあいだに写真を撮れるか（カメラの映像を読めるブラウザだけ）
   const [arCanPhoto, setArCanPhoto] = useState(false);
   const [arFlash, setArFlash] = useState(0);
@@ -410,7 +410,8 @@ export function AvatarRoom() {
         setArPhotoOpen(false);
         setArGuide(false);
         setArCanOcclude(arSession.current.canOcclude);
-        setArOcclude(true);
+        // はじめは隠れない（境目がギザギザになることがあるので、使う人がオンにする）
+        setArOcclude(false);
         setArState('searching');
       } catch (error) {
         console.error(error);

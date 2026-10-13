@@ -63,7 +63,7 @@ export type ARSession = {
   canPhoto: boolean;
   /**
    * 手前にある本物の物のうしろに隠れられるか（奥行きを測れる端末だけ。components/vrm/ar-occlusion.ts）。
-   * 隠れられるときは、はじめから隠れる
+   * はじめは隠れない（奥行きの地図が粗く、境目がギザギザになることがあるので、ボタンでオンにする）
    */
   canOcclude: boolean;
   setOcclusion: (enabled: boolean) => void;
@@ -341,7 +341,7 @@ export async function startWebXR({
   // 指でつかんで動かす・2本指で大きさを変える・ひねってまわす
   const modelPosition = new THREE.Vector3();
   // 手前の本物の物のうしろに隠れる（奥行きを測れる端末だけ）
-  const occlusion = createAROcclusion({ THREE, scene, session });
+  const occlusion = createAROcclusion({ THREE, renderer, scene, session });
 
   // 「わたし」の柱。はじめて置いたときに、子の右どなりに立てる
   const mark = createARHeightMark({ THREE, parent: anchor, model });
