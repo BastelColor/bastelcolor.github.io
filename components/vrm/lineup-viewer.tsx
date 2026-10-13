@@ -9,7 +9,7 @@ import {
   type LineupStage,
 } from '@/components/vrm/lineup-stage';
 import type { MotionId } from '@/components/vrm/motions';
-import { LoadingIcons } from '@/components/vrm/vrm-viewer';
+import { LoadingIcons, LoadingProgress } from '@/components/vrm/vrm-viewer';
 import { LilToonRenderError } from '@/components/vrm/vrm-stage';
 import { firstLine, reportError } from '@/lib/report-error';
 
@@ -167,11 +167,10 @@ export function LineupViewer({
             <span className="vrm-loading-orb" />
           )}
           <b>{t('みんなをよんでいます', 'Calling everyone over')}</b>
-          <small>
-            {progress > 0
-              ? `${progress}%`
-              : t('モデルを準備しています', 'Preparing the models')}
-          </small>
+          <LoadingProgress
+            progress={progress}
+            waiting={t('モデルを準備しています', 'Preparing the models')}
+          />
         </output>
       )}
 

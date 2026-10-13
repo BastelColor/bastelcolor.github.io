@@ -468,6 +468,7 @@ export async function createVrmStage({
     canvas.style.top = `${-frame.top}px`;
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
+    canvas.dataset.sized = '';
     renderer.setSize(width, height, false);
 
     // カメラの中心は枠の真ん中のまま。上下左右対称の大きな画面を考え、

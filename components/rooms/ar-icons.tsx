@@ -94,3 +94,12 @@ export function MoodIcon() {
     </Icon>
   );
 }
+
+/** ボタンの使い方（はてな） */
+export function HelpIcon() {
+  return (
+    <Icon>
+      <path d="M9 9a3 3 0 1 1 4 2.8c-.6.3-1 .9-1 1.6v.6M12 18h.01" />
+    </Icon>
+  );
+}

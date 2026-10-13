@@ -263,6 +263,8 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
     if (window.location.pathname.startsWith('/blog/')) return;
     const { room: linked } = readLayers();
     if (!linked) return;
+    // 部屋の中身は、開くのを待たずに、すぐ読み始める（トップを見せているあいだに読み終わるように）
+    preloadRoom(linked);
     const timer = window.setTimeout(
       () =>
         latest.current.open(linked, buttons.current.get(linked), {

@@ -131,6 +131,9 @@ export function VrmViewer({
     <div className="vrm-viewer" ref={containerRef}>
       <canvas
         ref={canvasRef}
+        // 舞台ができて大きさを合わせるまでは見せない（components/vrm/vrm-stage.ts が data-sized を付ける）。
+        // はじめの大きさのまま見えていると、大きさが変わったときに、ページがずれたと数えられる
+        data-sizing=""
         aria-label={t(`${modelName}の3Dモデル`, `3D model of ${modelName}`)}
       />
 
@@ -142,11 +145,10 @@ export function VrmViewer({
             <span className="vrm-loading-orb" />
           )}
           <b>{t(`${modelName}をよみこみ中`, `Loading ${modelName}`)}</b>
-          <small>
-            {progress > 0
-              ? `${progress}%`
-              : t('モデルを準備しています', 'Preparing the model')}
-          </small>
+          <LoadingProgress
+            progress={progress}
+            waiting={t('モデルを準備しています', 'Preparing the model')}
+          />
         </output>
       )}
 
@@ -212,6 +214,38 @@ export function VrmViewer({
  * 読み込み中に出す、顔のアイコン（まわりを輪がまわり、アイコンはふわふわ揺れる）。
  * みんなで並ぶときは、全員のアイコンを並べる（components/vrm/lineup-viewer.tsx）
  */
+/**
+ * 読み込みの進み具合（何 %・進むバー）。届ききったあと（100%）は、表示の準備（形やシェーダーを作る）に
+ * 少しかかるので、そう出す
+ */
+export function LoadingProgress({
+  progress,
+  waiting,
+}: {
+  progress: number;
+  /** まだ届きはじめていないときの文 */
+  waiting: string;
+}) {
+  const t = useT();
+  return (
+    <>
+      <small>
+        {progress >= 100
+          ? t('表示の準備をしています', 'Getting ready to show')
+          : progress > 0
+            ? `${progress}%`
+            : waiting}
+      </small>
+      <span className="vrm-loading-bar" aria-hidden="true">
+        <span
+          className={progress >= 100 ? 'is-done' : undefined}
+          style={{ width: `${Math.max(progress, 4)}%` }}
+        />
+      </span>
+    </>
+  );
+}
+
 export function LoadingIcons({ icons }: { icons: string[] }) {
   return (
     <span className="vrm-loading-icons" aria-hidden="true">

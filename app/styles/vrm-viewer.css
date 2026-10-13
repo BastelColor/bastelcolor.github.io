@@ -46,6 +46,11 @@
   }
 }
 
+/* 大きさを合わせるまでは見せない（components/vrm/vrm-viewer.tsx） */
+.vrm-viewer canvas[data-sizing]:not([data-sized]) {
+  visibility: hidden;
+}
+
 .vrm-viewer canvas:active {
   cursor: grabbing;
 }
@@ -75,6 +80,33 @@
 .vrm-error span {
   font-size: 12px;
   font-weight: 750;
+}
+
+/* 読み込みの進むバー。届ききったら、表示の準備中は、ゆっくり光って待っているのを知らせる */
+.vrm-loading-bar {
+  width: min(160px, 50%);
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(101, 124, 153, 0.18);
+}
+
+.vrm-loading-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #7fa8d8;
+  transition: width 0.3s ease-out;
+}
+
+.vrm-loading-bar > span.is-done {
+  animation: vrm-loading-ready 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes vrm-loading-ready {
+  to {
+    opacity: 0.45;
+  }
 }
 
 /* 読み込み中の顔のアイコン。まわりの輪がまわり、アイコンはふわふわ揺れる */

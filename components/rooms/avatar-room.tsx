@@ -40,6 +40,7 @@ import {
   BoxIcon,
   CameraIcon,
   HeightIcon,
+  HelpIcon,
   MoodIcon,
   PersonIcon,
   StopwatchIcon,
@@ -578,6 +579,7 @@ export function AvatarRoom() {
       ? [{ key: 'hide', icon: <BoxIcon />, label: t('物のうしろに隠れる', 'Hide behind real objects') }]
       : []),
     { key: 'back', icon: <BackIcon />, label: t('AR をおわる', 'Exit AR') },
+    { key: 'help', icon: <HelpIcon />, label: t('この説明をもう一度見る', 'Show this again') },
   ];
   const canShareArPhoto =
     !!arPhoto && typeof navigator !== 'undefined' && !!navigator.canShare?.({ files: [arPhoto.file] });
@@ -750,6 +752,21 @@ export function AvatarRoom() {
                 }}
               >
                 <img src={arPhoto.url} alt="" />
+              </button>
+            )}
+            {/* ボタンの使い方を、もう一度見る */}
+            {arState === 'placed' && (
+              <button
+                type="button"
+                className="avatar-ar-icon"
+                aria-label={t('ボタンの使い方', 'What the buttons do')}
+                aria-expanded={arGuide}
+                onClick={() => {
+                  playSound('pop');
+                  setArGuide(true);
+                }}
+              >
+                <HelpIcon />
               </button>
             )}
           </div>

@@ -289,8 +289,10 @@ export async function startWebXR({
     renderer.setRenderTarget(linear);
     renderer.clear();
     ground.setPhoto(true);
+    occlusion.setPhoto(true);
     renderer.render(scene, photoCamera);
     ground.setPhoto(false);
+    occlusion.setPhoto(false);
     copyQuad.material.uniforms.map.value = linear.texture;
     renderer.setRenderTarget(target);
     renderer.render(copyScene, copyCamera);
