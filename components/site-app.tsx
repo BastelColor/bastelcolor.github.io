@@ -32,11 +32,19 @@ import { cn } from '@/lib/utils';
 const PRESS_MS = 200;
 /** 部屋が雲へ縮み終わるまで（room.css の .room の transition と合わせる） */
 const SHRINK_MS = 700;
-/** # 付きの URL で来たとき、トップを少し見せてから部屋を開くまでの時間 */
-const LINKED_OPEN_DELAY_MS = 400;
 
 /** 変化を知らせない useSyncExternalStore 用（日付は読み込んだときに1回確かめれば十分） */
 const noSubscribe = () => () => {};
+
+/**
+ * 作品・アバターの URL（/work/<id>・/avatar/<id>）なら、その部屋。
+ * サーバーで書き出すときも URL のパスは分かるので、はじめからその部屋を開いた状態で書き出せる
+ */
+function roomOfPath(pathname: string): PageId | null {
+  if (pathname.startsWith('/work/')) return 'works';
+  if (pathname.startsWith('/avatar/')) return 'avatar';
+  return null;
+}
 
 /** 部屋に渡すデータ（サーバー側で読み込んだもの） */
 type RoomProps = {
@@ -70,6 +78,15 @@ const rooms: Record<PageId, ComponentType<RoomProps>> = {
   ),
 };
 
+/**
+ * 作品・アバターの URL で開いたページは、その部屋の中身を、このプログラムが読まれた時点ですぐ読み始める
+ * （ページが動き始めて部屋を描くときまで待つと、その分だけ、作品やアバターが出るのが遅れていた）
+ */
+if (typeof window !== 'undefined') {
+  const linked = roomOfPath(window.location.pathname);
+  if (linked) roomModules[linked]().catch(() => {});
+}
+
 /** 雲にふれたとき: その部屋の中身を読み込み始める。アバターの部屋は、3D の表示に使うものも */
 function preloadRoom(id: PageId) {
   if (id === 'avatar') {
@@ -102,11 +119,23 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
   const pathname = usePathname();
   const t = useT();
   const isPostPage = pathname.startsWith('/blog/');
-  // 記事のページを直接開いたときは、ブログの部屋が開いた状態から始める
+  // 記事のページを直接開いたときは、ブログの部屋が開いた状態から始める。
+  // 作品・アバターの URL を直接開いたときも、トップからの演出は飛ばし、その部屋が開いた状態から始める
+  // （共有されたリンクから来た人は、その作品・その子を見に来ているので）
   const [room, setRoom] = useState<PageId | null>(() =>
-    isPostPage ? 'log' : null,
+    isPostPage ? 'log' : roomOfPath(pathname),
   );
-  const [isExpanded, setIsExpanded] = useState(isPostPage);
+  const [isExpanded, setIsExpanded] = useState(
+    () => isPostPage || roomOfPath(pathname) !== null,
+  );
+  // 広がる動きなしで開いた部屋（# 付きの URL で来たとき）。閉じるときは、ふつうに雲へ縮む
+  const [isInstant, setIsInstant] = useState(false);
+  // 部屋の中身は、ページのプログラムが動き始めてから描く（中身は見ている人の画面の大きさなどを使うため）
+  const isMounted = useSyncExternalStore(
+    noSubscribe,
+    () => true,
+    () => false,
+  );
   // 隠しコマンド（トップを見ているあいだだけ）
   const { party, onTap: onNameTap } = useSecretParty(room === null && !isPostPage);
   // 「Yzmo」の文字を何回かつつくと、隠しコマンド（スマホなど、キーボードのない人向け。
@@ -137,9 +166,17 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
   const open = (
     id: PageId,
     button: HTMLButtonElement | undefined,
-    { push = true } = {},
+    { push = true, instant = false } = {},
   ) => {
     if (room) return;
+    if (instant) {
+      // 押した演出も広がる動きもなしで、すぐ開いた状態にする
+      setRoom(id);
+      setIsInstant(true);
+      setIsExpanded(true);
+      if (push) pushLayers({ room: id });
+      return;
+    }
     const rect = button?.getBoundingClientRect();
     setOrigin(
       rect
@@ -156,6 +193,12 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
   const close = () => {
     if (!room) return;
     const closingRoom = room;
+    // 縮んで帰る先は、その部屋の雲（リンクから直接開いたときは、開いたときの位置が無いので、ここで測る）
+    const rect = buttons.current.get(closingRoom)?.getBoundingClientRect();
+    if (rect) {
+      setOrigin({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    }
+    setIsInstant(false);
     setIsExpanded(false);
     const reduceMotion = reducesMotion();
     window.clearTimeout(timer.current);
@@ -258,19 +301,20 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  // # 付きの URL（例: /#works）を直接開いたら、ページを表示してからその部屋を開く
+  // # 付きの URL（例: /#works）を直接開いたら、すぐその部屋を開く（広がる演出はしない）。
+  // # はサーバーでは分からないので、ページのプログラムが動いてから開く
+  // （作品・アバターの URL は、はじめから開いた状態で書き出してある）
   useEffect(() => {
     if (window.location.pathname.startsWith('/blog/')) return;
     const { room: linked } = readLayers();
     if (!linked) return;
-    // 部屋の中身は、開くのを待たずに、すぐ読み始める（トップを見せているあいだに読み終わるように）
     preloadRoom(linked);
-    const timer = window.setTimeout(
-      () =>
-        latest.current.open(linked, buttons.current.get(linked), {
-          push: false,
-        }),
-      LINKED_OPEN_DELAY_MS,
+    if (latest.current.room) return;
+    const timer = window.setTimeout(() =>
+      latest.current.open(linked, buttons.current.get(linked), {
+        push: false,
+        instant: true,
+      }),
     );
     return () => window.clearTimeout(timer);
   }, []);
@@ -351,7 +395,12 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
 
       {page && Room && (
         <section
-          className={cn('room', page.tone, isExpanded && 'is-expanded')}
+          className={cn(
+            'room',
+            page.tone,
+            isExpanded && 'is-expanded',
+            isInstant && 'is-instant',
+          )}
           style={
             {
               '--origin-x': `${origin.x}px`,
@@ -376,7 +425,7 @@ export function SiteApp({ posts, hasNewPost, children }: SiteAppProps) {
             </header>
             {/* 中身を読み込み終わるまでは、空の部屋（見出しともどるボタンだけ）を出す */}
             <Suspense fallback={null}>
-              <Room posts={posts} />
+              {(isMounted || isPostPage) && <Room posts={posts} />}
             </Suspense>
           </div>
           {page.mascot && <RoomMascot mascot={page.mascot} />}

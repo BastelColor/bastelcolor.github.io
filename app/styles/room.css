@@ -20,6 +20,12 @@
   clip-path: circle(150vmax at var(--origin-x) var(--origin-y));
 }
 
+/* リンクから直接開いたときは、広がる動きも、中身がふわっと出る待ちもなしで、すぐ見せる */
+.room.is-instant,
+.room.is-instant .room-inner {
+  transition: none;
+}
+
 .room.mint {
   --tint: #dcf4ea;
 }

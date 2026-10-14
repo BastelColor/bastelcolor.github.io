@@ -19,8 +19,6 @@ import { playSound } from '@/lib/sound';
 
 /** ダイアログが消えるまでの時間（works.css の .work-dialog の transition と合わせる） */
 const DIALOG_FADE_MS = 200;
-/** # 付きの URL で来たとき、部屋が広がってから作品の詳細を開くまでの時間 */
-const LINKED_OPEN_DELAY_MS = 700;
 /** 詳細を指で横になぞって、となりの作品へ移るのに要る距離（px） */
 const SWIPE_PX = 60;
 
@@ -112,14 +110,14 @@ export function WorksRoom() {
       if (!work && element.open) element.close();
       else if (work && !element.open) showRef.current(work);
     };
-    // # 付きの URL（例: /#works/toon-shader）で来たら、部屋が開いてからその作品を開く。
+    // 作品の URL（例: /work/toon-shader）で来たら、すぐその作品を開く（部屋は、はじめから開いている）。
     // 知らない作品なら、URL を部屋だけにもどす
     const linked = readLayers().work;
     const linkTimer = linked
       ? window.setTimeout(() => {
           if (worksJa.some((work) => work.id === linked)) showRef.current(linked);
           else replaceLayers({ room: 'works' });
-        }, LINKED_OPEN_DELAY_MS)
+        })
       : undefined;
     // ← → キーで、となりの作品へ。詳細の上に重ねた画像のビューア（別の dialog）の中や、
     // 文字を打つところでは、そちらの操作にまかせる
