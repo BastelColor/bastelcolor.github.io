@@ -59,6 +59,17 @@ const TEMPORAL_KEEP = 0.6;
 /** 「大きく変わった」とみなす差（奥行きに対する割合） */
 const TEMPORAL_JUMP = 0.08;
 /**
+ * 測れなかったマス（穴）に、前のフレームの奥行きを使い続けるフレーム数。
+ * 穴はフレームごとにあちこちに開くので、そのたびに隠れ方が変わって、ちらついて見えた
+ */
+const HOLE_HOLD_FRAMES = 15;
+/**
+ * soft で、測れなかったところを、なめらかにした奥行きの画像に「とても遠い」として書く値（m）。
+ * 0 と書くと、となりの奥行きとなめらかにつないだときに「すぐ目の前に物がある」ことになり、
+ * 子の上に、点々とカメラの映像が重なって見えた
+ */
+const FAR_METERS = 100;
+/**
  * soft で、子が本物の物から透けはじめて、すっかり隠れるまでの奥行きの幅の半分（m。近さに比例して足す）。
  * 大きいほど境目がふんわりするが、壁や床のすぐそばの子も、少し透けやすくなる
  */
@@ -153,12 +164,14 @@ void main() {
 }
 `;
 
-// soft の 1: なめらかにした奥行きを、小さな画像に描く
+// soft の 1: なめらかにした奥行きを、小さな画像に描く（測れなかったところは、とても遠い）
 const SMOOTH_FRAGMENT = `
 ${SMOOTH_DEPTH}
+uniform float farMeters;
 varying vec2 vUv;
 void main() {
-  gl_FragColor = vec4(smoothDepth(vec2(vUv.x, 1.0 - vUv.y)), 0.0, 0.0, 1.0);
+  float meters = smoothDepth(vec2(vUv.x, 1.0 - vUv.y));
+  gl_FragColor = vec4(meters > 0.0 ? meters : farMeters, 0.0, 0.0, 1.0);
 }
 `;
 
@@ -173,12 +186,14 @@ uniform float biasPerMeter;
 uniform float softWidth;
 uniform float softWidthPerMeter;
 uniform float shift;
+uniform float farMeters;
 uniform float opacity;
 uniform float linearOutput;
 void main() {
   vec2 screen = (gl_FragCoord.xy - viewportRect.xy) / viewportRect.zw;
   float meters = texture2D(smoothMap, screen).r;
-  if (meters <= 0.0) discard;
+  // 測れなかったところ（とても遠い。となりとつないだところも、隠さないくらい遠い）
+  if (meters <= 0.0 || meters > farMeters * 0.25) discard;
   meters += bias + meters * biasPerMeter;
   gl_FragDepth = depthOf(meters + shift * (softWidth + meters * softWidthPerMeter));
   vec3 color = texture2D(cameraMap, screen).rgb;
@@ -228,6 +243,8 @@ export function createAROcclusion({
   // 奥行き（m）を小数で入れる画像。届いた地図を JS で m に直し、前のフレームとならしてから入れる
   let texture: DataTexture | null = null;
   let meters: Float32Array<ArrayBuffer> = new Float32Array(0);
+  // マスごとの、穴が続いているフレーム数
+  let holeAges = new Uint8Array(0);
   const uvTransform: Matrix4 = new THREE.Matrix4();
   const viewFromDepth: Matrix4 = new THREE.Matrix4();
   const viewport: Vector4 = new THREE.Vector4();
@@ -240,6 +257,7 @@ export function createAROcclusion({
     cameraMap: { value: null as Texture | null },
     hasCamera: { value: 0 },
     colorSigma2: { value: COLOR_SIGMA * COLOR_SIGMA },
+    farMeters: { value: FAR_METERS },
   };
   const projection = new THREE.Vector2();
   const viewportRect = new THREE.Vector4();
@@ -296,7 +314,9 @@ export function createAROcclusion({
           biasPerMeter: { value: DEPTH_BIAS_PER_METER },
           softWidth: { value: SOFT_WIDTH },
           softWidthPerMeter: { value: SOFT_WIDTH_PER_METER },
-          shift: { value: ((k + 0.5) / SOFT_LAYERS) * 2 - 1 },
+          // いちばん手前の 1 枚は、hard と同じ奥行き（それより手前にはずらさない。床や壁のそばの子が透けないように）
+          shift: { value: (k / SOFT_LAYERS) * 2 },
+          farMeters: { value: FAR_METERS },
           opacity: { value: 1 / (SOFT_LAYERS - k) },
           linearOutput: { value: 0 },
         },
@@ -420,6 +440,7 @@ export function createAROcclusion({
       if (!texture || texture.image.width !== depth.width || texture.image.height !== depth.height) {
         texture?.dispose();
         meters = new Float32Array(count);
+        holeAges = new Uint8Array(count);
         texture = new THREE.DataTexture(meters, depth.width, depth.height, THREE.RedFormat, THREE.FloatType);
         texture.minFilter = THREE.NearestFilter;
         texture.magFilter = THREE.NearestFilter;
@@ -434,6 +455,13 @@ export function createAROcclusion({
       for (let i = 0; i < count; i++) {
         const next = raw[i] * scale;
         const previous = meters[i];
+        // 穴は、しばらくは前の奥行きのまま
+        if (next <= 0) {
+          if (previous > 0 && holeAges[i] < HOLE_HOLD_FRAMES) holeAges[i] += 1;
+          else meters[i] = 0;
+          continue;
+        }
+        holeAges[i] = 0;
         meters[i] =
           next > 0 && previous > 0 && Math.abs(next - previous) < previous * TEMPORAL_JUMP
             ? previous * TEMPORAL_KEEP + next * (1 - TEMPORAL_KEEP)
