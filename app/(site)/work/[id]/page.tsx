@@ -54,11 +54,17 @@ export default async function WorkPage({ params }: WorkPageProps) {
   const firstImage = work.youtubeId
     ? work.images?.[0]?.src
     : (work.cover ?? work.thumbnail ?? work.images?.[0]?.src);
+  // 詳細の中の、いちばん大きく出る画像（画像の一覧の1枚目）。上の画像と違うときは、これも先読みする
+  // （画面でいちばん大きく写るので、これが出るまでが「表示が終わった」と数えられる）
+  const largestImage = work.images?.[0]?.src;
   return (
     <>
       <JsonLd data={workData(work)} />
       {firstImage && (
         <link rel="preload" as="image" href={firstImage} fetchPriority="high" />
+      )}
+      {largestImage && largestImage !== firstImage && (
+        <link rel="preload" as="image" href={largestImage} />
       )}
     </>
   );

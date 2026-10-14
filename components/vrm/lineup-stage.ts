@@ -22,6 +22,7 @@ import {
   captureFrame,
   disposeObject,
   failsToRender,
+  prepareToRender,
   frameDeltas,
   LilToonRenderError,
   loadThreeModules,
@@ -441,9 +442,12 @@ export async function createLineupStage({
     let shownUntil = -1;
     let weight = 0;
 
+    // はじめて描く前に、シェーダーとテクスチャを少しずつ用意しておく（描くときに固まらないように。
+    // components/vrm/vrm-stage.ts の prepareToRender）。
     // lilToon の見た目は、端末によっては描けないことがある。描けなければ、ふつうの見た目で並べ直す
+    const prepareLog = await prepareToRender(renderer, scene, camera, signal);
     if (lilToon) {
-      const log = failsToRender(renderer, () => renderer.render(scene, camera));
+      const log = prepareLog ?? failsToRender(renderer, () => renderer.render(scene, camera));
       if (log) throw new LilToonRenderError(log);
     }
 

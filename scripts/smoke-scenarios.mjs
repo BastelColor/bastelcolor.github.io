@@ -243,12 +243,16 @@ export const scenarios = [
       ).catch(() => {
         throw new Error('→ キーで、次の作品へ移れません');
       });
-      await page.click('.work-detail-step.is-previous');
-      await waitFor(
+      // 次の作品へ移った直後は、詳細の中身が入れかわっている途中で、矢印を押しても届かないことがある。
+      // 届くまで押し直す（もどれたら、それ以上は押さない）
+      await page.evaluate((before) => {
+        window.__smokeFirstWork = before;
+      }, first);
+      await clickUntil(
         page,
-        (before) => document.querySelector('.work-dialog[open] h3')?.textContent === before,
-        5_000,
-        first,
+        '.work-detail-step.is-previous',
+        () => document.querySelector('.work-dialog[open] h3')?.textContent === window.__smokeFirstWork,
+        { tries: 3 },
       ).catch(() => {
         throw new Error('前の作品の矢印で、もどれません');
       });

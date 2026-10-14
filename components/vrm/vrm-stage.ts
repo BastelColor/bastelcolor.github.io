@@ -1,7 +1,10 @@
 import type {
+  Camera,
   Material,
+  Mesh,
   Object3D,
   Quaternion,
+  Scene,
   Spherical,
   Texture,
   Vector3,
@@ -122,6 +125,17 @@ export function failsToRender(
   renderer: WebGLRenderer,
   render: () => void,
 ): string | null {
+  const shaderErrors = collectShaderErrors(renderer);
+  try {
+    render();
+  } finally {
+    shaderErrors.stop();
+  }
+  return shaderErrors.log();
+}
+
+/** 作れなかったシェーダーの理由を集める（stop を呼ぶまで） */
+function collectShaderErrors(renderer: WebGLRenderer) {
   const logs: string[] = [];
   const previous = renderer.debug.onShaderError;
   renderer.debug.onShaderError = (gl, program, vertexShader, fragmentShader) => {
@@ -136,12 +150,62 @@ export function failsToRender(
     logs.push(log || '（理由は出ませんでした）');
     console.error('シェーダーを作れませんでした', log);
   };
+  return {
+    stop: () => {
+      renderer.debug.onShaderError = previous;
+    },
+    log: () => (logs.length > 0 ? logs.join('\n---\n') : null),
+  };
+}
+
+/**
+ * はじめて描く前に、描き方（シェーダー）と画像（テクスチャ）を、少しずつ用意しておく。
+ *
+ * 何もしないと、はじめて描く 1 回の中で、すべてのシェーダーを作り、すべてのテクスチャを GPU へ送るので、
+ * そのあいだ画面が固まる（lilToon のファーレは、スマホくらいの速さで 2 秒ほど固まっていた）。
+ * - シェーダーは compileAsync で作る。端末が対応していれば（KHR_parallel_shader_compile）、
+ *   ほかの処理を止めずに、裏で作ってもらえる
+ * - lilToon の輪郭線などの追加の描き方は、描いているときにだけ足されるので、ここでは作れない
+ *   （はじめて描く 1 回で作る。固まる時間は、元の半分以下になった）
+ * - テクスチャは 1 枚ずつ送り、あいだに一息入れる（読み込み中の表示が止まらないように）
+ *
+ * 作れなかったシェーダーがあれば、その理由を返す（lilToon をあきらめて、ふつうの見た目にするため）
+ */
+export async function prepareToRender(
+  renderer: WebGLRenderer,
+  scene: Scene,
+  camera: Camera,
+  signal: AbortSignal,
+): Promise<string | null> {
+  const shaderErrors = collectShaderErrors(renderer);
+  const textures = new Set<Texture>();
+  const addTexture = (value: unknown) => {
+    if ((value as Texture | null)?.isTexture) textures.add(value as Texture);
+  };
+  const collectTextures = () =>
+    scene.traverse((object) => {
+      const material = (object as Mesh).material as Material | Material[] | undefined;
+      if (!material) return;
+      for (const item of Array.isArray(material) ? material : [material]) {
+        for (const value of Object.values(item)) addTexture(value);
+        const uniforms = (item as Material & { uniforms?: Record<string, { value: unknown }> })
+          .uniforms;
+        for (const uniform of Object.values(uniforms ?? {})) addTexture(uniform?.value);
+      }
+    });
   try {
-    render();
+    await renderer.compileAsync(scene, camera);
+    signal.throwIfAborted();
+    collectTextures();
+    for (const texture of textures) {
+      renderer.initTexture(texture);
+      await new Promise((resolve) => window.setTimeout(resolve));
+      signal.throwIfAborted();
+    }
   } finally {
-    renderer.debug.onShaderError = previous;
+    shaderErrors.stop();
   }
-  return logs.length > 0 ? logs.join('\n---\n') : null;
+  return shaderErrors.log();
 }
 
 /**
@@ -756,9 +820,11 @@ export async function createVrmStage({
       }
     };
 
+    // はじめて描く前に、シェーダーとテクスチャを少しずつ用意しておく（描くときに固まらないように）。
     // lilToon の見た目は、端末によっては描けないことがある。描けなければ、ふつうの見た目で表示し直す
+    const prepareLog = await prepareToRender(renderer, scene, camera, signal);
     if (liltoon) {
-      const log = failsToRender(renderer, () => renderer.render(scene, camera));
+      const log = prepareLog ?? failsToRender(renderer, () => renderer.render(scene, camera));
       if (log) throw new LilToonRenderError(log);
     }
 
