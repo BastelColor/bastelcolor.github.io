@@ -15,6 +15,8 @@ export type Post = {
   thumbnail?: string;
   /** thumbnail の説明（読み上げ用）。記事のいちばん上の画像に付ける */
   thumbnailAlt?: string;
+  /** 下書き（npm run dev で確かめるときだけ、一覧と記事に出る。公開するサイトには出ない） */
+  draft?: boolean;
 };
 
 export type PostWithBody = Post & {

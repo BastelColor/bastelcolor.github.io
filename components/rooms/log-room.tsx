@@ -78,6 +78,7 @@ export function LogRoom({ posts }: { posts: Post[] }) {
                 <span className="log-meta">
                   <time dateTime={post.date}>{formatPostDate(post.date)}</time>
                   {post.category && <span>{post.category}</span>}
+                  {post.draft && <span className="post-draft">下書き</span>}
                 </span>
                 <span className="log-title">{post.title}</span>
                 {post.summary && (

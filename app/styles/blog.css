@@ -251,3 +251,12 @@
   outline: 3px solid var(--ink);
   outline-offset: 3px;
 }
+
+/* 下書きの印（npm run dev で確かめているときだけ出る。lib/posts.ts） */
+.post-draft {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #ffe08a;
+  color: #5a4300;
+  font-weight: 900;
+}

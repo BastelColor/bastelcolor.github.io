@@ -82,6 +82,8 @@ export default async function PostPage({ params }: PostPageProps) {
         <p className="post-meta">
           <time dateTime={post.date}>{formatPostDate(post.date)}</time>
           {post.category && <span>{post.category}</span>}
+          {/* npm run dev で確かめているときだけ出る */}
+          {post.draft && <span className="post-draft">下書き（公開されません）</span>}
         </p>
         <h1>{post.title}</h1>
         {/* 本文の画像は押すと大きく見られる */}

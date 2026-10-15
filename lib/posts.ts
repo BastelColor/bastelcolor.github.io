@@ -14,7 +14,10 @@ const files = import.meta.glob<string>('/content/posts/*.md', {
 
 const markdown = new Marked({ gfm: true, breaks: true });
 
-/** 公開する記事を、新しい順に返す（draft: true の記事は除く） */
+/**
+ * 公開する記事を、新しい順に返す（draft: true の記事は除く）。
+ * npm run dev で確かめているときだけは、下書きも「下書き」の印つきで出す（公開する前に、見た目を確かめられるように）
+ */
 export function getPosts(): Post[] {
   return allPosts().map(({ html: _html, ...post }) => post);
 }
@@ -33,7 +36,8 @@ function allPosts(): PostWithBody[] {
 function parsePost(path: string, source: string): PostWithBody | null {
   const slug = path.split('/').pop()!.replace(/\.md$/, '');
   const { meta, body } = splitFrontMatter(source);
-  if (meta.draft === 'true') return null;
+  const draft = meta.draft === 'true';
+  if (draft && !import.meta.env.DEV) return null;
   if (!meta.title || !meta.date) {
     console.warn(`[blog] ${slug}.md: title と date は必須です`);
     return null;
@@ -47,6 +51,7 @@ function parsePost(path: string, source: string): PostWithBody | null {
     summary: meta.summary,
     thumbnail: meta.thumbnail,
     thumbnailAlt: meta.thumbnailAlt,
+    draft: draft || undefined,
     html: toHtml(body),
   };
 }
