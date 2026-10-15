@@ -3,7 +3,6 @@ title: アバターが、スマホのカメラの中に遊びに来るように�
 date: 2026-10-16
 category: お知らせ
 summary: アバターのお部屋に「AR」のボタンを追加しました！スマホで、うちの子たちを机や床の上に立たせられます。
-draft: true
 thumbnail: /posts/ar/cover.webp
 thumbnailAlt: 床の上に、キュイプル・こふりぃ・ティミ・ファーレの4人が並んで立っている AR の写真
 ---
