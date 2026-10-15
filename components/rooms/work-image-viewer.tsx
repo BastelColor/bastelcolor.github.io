@@ -19,7 +19,7 @@ export function WorkImageViewer({ images }: { images: WorkImage[] }) {
               className="work-detail-image"
               aria-label={t(
                 `画像を大きく見る（${i + 1}枚目）`,
-                `View image ${i + 1} larger`,
+                `Enlarge image ${i + 1}`,
               )}
               onClick={() => viewer.current?.open(i)}
             >

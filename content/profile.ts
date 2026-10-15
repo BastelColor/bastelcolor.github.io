@@ -33,11 +33,11 @@ export const profile: Profile = {
   // 英語で表示するときの文章（日本語版と同じ並び）
   en: {
     leadLines: ['My motto: “I’ll try anything!”'],
-    body: 'I mainly create 3DCG in Blender, and also make VR avatars and videos. I love trying out new forms of expression and new ways of making things!',
+    body: 'I mainly work in 3DCG with Blender, making VR avatars, videos, and more. I love trying out new kinds of expression and new ways of making things!',
     skills: [
       { level: 'Main', items: ['Blender', 'Unity'] },
       {
-        level: 'Often',
+        level: 'Regular',
         items: [
           'After Effects',
           'Premiere Pro',

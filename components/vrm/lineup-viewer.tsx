@@ -177,7 +177,7 @@ export function LineupViewer({
       {viewerState === 'error' && (
         <div className="vrm-error" role="alert">
           <b>
-            {t('モデルを表示できませんでした', 'The models couldn’t be shown')}
+            {t('モデルを表示できませんでした', 'Couldn’t display the models')}
           </b>
           <span>
             {t(

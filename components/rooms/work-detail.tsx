@@ -42,7 +42,7 @@ export function WorkDetail({
         {work.year && <span>{work.year}</span>}
       </p>
       {work.tools && work.tools.length > 0 && (
-        <ul className="work-detail-tools" aria-label={t('使った道具', 'Tools')}>
+        <ul className="work-detail-tools" aria-label={t('使った道具', 'Made with')}>
           {work.tools.map((tool) => (
             <li key={tool}>{tool}</li>
           ))}

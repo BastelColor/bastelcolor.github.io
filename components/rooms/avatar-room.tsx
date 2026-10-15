@@ -156,7 +156,7 @@ function specRows(
     [t('ポリゴン', 'Polygons'), count(stats.triangles)],
     [t('マテリアル', 'Materials'), `${stats.materials}`],
     [t('ボーン', 'Bones'), `${stats.bones}`],
-    [t('揺れもの', 'Springs'), `${stats.springs}`],
+    [t('揺れもの', 'Spring bones'), `${stats.springs}`],
     [t('表情', 'Expressions'), `${stats.expressions}`],
     [
       t('データ量', 'File size'),
@@ -562,17 +562,17 @@ export function AvatarRoom() {
           {
             key: 'timer',
             icon: <StopwatchIcon />,
-            label: t(`${AR_TIMER_SECONDS} 秒たってから撮る`, `Take it after ${AR_TIMER_SECONDS} seconds`),
+            label: t(`${AR_TIMER_SECONDS} 秒たってから撮る`, `Take a photo after ${AR_TIMER_SECONDS} seconds`),
           },
         ]
       : []),
     {
       key: 'size',
       icon: <PersonIcon small />,
-      label: t('ちいさくする・本当の大きさにもどす', 'Make it small / real size'),
+      label: t('ちいさくする・本当の大きさにもどす', 'Shrink / back to real size'),
     },
     ...(myHeightMeters !== undefined
-      ? [{ key: 'me', icon: <HeightIcon />, label: t('わたしの身長の柱を出す', 'Show your height pole') }]
+      ? [{ key: 'me', icon: <HeightIcon />, label: t('わたしの身長の柱を出す', 'Show your height marker') }]
       : []),
     { key: 'mood', icon: <MoodIcon />, label: t('表情を変える', 'Change the expression') },
     ...(arCanOcclude
@@ -809,7 +809,7 @@ export function AvatarRoom() {
                 </div>
                 {canShareArPhoto && (
                   <p className="avatar-ar-sheet-small">
-                    {t('共有すると、AR はおわります', 'Sharing ends AR')}
+                    {t('共有すると、AR はおわります', 'Sharing will end AR')}
                   </p>
                 )}
               </div>
@@ -875,7 +875,7 @@ export function AvatarRoom() {
                   className="avatar-ar-icon"
                   aria-label={
                     arRealSize
-                      ? t('ちいさくする', 'Make it small')
+                      ? t('ちいさくする', 'Shrink')
                       : t('本当の大きさにもどす', 'Back to real size')
                   }
                   onClick={() => {
@@ -893,15 +893,15 @@ export function AvatarRoom() {
                   <button
                     type="button"
                     className="avatar-ar-icon"
-                    aria-label={t('わたしの身長の柱', 'Your height pole')}
+                    aria-label={t('わたしの身長の柱', 'Your height marker')}
                     aria-pressed={arMark}
                     onClick={() => {
                       playSound('pop');
                       setArMark(!arMark);
                       showArNote(
                         arMark
-                          ? t('わたしの柱: かくす', 'Height pole: off')
-                          : t('わたしの柱: だす', 'Height pole: on'),
+                          ? t('わたしの柱: かくす', 'Height marker: off')
+                          : t('わたしの柱: だす', 'Height marker: on'),
                       );
                     }}
                   >
@@ -966,7 +966,7 @@ export function AvatarRoom() {
                   <button
                     type="button"
                     className="avatar-ar-icon"
-                    aria-label={t('物のうしろに隠れる', 'Hide behind objects')}
+                    aria-label={t('物のうしろに隠れる', 'Hide behind real objects')}
                     aria-pressed={arOcclude}
                     onClick={() => {
                       playSound('pop');
@@ -975,8 +975,8 @@ export function AvatarRoom() {
                       arSession.current?.setOcclusion(next);
                       showArNote(
                         next
-                          ? t('物のうしろに隠れる', 'Hides behind objects')
-                          : t('物のうしろに隠れない', 'Always in front'),
+                          ? t('物のうしろに隠れる', 'Hide behind objects: on')
+                          : t('物のうしろに隠れない', 'Hide behind objects: off'),
                       );
                     }}
                   >
@@ -1093,7 +1093,7 @@ export function AvatarRoom() {
                   `背景を${item.label}にする`,
                   `Use the ${item.labelEn} background`,
                 )}
-                title={t(item.label, item.labelEn)}
+                title={t(item.label, item.labelEn.charAt(0).toUpperCase() + item.labelEn.slice(1))}
                 onClick={() => changeBackdrop(item.id)}
               />
             ))}
@@ -1249,7 +1249,7 @@ export function AvatarRoom() {
         {mode === 'lineup' && (
           <div className="avatar-room-play avatar-room-shown">
             <p className="avatar-room-play-title">
-              {t('ならぶ子をえらぶ', 'Who lines up')}
+              {t('ならぶ子をえらぶ', 'Choose who lines up')}
             </p>
             <ShownToggles hiddenIds={hiddenIds} onToggle={toggleShown} />
           </div>
@@ -1297,7 +1297,7 @@ export function AvatarRoom() {
             <p className="avatar-room-spec-note">
               {t(
                 '目の高さは VRChat などで視点になる高さ、ポリゴンは三角形の数、表情は口の形・まばたきを含む数、データ量はサイトで表示する用に軽くしたものです。',
-                'Eye height is the viewpoint height in VRChat and similar apps. Polygons are triangles, expressions include mouth shapes and blinking, and file size is for the lightened version shown on this site.',
+                'Eye height is the viewpoint height in VRChat and similar apps. Polygons is the triangle count, Expressions includes mouth shapes and blinks, and File size is for the lightweight version used on this site.',
               )}
             </p>
           </div>
@@ -1347,7 +1347,7 @@ function ShownToggles({
   const t = useT();
   const shownCount = avatars.length - hiddenIds.size;
   return (
-    <fieldset className="avatar-room-shown-toggles" aria-label={t('ならぶ子', 'Who lines up')}>
+    <fieldset className="avatar-room-shown-toggles" aria-label={t('ならぶ子', 'Who’s in the lineup')}>
       {avatars.map((avatar) => {
         const shown = !hiddenIds.has(avatar.id);
         const name = t(avatar.name, avatar.nameEn);

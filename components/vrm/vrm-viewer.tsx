@@ -161,7 +161,7 @@ export function VrmViewer({
       {viewerState === 'error' && (
         <div className="vrm-error" role="alert">
           <b>
-            {t('モデルを表示できませんでした', 'The model couldn’t be shown')}
+            {t('モデルを表示できませんでした', 'Couldn’t display the model')}
           </b>
           <span>
             {t(
@@ -231,7 +231,7 @@ export function LoadingProgress({
     <>
       <small>
         {progress >= 100
-          ? t('表示の準備をしています', 'Getting ready to show')
+          ? t('表示の準備をしています', 'Almost ready…')
           : progress > 0
             ? `${progress}%`
             : waiting}

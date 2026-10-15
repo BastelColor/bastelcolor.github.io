@@ -43,6 +43,12 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
 
+      # 表示の速さに関わる数（ページのずれ・読み込むファイルの大きさ）が、上限を超えていないかを確かめる
+      # （scripts/perf-check.mjs。超えていたら公開しない）
+      - run: npm run perf
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
       - uses: actions/configure-pages@v6
 
       # dist/client の、名前が . で始まるファイル（.vite など）は入らない

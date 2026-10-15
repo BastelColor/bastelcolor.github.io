@@ -32,6 +32,7 @@ import {
   createMotionPlayer,
   type MotionPlayer,
 } from '@/components/vrm/motion-player';
+import { createAdaptiveResolution } from '@/components/vrm/adaptive-resolution';
 import { loadMotion, type MotionId } from '@/components/vrm/motions';
 
 /**
@@ -895,9 +896,13 @@ export async function createVrmStage({
     // --- 描画ループ ---
     const timer = new THREE.Timer();
     const currentVrm = vrm;
+    // なめらかに描けない端末では、解像度を少しずつ下げる（components/vrm/adaptive-resolution.ts）
+    const resolution = createAdaptiveResolution(renderer);
     renderer.setAnimationLoop((time, frame) => {
       timer.update(time);
-      const { delta, springDelta } = frameDeltas(timer.getDelta());
+      const rawDelta = timer.getDelta();
+      resolution.update(rawDelta);
+      const { delta, springDelta } = frameDeltas(rawDelta);
       idleMotion.update(timer.getElapsed());
       updateExpressions(timer.getElapsed(), delta);
       player.update(paused ? 0 : delta);

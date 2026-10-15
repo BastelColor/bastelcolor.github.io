@@ -12,6 +12,7 @@ import {
   createMotionPlayer,
   type MotionPlayer,
 } from '@/components/vrm/motion-player';
+import { createAdaptiveResolution } from '@/components/vrm/adaptive-resolution';
 import { loadMotion, type MotionId } from '@/components/vrm/motions';
 import {
   createViewModes,
@@ -457,9 +458,13 @@ export async function createLineupStage({
     // AR のあいだの、床の位置を調べる係（components/vrm/ar.ts）
     let arView: ARView | null = null;
     const timer = new THREE.Timer();
+    // なめらかに描けない端末では、解像度を少しずつ下げる（components/vrm/adaptive-resolution.ts）
+    const resolution = createAdaptiveResolution(renderer);
     renderer.setAnimationLoop((time, frame) => {
       timer.update(time);
-      const { delta, springDelta } = frameDeltas(timer.getDelta());
+      const rawDelta = timer.getDelta();
+      resolution.update(rawDelta);
+      const { delta, springDelta } = frameDeltas(rawDelta);
       const elapsed = timer.getElapsed();
       const target = elapsed < shownUntil ? 1 : 0;
       weight =

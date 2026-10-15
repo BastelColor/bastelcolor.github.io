@@ -125,7 +125,7 @@ export function StarCatch() {
         </div>
       ) : (
         <button type="button" className="star-catch-button" onClick={start}>
-          {t('★ 星をつかまえてあそぶ', '★ Play: catch the stars')}
+          {t('★ 星をつかまえてあそぶ', '★ Catch the stars!')}
         </button>
       )}
       {playing && (

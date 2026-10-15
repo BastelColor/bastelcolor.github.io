@@ -11,6 +11,7 @@
     "lint": "oxlint",
     "typecheck": "tsc --noEmit -p .",
     "smoke": "node scripts/smoke-test.mjs",
+    "perf": "node scripts/perf-check.mjs",
     "visual": "node scripts/visual-test.mjs",
     "format": "oxfmt",
     "motion:encode": "node scripts/encode-motion.mjs",

@@ -71,7 +71,7 @@ export function ProfileRoom() {
           <h3 id="profile-booth-title">
             {t(
               'BOOTH で配布・販売しているもの',
-              'Free downloads and items on BOOTH',
+              'Free and paid items on BOOTH',
             )}
           </h3>
           <ul>

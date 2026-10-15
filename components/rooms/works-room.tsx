@@ -292,7 +292,7 @@ export function WorksRoom() {
             aria-label={t('使った道具で絞り込む', 'Filter by tool')}
           >
             <li className="works-tools-label" aria-hidden="true">
-              {t('道具', 'Tools')}
+              {t('道具', 'Made with')}
             </li>
             {['all', ...tools].map((item) => (
               <li key={item}>

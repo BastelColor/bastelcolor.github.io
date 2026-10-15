@@ -51,7 +51,12 @@ const firstWork = (await names('work'))[0];
 const firstAvatar = (await names('avatar'))[0];
 const firstPost = (await names('blog')).find((slug) => slug !== 'no-posts');
 
-/** 撮る画面。ready は「表示できた」と判断する条件、has3d はモデルが映る画面 */
+/**
+ * 撮る画面。ready は「表示できた」と判断する条件、has3d はモデルが映る画面（allow で、許す割合（%）を変えられる）。
+ * act は、表示できたあと、撮る前にする操作（ボタンを押すなど）。
+ * respond は、そのページのやりとりへの返し方（URL を受け取り、返す中身か、'hang'（返さずに待たせる）か、
+ * null（ふつうに返す））
+ */
 const screens = [
   { id: 'home', path: '/', ready: () => document.querySelectorAll('.home-menu .puni').length === 4 },
   { id: 'profile', path: '/#profile', ready: () => !!document.querySelector('.room.is-expanded .profile') },
@@ -74,6 +79,72 @@ const screens = [
     ? [{ id: 'post', path: `/blog/${firstPost}`, ready: () => !!document.querySelector('.post h1') }]
     : []),
   { id: '404', path: '/this-page-does-not-exist', ready: () => !!document.querySelector('.not-found-title') },
+  // 公開し直したあとの「新しい版があります」（新しい版の印を返し、タブにもどったときの確かめを起こす）
+  {
+    id: 'update-notice',
+    path: '/',
+    ready: () => document.querySelectorAll('.home-menu .puni').length === 4,
+    respond: (url) =>
+      url.includes('/version.json')
+        ? { status: 200, contentType: 'application/json', body: '{"build":"visual-test"}' }
+        : null,
+    act: async (page) => {
+      await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+      await page.waitForSelector('.update-notice', { timeout: 10_000 });
+    },
+  },
+  // 作品の詳細の画像を、画面いっぱいに大きく出したところ
+  ...(firstWork
+    ? [
+        {
+          id: 'image-viewer',
+          path: `/work/${firstWork}`,
+          ready: () => !!document.querySelector('.work-dialog[open] .work-detail-image'),
+          act: async (page) => {
+            // スマホでは、画像が下の「もどる」の帯の下に隠れていることがあるので、位置ではなく要素を押す
+            await page.$eval('.work-dialog[open] .work-detail-image', (button) => button.click());
+            await page.waitForSelector('.image-viewer[open] img', { timeout: 10_000 });
+            await page.waitForFunction(
+              () => [...document.querySelectorAll('.image-viewer[open] .image-viewer-figure img')].every((img) => img.complete),
+              { timeout: 10_000 },
+            );
+          },
+        },
+      ]
+    : []),
+  // 3D モデルを読みこんでいるところ（モデルのファイルを返さずに待たせ、進むバーを出したままにする）
+  ...(firstAvatar
+    ? [
+        {
+          id: 'avatar-loading',
+          path: `/avatar/${firstAvatar}`,
+          ready: () => !!document.querySelector('.vrm-loading-bar'),
+          respond: (url) => (/\.vrm(\?|$)/.test(url) ? 'hang' : null),
+          // 待たせているやりとりがあるので、やりとりが静かになるのは待たない
+          waitUntil: 'load',
+        },
+      ]
+    : []),
+  // みんなで並ぶ（4人の背丈と、1人ずつ出し入れする顔のボタン）
+  {
+    id: 'lineup',
+    path: '/#avatar',
+    has3d: true,
+    // 4 人が少しずつ揺れているので、1 人のときより多めに許す
+    allow: 5,
+    ready: () => document.querySelector('.avatar-room-photo')?.disabled === false,
+    act: async (page) => {
+      await page.evaluate(() =>
+        [...document.querySelectorAll('.avatar-room-mode button')].find((button) => button.textContent === 'みんなで並ぶ')?.click(),
+      );
+      await page.waitForFunction(
+        () =>
+          document.querySelectorAll('.lineup-tags li').length > 1 &&
+          document.querySelector('.avatar-room-photo')?.disabled === false,
+        { timeout: 120_000, polling: 200 },
+      );
+    },
+  },
 ];
 
 await rm(latestDir, { recursive: true, force: true });
@@ -109,11 +180,16 @@ for (const viewport of VIEWPORTS) {
       // 前に取っておいたもの（service worker）は使わず、いつも書き出したファイルを読む
       await page.setBypassServiceWorker(true);
       await page.setRequestInterception(true);
-      page.on('request', (request) =>
-        request.url().startsWith(server.base) || request.url().startsWith('data:')
-          ? request.continue()
-          : request.abort(),
-      );
+      page.on('request', (request) => {
+        const url = request.url();
+        if (!url.startsWith(server.base) && !url.startsWith('data:')) {
+          void request.abort();
+          return;
+        }
+        const answer = screen.respond?.(url) ?? null;
+        if (answer === 'hang') return;
+        void (answer ? request.respond(answer) : request.continue());
+      });
       await page.evaluateOnNewDocument((themeName) => {
         // 日時と乱数を固定する
         const fixed = new Date(2026, 5, 15, 12, 0, 0).getTime();
@@ -142,8 +218,12 @@ for (const viewport of VIEWPORTS) {
       }, theme);
       let error = null;
       try {
-        await page.goto(server.base + screen.path, { waitUntil: 'networkidle0', timeout: 60_000 });
+        await page.goto(server.base + screen.path, {
+          waitUntil: screen.waitUntil ?? 'networkidle0',
+          timeout: 60_000,
+        });
         await page.waitForFunction(screen.ready, { timeout: screen.has3d ? 120_000 : 20_000, polling: 200 });
+        await screen.act?.(page);
         await page.evaluate(() => document.fonts.ready);
         // 部屋が広がりきり、画像やモデルが落ち着くまで待つ
         await new Promise((resolve) => setTimeout(resolve, screen.has3d ? 4000 : 1500));
@@ -153,7 +233,7 @@ for (const viewport of VIEWPORTS) {
         error = caught.message.split('\n')[0];
       }
       await page.close();
-      shots.push({ name, has3d: !!screen.has3d, error });
+      shots.push({ name, has3d: !!screen.has3d, allow: screen.allow, error });
       process.stdout.write(error ? `✗ ${name}: ${error}\n` : `・ ${name}\n`);
     }
   }
@@ -212,7 +292,7 @@ for (const shot of shots) {
     diff[i + 3] = 255;
   }
   const percent = (changed / (b.data.length / 4)) * 100;
-  const limit = shot.has3d ? CHANGED_PERCENT_3D : CHANGED_PERCENT;
+  const limit = shot.allow ?? (shot.has3d ? CHANGED_PERCENT_3D : CHANGED_PERCENT);
   if (percent > limit) {
     await sharp(diff, { raw: { width: b.info.width, height: b.info.height, channels: 4 } })
       .png()

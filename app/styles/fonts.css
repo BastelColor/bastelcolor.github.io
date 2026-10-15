@@ -4,6 +4,8 @@
 
    1つのフォントを「かな・英数字」（-basic）と「漢字など」（-extra）に分けてあり、
    ブラウザは画面の文字に必要なほうだけを読む。
+   本文のフォント（Zen Maru Gothic）の -extra は、公開するときに、さらに小さなファイルに分けたものに
+   置きかわる（下の -extra の設定は、開発中だけ使う。scripts/subset-fonts.mjs）。
    unicode-range は scripts/subset-fonts.mjs の BASIC_RANGES と同じにすること */
 
 /* 本文用 */

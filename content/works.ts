@@ -16,11 +16,11 @@ export const works: Work[] = [
   {
     id: 'marunomi-panic',
     en: {
-      description: 'A co-op multiplayer TPS for a school festival exhibit',
+      description: 'A co-op multiplayer TPS for a campus festival exhibit',
       body: [
-        'A TPS where up to four players team up to calm down the “Swallowing Dragon” that escaped from a lab studying mysterious creatures. Each character fights with unique skills and items—and if you get exhausted and stunned, you get swallowed whole.',
-        'I made as much of it as I could myself: character design and modeling, gameplay programming, cut-in effects, in-game UI, animation rigs, and stage design.',
-        'The enemy AI uses Unity Behavior, and multiplayer uses Netcode for GameObjects. I also optimized it to run on the festival PCs (57% less CPU and 50% less GPU usage) and wrote documents to share the techniques within our club.',
+        'A TPS where up to four players team up to calm down the “Swallowing Dragon,” which has escaped from a research lab for mysterious creatures. Each character fights with their own unique skills and items—and if you’re worn out and stunned, you get swallowed whole!',
+        'I’m making as much of it as I can myself: character design and modeling, gameplay programming, cut-in effects, in-game UI, animation rigs, and stage design.',
+        'The enemy AI is built with Unity Behavior, and multiplayer with Netcode for GameObjects. I also optimized it to run on the festival PCs (57% less CPU and 50% less GPU usage) and made materials to share the techniques within our club.',
         'Still in development.',
       ],
     },
@@ -54,11 +54,11 @@ export const works: Work[] = [
   {
     id: 'nakayoshi-en',
     en: {
-      description: 'A mobile-game-style PV (team project)',
+      description: 'A promo video styled like a mobile game (team project)',
       body: [
-        'A PV styled like a mobile mini-game, made with a team I met at an internship. It was a finalist in the Cygames Creative Contest 2025.',
-        'I handled the video, direction, and editing, and pulled everyone’s work together into one piece. I assembled the PSD and Maya data I received into a simple game in Unity, then finished it with UI animation and sound effects in After Effects.',
-        'I also supported the team’s progress: showing what was feasible at the planning stage, being the go-to person for technical questions, and streaming my editing work to share progress.',
+        'A promo video styled like a mobile mini-game, made with teammates I met at an internship. It was a finalist in the Cygames Creative Contest 2025.',
+        'I handled the visuals, direction, and editing, and pulled everyone’s work together into one piece. I built a simple game in Unity from the PSD and Maya files I received, then finished it with UI animation and sound effects in After Effects.',
+        'I also helped keep the team on track: showing what was feasible at the planning stage, being the go-to person for technical questions, and streaming my editing sessions to share progress.',
       ],
       links: ['Watch on YouTube'],
     },
@@ -85,12 +85,12 @@ export const works: Work[] = [
   {
     id: 'capcom-games-competition',
     en: {
-      description: 'A game proposal (team entry)',
+      description: 'A game design proposal (team entry)',
       body: [
-        'Our team’s entry to the CAPCOM GAMES COMPETITION, made with RE ENGINE from April to September 2025.',
-        'The story of Tsumugi, a girl lost in a world of dreams, and Baku, her guide. To heal the dream world tainted by “bad feelings,” she protects the “heart” through alternating stealth and tower-defense phases.',
-        'I first pitched a rough idea, discussed it with the team, and refined it into a proposal for the contest. I also managed the team’s database and progress.',
-        'Because of the contest rules, most of the production details can’t be shared.',
+        'Our team’s entry in the CAPCOM GAMES COMPETITION, made with RE ENGINE from April to September 2025.',
+        'The story of Tsumugi, a girl who has wandered into the world of dreams, and Baku, her guide. To heal the dream world tainted by “bad feelings,” you protect the “heart” by alternating between stealth and tower defense.',
+        'I first pitched a rough idea, discussed it with the team, and refined it into a proposal for the contest. I also managed the database and progress for the whole team.',
+        'Due to the contest rules, I can’t share most of the production details.',
       ],
     },
     genre: 'game',
@@ -127,8 +127,8 @@ export const works: Work[] = [
         'A smartphone-controlled virtual camera, with plugins for DCC tools',
       body: [
         'I couldn’t get the camera work I wanted while making videos, so I developed a virtual camera app that works with multiple DCC tools, along with a plugin for each tool.',
-        'The app is an Android app made in Unity, with an AR mode for walking around and a gyro mode for turning in place. Camera position and rotation are sent over Open Sound Control and video over NDI, so it can support other DCC tools just by adding a plugin. The first plugin is for Blender.',
-        'With professional development in mind, I also paid attention to licensing when structuring it.',
+        'The app is an Android app made in Unity, with an AR mode for walking around and a gyro mode for turning in place. Camera position and rotation are sent over Open Sound Control and video over NDI, so it can be extended to other DCC tools by adding plugins. I started with a plugin for Blender.',
+        'Thinking ahead to professional development, I also structured it with licensing in mind.',
       ],
     },
     genre: 'tool',
@@ -158,11 +158,11 @@ export const works: Work[] = [
   {
     id: 'easy-easy-ease',
     en: {
-      description: 'A Blender add-on that creates easing you can edit later',
+      description: 'A Blender add-on that creates easing curves you can edit later',
       body: [
-        'An add-on born from the problem that Blender only has animation presets you can’t edit afterwards.',
-        'Choose an easing type and strength, press the button, and you get an editable curve with its handles kept. The handles are set to FREE, so you can adjust them freely later.',
-        'I interviewed members of my club before building it, and wrote the code comments in English so people overseas can read them too. It’s available for free on BOOTH.',
+        'I made this add-on because Blender only has animation presets that can’t be edited later.',
+        'Choose an easing type and strength, press the button, and you get an editable curve with its handles in place. The handles are set to FREE, so you can adjust them however you like later.',
+        'I asked my club members what they needed before building it, and wrote the code comments in English so people overseas can read them too. It’s available for free on BOOTH.',
       ],
       links: ['View on BOOTH (free)'],
     },
@@ -198,9 +198,9 @@ export const works: Work[] = [
   {
     id: 'toon-shader',
     en: {
-      description: 'A homemade toon shader that blends into the scene',
+      description: 'My own toon shader that blends into the scene',
       body: [
-        'A typical emission shader casts no shadows, so characters glow and look out of place. So I built a toon shader as a node group that adds shading and matches the colors of the scene.',
+        'With a typical emission shader, characters get no shading, so they glow and look out of place. So I built a toon shader as a node group that adds shading and matches the colors of the scene.',
         'Brightness, light color, shadow, rim light, and AO are all adjustable.',
       ],
     },
@@ -234,7 +234,7 @@ export const works: Work[] = [
       description: 'A background made to test my toon shader',
       body: [
         'A background I made because I wanted a reflective environment to test ToonShader for Blender.',
-        'Time was limited, so the textures are procedural. I also processed external textures with shaders while looking at references, and finished it with post-processing.',
+        'Time was limited, so I made the textures procedurally. Looking at references, I also adjusted external textures with shaders, and finished it with post-processing.',
       ],
     },
     genre: 'movie',
@@ -295,9 +295,9 @@ export const works: Work[] = [
     en: {
       title: 'Characters 2023–2025',
       description: 'The 3D characters I’ve made so far',
-      imageAlt: 'A group shot of more than 20 3D characters I have made, standing in a row',
+      imageAlt: 'A group shot of the 20-plus 3D characters I’ve made so far, lined up in a row',
       body: [
-        'I keep making 3D characters with two goals: learning design and improving my 3D skills. Most are avatars for VRChat, and I’ve released many of them for free.',
+        'I keep making 3D characters with two goals: learning design and improving my 3D skills. Most of them are avatars for VRChat, and I’ve given many away for free.',
         'You can see the 3D models of Quiple, Coflet, and Timi in the Avatars room.',
       ],
     },
@@ -347,9 +347,9 @@ export const works: Work[] = [
       description:
         'A technical zine — Excellence Award at the Gishohaku Awards',
       body: [
-        'A 243-page technical zine I wrote on my own, distributed at Techbookfest 15 and the 9th Technical Book Doujinshi Expo (Gishohaku). It received an Excellence Award at the Gishohaku Awards.',
-        'I wrote it for my past self, who once gave up after hearing that “you can’t do character modeling if you can’t draw.” It’s written carefully so you won’t get lost even without knowledge of human anatomy.',
-        'It covers everything in one book: Blender basics, character modeling, preparing what VRChat needs, setting things up in Unity, and uploading.',
+        'A 243-page technical zine I wrote on my own, distributed at Techbookfest 15 and the 9th Technical Book Doujinshi Expo (Gishohaku). It won an Excellence Award at the Gishohaku Awards.',
+        'I wrote it for my past self, who once gave up, swayed by the common belief that “you can’t do character modeling if you can’t draw.” I explain everything carefully so you won’t get lost, even without any knowledge of human anatomy.',
+        'It covers everything in one book: from Blender basics to character modeling, preparing what VRChat needs, setting things up in Unity, and uploading.',
       ],
       links: ['View on BOOTH'],
     },
@@ -392,19 +392,19 @@ export const works: Work[] = [
   {
     id: 'techbookfest',
     en: {
-      title: 'Techbookfest Circle Exhibits',
+      title: 'Exhibiting at Techbookfest',
       description:
         'Writing, typesetting, and cover art for our club’s technical zines',
       body: [
         'Our club has exhibited at every Techbookfest since Techbookfest 14 (spring 2023). Here is what I worked on:',
-        'Techbookfest 14: Wrote “Schools of Variation in Character Modeling” (my first writing)',
+        'Techbookfest 14: Wrote “Schools of Variation in Character Modeling” (my first time writing)',
         'Techbookfest 15: Wrote and typeset “Character Modeling Even If You Can’t Draw” (solo)',
         'Techbookfest 16: Wrote and typeset “An Intro to Deep Learning, Just for the Vibe”',
         'Techbookfest 17: Wrote and drew the cover for “A Local Voice-Chat AI with VOICEVOX”',
         'Techbookfest 18: Wrote “Naming Methods Faithful to the Story”',
         'Techbookfest 19: Cover illustration',
       ],
-      links: ['Circle page on Techbookfest'],
+      links: ['Our club’s page on Techbookfest'],
     },
     genre: 'book',
     title: '技術書典 サークル出展',
@@ -433,8 +433,8 @@ export const works: Work[] = [
     en: {
       description: 'A procedural starry-sky shader and a video explaining it',
       body: [
-        'A procedural starry-sky shader based on an existing one (by Joey Carlino), with nebulae, colors, and bright stars added. Like the original, its look can be adjusted with parameters.',
-        'I also made and published a video explaining how it’s built.',
+        'A procedural starry-sky shader based on an existing one (by Joey Carlino), with nebulae, colors, and bright stars added. Like the original, you can adjust its look with parameters.',
+        'I also made and published a video explaining how to make it.',
       ],
       links: ['Watch the explainer on YouTube'],
     },
@@ -463,9 +463,9 @@ export const works: Work[] = [
     en: {
       description: 'A world made for VRChat',
       body: [
-        'A world I made for VRChat. It’s currently published as an alpha version.',
+        'A world I made for VRChat. It’s currently available as an alpha version.',
       ],
-      links: ['View in VRChat'],
+      links: ['View on VRChat'],
     },
     genre: 'vr',
     title: 'SimpleApartment',

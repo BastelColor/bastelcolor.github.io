@@ -12,7 +12,7 @@ export const pages: SitePage[] = [
   {
     id: 'works',
     tone: 'mint',
-    en: { menuLabel: 'Works', note: "Things I've made." },
+    en: { menuLabel: 'Works', note: 'Things I’ve made so far.' },
     menuLabel: 'さくひん',
     note: 'これまでにつくったもの。',
     mascot: {
@@ -23,7 +23,7 @@ export const pages: SitePage[] = [
   {
     id: 'avatar',
     tone: 'blue',
-    en: { menuLabel: 'Avatars', note: 'Character models and making-of notes.' },
+    en: { menuLabel: 'Avatars', note: 'Character models and how I made them.' },
     menuLabel: 'アバター',
     note: 'キャラクターモデルと制作記録。',
     mascot: {

@@ -20,7 +20,17 @@ export function WorkThumbnail({
 }: WorkThumbnailProps) {
   const className = cn('work-thumbnail', large && 'is-large');
   if (work.thumbnail) {
-    return <img className={className} src={work.thumbnail} alt={alt} />;
+    return (
+      <img
+        className={className}
+        src={work.thumbnail}
+        alt={alt}
+        // 一覧の小さな画像は、画面に近づいてから読む（14 枚ぜんぶを最初に読むと、スマホで 800KB ほどになる）。
+        // 詳細のいちばん上の大きな画像は、すぐ読む
+        loading={large ? 'eager' : 'lazy'}
+        decoding="async"
+      />
+    );
   }
   return (
     <span className={cn(className, 'is-empty')} aria-hidden="true">
