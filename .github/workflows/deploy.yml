@@ -49,6 +49,29 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
 
+      # 見た目が大きく崩れていないかを、前に公開したときに撮った画面とくらべる（scripts/visual-test.mjs の --ci）。
+      # 前の画面は GitHub のキャッシュに取っておく。わざと見た目を大きく変えたときは、
+      # コミットのメッセージに [visual-accept] と書くと止めない
+      - uses: actions/cache/restore@v6
+        with:
+          path: .visual/baseline
+          key: visual-baseline-${{ github.run_id }}
+          restore-keys: visual-baseline-
+      - run: npm run visual -- --ci ${{ contains(github.event.head_commit.message, '[visual-accept]') && '--accept-changes' || '' }}
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+      # 止まったときは、くらべた一覧（report.html と画像）を、実行のページからダウンロードできるようにする
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: visual-report
+          path: .visual/
+          include-hidden-files: true
+      - uses: actions/cache/save@v6
+        with:
+          path: .visual/baseline
+          key: visual-baseline-${{ github.run_id }}
+
       - uses: actions/configure-pages@v6
 
       # dist/client の、名前が . で始まるファイル（.vite など）は入らない

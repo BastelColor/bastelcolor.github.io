@@ -65,6 +65,25 @@ const USDZ_PREPARE_DELAY = 3000;
 /** AR の写真のタイマーの秒数 */
 const AR_TIMER_SECONDS = 3;
 
+/**
+ * 「すぐ AR で見る」リンク（/avatar/<id>?ar、みんなで並ぶときは ?ar=everyone）で開いたか。
+ * イベントの展示やチラシの QR コード（scripts/write-ar-qr.mjs が作る）から来た人向け。
+ * スマホは、ボタンを押した操作の中でないと AR を始めさせてくれないので、開いたら大きな「AR で見る」ボタンを出す
+ */
+type ArLink = 'single' | 'everyone' | null;
+function readArLink(): ArLink {
+  const value = new URLSearchParams(window.location.search).get('ar');
+  if (value === null) return null;
+  return value === 'everyone' ? 'everyone' : 'single';
+}
+/** URL から ?ar を外す（AR を始めた・閉じたあとに、読み込み直してもまた出ないように） */
+function clearArLink() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has('ar')) return;
+  url.searchParams.delete('ar');
+  window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+}
+
 /** AR のボタンの説明を、もう見たか（はじめて置いたときに一度だけ出す） */
 const AR_GUIDE_KEY = 'yzmo-ar-guide';
 function arGuideSeen() {
@@ -201,7 +220,10 @@ export function AvatarRoom() {
   );
   // 表示できたモデルの舞台。読み込み中は null（表情のボタンは押せない）
   const [stage, setStage] = useState<RoomStage | null>(null);
-  const [mode, setMode] = useState<ViewMode>('single');
+  // 「すぐ AR で見る」リンクで開いたか（部屋の中身は、ページが動き始めてから描くので、URL を読める）
+  const [arLink] = useState(readArLink);
+  const [arInvite, setArInvite] = useState(arLink !== null);
+  const [mode, setMode] = useState<ViewMode>(arLink === 'everyone' ? 'lineup' : 'single');
   const [backdrop, setBackdrop] = useState<Backdrop>('sky');
   const [lighting, setLighting] = useState<Lighting>('day');
   const [viewMode, setViewMode] = useState<DisplayMode>('normal');
@@ -262,12 +284,28 @@ export function AvatarRoom() {
   // はじめて置いたときの、ボタンの説明
   const [arGuide, setArGuide] = useState(false);
   const [arBusy, setArBusy] = useState(false);
+  // この画面で AR を使えるかを、調べ終えたか（調べ終えて使えなければ、パソコン向けに QR コードを出せる）
+  const [arDetected, setArDetected] = useState(false);
+  // パソコンで見ているときの「スマホで AR」（QR コードのダイアログ）
+  const qrDialog = useRef<HTMLDialogElement>(null);
+  // QR コードのダイアログは、まわりの暗いところを押しても閉じる
+  useEffect(() => {
+    const element = qrDialog.current;
+    if (!element) return;
+    const onClick = (event: MouseEvent) => {
+      if (event.target === element) element.close();
+    };
+    element.addEventListener('click', onClick);
+    return () => element.removeEventListener('click', onClick);
+  }, []);
   const arSession = useRef<ARSession | null>(null);
   const arOverlay = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let active = true;
     void detectAR().then((found) => {
-      if (active) setArMode(found);
+      if (!active) return;
+      setArMode(found);
+      setArDetected(true);
     });
     return () => {
       active = false;
@@ -387,6 +425,8 @@ export function AvatarRoom() {
   // AR で見る。Android などはこのページの中で（WebXR）、iPhone は AR クイックルックで開く
   const openAR = async () => {
     if (!stage || arBusy) return;
+    setArInvite(false);
+    clearArLink();
     playSound('pop');
     countEvent(`ar/${mode === 'lineup' ? 'everyone' : selected.id}`);
     if (arMode === 'webxr' && stage.startAR && arOverlay.current) {
@@ -700,6 +740,42 @@ export function AvatarRoom() {
             motionId={reduceMotion ? undefined : avatarMotion.id}
             onStage={setStage}
           />
+        )}
+        {/* 「すぐ AR で見る」リンクで来たとき。AR を使えるスマホでは大きなボタン、使えない画面では、そう伝える */}
+        {arInvite && arDetected && (
+          <div className="avatar-ar-invite">
+            {arMode ? (
+              <button
+                type="button"
+                className="avatar-ar-invite-start"
+                disabled={!stage || arBusy}
+                aria-busy={arBusy || !stage}
+                onClick={() => void openAR()}
+              >
+                <span className="avatar-ar-invite-label">AR</span>
+                {stage
+                  ? t('カメラの中に呼ぶ', 'Bring them into your room')
+                  : t('準備しています…', 'Getting ready…')}
+              </button>
+            ) : (
+              <p className="avatar-ar-invite-note">
+                {t(
+                  'スマホ（Android の Chrome・iPhone）で開くと、AR で見られます',
+                  'Open this on a phone (Android Chrome or iPhone) to see it in AR',
+                )}
+              </p>
+            )}
+            <button
+              type="button"
+              className="avatar-ar-invite-close"
+              onClick={() => {
+                setArInvite(false);
+                clearArLink();
+              }}
+            >
+              {t('あとで', 'Not now')}
+            </button>
+          </div>
         )}
         {flash > 0 && (
           <span key={flash} className="avatar-room-flash" aria-hidden="true" />
@@ -1079,6 +1155,21 @@ export function AvatarRoom() {
               AR
             </button>
           )}
+          {/* AR を使えない画面（パソコンなど）では、スマホで読みこむ QR コードを出す */}
+          {arDetected && !arMode && (
+            <button
+              type="button"
+              className="avatar-room-ar is-qr"
+              aria-label={t('スマホで AR で見る（QR コード）', 'View in AR on your phone (QR code)')}
+              title={t('スマホで AR', 'AR on your phone')}
+              onClick={() => {
+                playSound('pop');
+                qrDialog.current?.showModal();
+              }}
+            >
+              AR
+            </button>
+          )}
           <fieldset
             className="avatar-room-backdrops"
             aria-label={t('背景', 'Background')}
@@ -1328,6 +1419,36 @@ export function AvatarRoom() {
           {t(avatarMotion.credit, avatarMotion.creditEn)}
         </p>
       </div>
+      {/* パソコンなどで見ているときの、スマホで AR を開く QR コード（public/qr/ は scripts/write-ar-qr.mjs が作る） */}
+      <dialog
+        ref={qrDialog}
+        className="avatar-ar-qr"
+        aria-label={t('スマホで AR で見る', 'View in AR on your phone')}
+      >
+        <img
+          src={`/qr/ar-${mode === 'lineup' ? 'everyone' : selected.id}.svg`}
+          alt={t(
+            'スマホのカメラで読みこむと、AR で見られる QR コード',
+            'A QR code to open this in AR on your phone',
+          )}
+          width={240}
+          height={240}
+        />
+        <p>
+          {mode === 'lineup'
+            ? t(
+                'スマホのカメラで読みこむと、みんなを AR で呼べます',
+                'Scan with your phone camera to bring everyone into your room',
+              )
+            : t(
+                `スマホのカメラで読みこむと、${selected.name}を AR で呼べます`,
+                `Scan with your phone camera to bring ${selected.nameEn} into your room`,
+              )}
+        </p>
+        <button type="button" onClick={() => qrDialog.current?.close()}>
+          {t('とじる', 'Close')}
+        </button>
+      </dialog>
     </div>
   );
 }

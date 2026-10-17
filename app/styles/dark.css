@@ -45,6 +45,24 @@
   --surface-base: var(--post-paper);
 }
 
+/* 部屋の色を混ぜた小さな札や、選んでいるボタン。暗いテーマでは、紺の紙に部屋の色を多く混ぜると
+   中くらいの明るさになり、明るい文字が読みにくかった（見えにくい人向けの点検。scripts/a11y-check.mjs）。
+   部屋の色は少なめに混ぜ、文字はいちばん明るい色にする */
+:root[data-theme='dark']
+  :is(
+    .profile-skill-level,
+    .works-genres button[aria-pressed='true'],
+    .avatar-room-choice[aria-pressed='true'],
+    .avatar-room-badge
+  ) {
+  background: color-mix(in srgb, var(--tone) 22%, var(--paper));
+  color: var(--ink);
+}
+
+:root[data-theme='dark'] .avatar-room-choice[aria-pressed='true'] small {
+  color: var(--ink);
+}
+
 /* 記事のコードは、紙よりさらに暗く */
 :root[data-theme='dark'] .post-body pre {
   background: #121827;

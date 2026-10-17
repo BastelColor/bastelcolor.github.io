@@ -1,4 +1,5 @@
 import { Marked } from 'marked';
+import wideThumbnails from 'virtual:post-thumbnails';
 import type { Post, PostWithBody } from '@/lib/post-meta';
 
 /**
@@ -49,7 +50,8 @@ function parsePost(path: string, source: string): PostWithBody | null {
     date: meta.date,
     category: meta.category,
     summary: meta.summary,
-    thumbnail: meta.thumbnail,
+    // 縦長の写真は、横長に作り直したもの（scripts/write-post-thumbnails.mjs）を使う
+    thumbnail: meta.thumbnail && (wideThumbnails[meta.thumbnail] ?? meta.thumbnail),
     thumbnailAlt: meta.thumbnailAlt,
     draft: draft || undefined,
     html: toHtml(body),

@@ -404,7 +404,8 @@
   font-family: var(--body);
   font-size: 12px;
   font-weight: 900;
-  color: var(--ink-soft);
+  /* 選んでいないほうも、展示台の上で読めるよう、ふつうの文字の色（選んでいるほうは白い下地で分かる） */
+  color: var(--ink);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -478,6 +479,143 @@
   font-size: 13px;
   font-weight: 900;
   letter-spacing: 0.02em;
+}
+
+/* パソコンなどで、スマホで読みこむ QR コードを出す「AR」（点線のふち） */
+.avatar-room-ar.is-qr {
+  outline: 2px dashed color-mix(in srgb, var(--ink) 35%, transparent);
+  outline-offset: -5px;
+}
+
+/* 「すぐ AR で見る」リンクで来たときの、モデルの上の大きなボタン */
+.avatar-ar-invite {
+  position: absolute;
+  z-index: 6;
+  left: 50%;
+  bottom: 22%;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(90%, 340px);
+}
+
+.avatar-ar-invite-start {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 24px 14px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-solid);
+  box-shadow:
+    0 6px 0 color-mix(in srgb, var(--edge) 30%, transparent),
+    0 12px 28px rgba(31, 45, 70, 0.2);
+  font-family: var(--body);
+  font-size: 17px;
+  font-weight: 900;
+  color: var(--ink);
+  cursor: pointer;
+  animation: avatar-ar-invite 1.6s ease-in-out infinite alternate;
+}
+
+.avatar-ar-invite-start:disabled {
+  cursor: default;
+  animation: none;
+  opacity: 0.8;
+}
+
+.avatar-ar-invite-start:not(:disabled):active {
+  translate: 0 3px;
+}
+
+.avatar-ar-invite-label {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--edge);
+  font-family: var(--display);
+  font-size: 16px;
+  color: #fff;
+}
+
+@keyframes avatar-ar-invite {
+  to {
+    scale: 1.05;
+  }
+}
+
+.avatar-ar-invite-note {
+  margin: 0;
+  padding: 12px 18px;
+  border-radius: 18px;
+  background: var(--surface-solid);
+  box-shadow: 0 10px 24px rgba(31, 45, 70, 0.18);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--ink);
+}
+
+.avatar-ar-invite-close {
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-solid) 80%, transparent);
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+/* スマホで AR を開く QR コード（パソコンなどで見ているとき） */
+.avatar-ar-qr {
+  margin: auto;
+  width: min(92vw, 22rem);
+  padding: 22px 24px 20px;
+  border: 0;
+  border-radius: 24px;
+  background: var(--surface-solid);
+  color: var(--ink);
+  text-align: center;
+  box-shadow: 0 18px 40px rgba(31, 45, 70, 0.22);
+}
+
+.avatar-ar-qr::backdrop {
+  background: rgba(31, 45, 70, 0.35);
+}
+
+.avatar-ar-qr img {
+  display: block;
+  width: 240px;
+  height: 240px;
+  margin: 0 auto;
+  border-radius: 12px;
+}
+
+.avatar-ar-qr p {
+  margin: 14px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.avatar-ar-qr button {
+  margin-top: 14px;
+  padding: 8px 22px 9px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  font-family: var(--body);
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--ink);
+  cursor: pointer;
 }
 
 .avatar-room-ar[aria-busy='true'] {

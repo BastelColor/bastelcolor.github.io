@@ -55,3 +55,9 @@ next-env.d.ts
 
 # 見た目の比較で撮った画像と一覧（scripts/visual-test.mjs）
 /.visual/
+
+# アバターを AR で見るリンクの QR コード（scripts/write-ar-qr.mjs が、公開・確認の前に作る）
+/public/qr/
+
+# 縦長の記事のサムネイルから作る、横長のもの（scripts/write-post-thumbnails.mjs）
+/public/posts/**/*.wide.webp

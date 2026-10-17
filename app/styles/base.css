@@ -209,7 +209,8 @@ a {
   font-family: var(--body);
   font-size: 12px;
   font-weight: 900;
-  color: var(--ink-soft);
+  /* 選んでいないほうも、空の上で読めるよう、ふつうの文字の色（選んでいるほうは白い下地で分かる） */
+  color: var(--ink);
   cursor: pointer;
 }
 

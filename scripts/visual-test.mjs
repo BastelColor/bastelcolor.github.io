@@ -5,6 +5,14 @@
  *   npm run build のあとに: npm run visual            くらべる（基準が無い画面は、今回のものを基準にする）
  *                          npm run visual -- --accept  今回撮ったものを、新しい基準にする
  *
+ * 公開の前（.github/workflows/deploy.yml）には --ci で実行する。前に公開したときに撮ったもの（GitHub の
+ * キャッシュに取っておく）とくらべ、画面が大きく変わっていたら（CI_FAIL_PERCENT。レイアウトが崩れたときなど）止める。
+ * 少しの変化は知らせるだけ。くらべたあとは、今回のものを次の基準にする。
+ * わざと大きく見た目を変えたときは、コミットのメッセージに [visual-accept] と書くと、止めずに通す（--accept-changes）。
+ * 時間がかからないよう、明るいテーマだけを撮り、重い画面（heavy。みんなで並ぶ）は撮らない。
+ * 記事や作品を足すと変わる画面（content。ブログ・作品）は、大きく変わっても知らせるだけにする
+ * （レイアウトが崩れたときは、トップ・プロフィール・アバター・404 などで気づける）
+ *
  * - 撮った画像と一覧は .visual/ に置く（GitHub には送らない）
  * - 毎回同じに撮れるよう、日時を 6月15日 12時（昼の空・季節のかざり無し）に固定し、乱数も固定し、
  *   動きを減らした状態で撮る。ほかのサイト（アクセス数など）へのやりとりは止める
@@ -24,6 +32,8 @@ import {
 } from './static-server.mjs';
 
 const accept = process.argv.includes('--accept');
+const ci = process.argv.includes('--ci');
+const acceptChanges = process.argv.includes('--accept-changes');
 const outDir = path.join(root, '.visual');
 const baselineDir = path.join(outDir, 'baseline');
 const latestDir = path.join(outDir, 'latest');
@@ -35,13 +45,16 @@ const PIXEL_THRESHOLD = 48;
 const CHANGED_PERCENT = 0.1;
 /** 3D のモデルがある画面で許す割合（%） */
 const CHANGED_PERCENT_3D = 2;
+/** --ci で、公開を止める変化の割合（%。これより小さい変化は知らせるだけ） */
+const CI_FAIL_PERCENT = 15;
+const CI_FAIL_PERCENT_3D = 35;
 
 /** 撮る画面の大きさ */
 const VIEWPORTS = [
   { id: 'pc', width: 1280, height: 800 },
   { id: 'phone', width: 390, height: 844, mobile: true },
 ];
-const THEMES = ['light', 'dark'];
+const THEMES = ci ? ['light'] : ['light', 'dark'];
 
 const names = async (folder) =>
   (await readdir(path.join(dist, folder)).catch(() => []))
@@ -60,10 +73,10 @@ const firstPost = (await names('blog')).find((slug) => slug !== 'no-posts');
 const screens = [
   { id: 'home', path: '/', ready: () => document.querySelectorAll('.home-menu .puni').length === 4 },
   { id: 'profile', path: '/#profile', ready: () => !!document.querySelector('.room.is-expanded .profile') },
-  { id: 'works', path: '/#works', ready: () => document.querySelectorAll('.works-item').length > 0 },
-  { id: 'log', path: '/#log', ready: () => !!document.querySelector('.room.is-expanded') },
+  { id: 'works', content: true, path: '/#works', ready: () => document.querySelectorAll('.works-item').length > 0 },
+  { id: 'log', content: true, path: '/#log', ready: () => !!document.querySelector('.room.is-expanded') },
   ...(firstWork
-    ? [{ id: 'work', path: `/work/${firstWork}`, ready: () => !!document.querySelector('.work-dialog[open] h3') }]
+    ? [{ id: 'work', content: true, path: `/work/${firstWork}`, ready: () => !!document.querySelector('.work-dialog[open] h3') }]
     : []),
   ...(firstAvatar
     ? [
@@ -76,7 +89,7 @@ const screens = [
       ]
     : []),
   ...(firstPost
-    ? [{ id: 'post', path: `/blog/${firstPost}`, ready: () => !!document.querySelector('.post h1') }]
+    ? [{ id: 'post', content: true, path: `/blog/${firstPost}`, ready: () => !!document.querySelector('.post h1') }]
     : []),
   { id: '404', path: '/this-page-does-not-exist', ready: () => !!document.querySelector('.not-found-title') },
   // 公開し直したあとの「新しい版があります」（新しい版の印を返し、タブにもどったときの確かめを起こす）
@@ -98,6 +111,7 @@ const screens = [
     ? [
         {
           id: 'image-viewer',
+          content: true,
           path: `/work/${firstWork}`,
           ready: () => !!document.querySelector('.work-dialog[open] .work-detail-image'),
           act: async (page) => {
@@ -130,6 +144,8 @@ const screens = [
     id: 'lineup',
     path: '/#avatar',
     has3d: true,
+    // 4 人を読みこむので重い（公開の前の確かめでは撮らない）
+    heavy: true,
     // 4 人が少しずつ揺れているので、1 人のときより多めに許す
     allow: 5,
     ready: () => document.querySelector('.avatar-room-photo')?.disabled === false,
@@ -164,6 +180,7 @@ const shots = [];
 for (const viewport of VIEWPORTS) {
   for (const theme of THEMES) {
     for (const screen of screens) {
+      if (ci && screen.heavy) continue;
       const name = `${screen.id}-${viewport.id}-${theme}`;
       const page = await browser.newPage();
       await page.setViewport({
@@ -233,7 +250,7 @@ for (const viewport of VIEWPORTS) {
         error = caught.message.split('\n')[0];
       }
       await page.close();
-      shots.push({ name, has3d: !!screen.has3d, allow: screen.allow, error });
+      shots.push({ name, has3d: !!screen.has3d, content: !!screen.content, allow: screen.allow, error });
       process.stdout.write(error ? `✗ ${name}: ${error}\n` : `・ ${name}\n`);
     }
   }
@@ -350,4 +367,35 @@ console.log(
   `[visual] ${results.length} 枚のうち、変わった ${changedCount}・撮れなかった ${errorCount}・新しい基準 ${newCount}`,
 );
 console.log(`[visual] 一覧: ${path.join(outDir, 'report.html')}`);
-if (changedCount || errorCount) process.exitCode = 1;
+if (!ci) {
+  if (changedCount || errorCount) process.exitCode = 1;
+} else {
+  // 公開の前: 大きく変わった画面があれば止める（[visual-accept] のときは止めない）。少しの変化は知らせるだけ
+  const failing = results.filter(
+    (result) =>
+      result.status === 'changed' &&
+      !result.content &&
+      result.percent > (result.has3d ? CI_FAIL_PERCENT_3D : CI_FAIL_PERCENT),
+  );
+  for (const result of results) {
+    if (result.status === 'changed') {
+      const level = failing.includes(result) && !acceptChanges ? 'error' : 'warning';
+      console.log(`::${level} title=見た目の比較 ${result.name}::${result.percent.toFixed(1)}% 変わりました`);
+    } else if (result.status === 'error') {
+      console.log(`::warning title=見た目の比較 ${result.name}::撮れませんでした（${result.error}）`);
+    }
+  }
+  if (failing.length && !acceptChanges) {
+    console.log(
+      `[visual] ${failing.length} 画面が大きく変わったので、止めます。わざと変えたときは、コミットのメッセージに [visual-accept] と書いてください`,
+    );
+    process.exitCode = 1;
+  } else {
+    // 今回のものを、次に公開するときの基準にする
+    for (const shot of shots) {
+      if (shot.error) continue;
+      await copyFile(path.join(latestDir, `${shot.name}.png`), path.join(baselineDir, `${shot.name}.png`));
+    }
+    console.log('[visual] 今回のものを、次の基準にしました');
+  }
+}

@@ -166,8 +166,9 @@ function collectShaderErrors(renderer: WebGLRenderer) {
  * そのあいだ画面が固まる（lilToon のファーレは、スマホくらいの速さで 2 秒ほど固まっていた）。
  * - シェーダーは compileAsync で作る。端末が対応していれば（KHR_parallel_shader_compile）、
  *   ほかの処理を止めずに、裏で作ってもらえる
- * - lilToon の輪郭線などの追加の描き方は、描いているときにだけ足されるので、ここでは作れない
- *   （はじめて描く 1 回で作る。固まる時間は、元の半分以下になった）
+ * - lilToon の材質は、描く直前（material.onBeforeRender）に、そのメッシュに合わせた設定（表情用の形の数など）を
+ *   書きこみ、それでシェーダーを選ぶ。前もって作るときも、先にそれを呼んで同じ設定にしておく
+ *   （呼ばないと、本番では使わない別のシェーダーを作ってしまい、はじめて描くときにまた作り直していた）
  * - テクスチャは 1 枚ずつ送り、あいだに一息入れる（読み込み中の表示が止まらないように）
  *
  * 作れなかったシェーダーがあれば、その理由を返す（lilToon をあきらめて、ふつうの見た目にするため）
@@ -195,6 +196,23 @@ export async function prepareToRender(
       }
     });
   try {
+    scene.traverseVisible((object) => {
+      const mesh = object as Mesh;
+      if (!mesh.isMesh) return;
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      materials.forEach((material, i) => {
+        const group = mesh.geometry.groups.find((item) => (item.materialIndex ?? 0) === i) ?? null;
+        material.onBeforeRender(
+          renderer,
+          scene,
+          camera,
+          mesh.geometry,
+          mesh,
+          // three.js が描くときに渡すのは、形（geometry）の面のまとまり。型の定義とは違う
+          group as unknown as Parameters<Material['onBeforeRender']>[5],
+        );
+      });
+    });
     await renderer.compileAsync(scene, camera);
     signal.throwIfAborted();
     collectTextures();
