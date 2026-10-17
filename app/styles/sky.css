@@ -10,7 +10,9 @@
   --cloud-back: #eef6fc;
   --cloud-front: #ffffff;
   --sky-ink: var(--ink);
-  --sky-ink-soft: var(--ink-soft);
+  /* 空の上の、うすい文字（役職・404 の説明）。いつもの --ink-soft では、夕方の薄むらさきの空で
+     コントラストが足りない（3.5）ので、空の上だけ少し濃くする（どの明るい空でも 4.5 以上） */
+  --sky-ink-soft: #445566;
   --stars: 0;
 }
 
@@ -189,6 +191,8 @@
   --sky-bottom: #173449;
   --cloud-back: #2b4b5f;
   --cloud-front: #3e6679;
+  /* オーロラがうしろを通っても読めるよう、うすい文字を夜より明るく */
+  --sky-ink-soft: #dde6f3;
   --stars: 0.55;
   --shooting: 0;
 }
@@ -228,7 +232,8 @@
   display: block;
 }
 
-/* オーロラ: ぼかした光の帯が 3 本、ゆっくりゆれる */
+/* オーロラ: ぼかした光の帯が 3 本、ゆっくりゆれる。
+   明るくしすぎると、うしろを通ったときに、上の文字が読みにくくなる（コントラスト 4.5 を下回る）ので、うすめに */
 .dark-scene.is-aurora span {
   position: absolute;
   left: -20%;
@@ -238,9 +243,9 @@
   background: linear-gradient(
     90deg,
     transparent 4%,
-    rgba(88, 240, 180, 0.32) 26%,
-    rgba(120, 210, 255, 0.24) 50%,
-    rgba(255, 128, 210, 0.22) 72%,
+    rgba(88, 240, 180, 0.18) 26%,
+    rgba(120, 210, 255, 0.13) 50%,
+    rgba(255, 128, 210, 0.12) 72%,
     transparent 96%
   );
   filter: blur(28px);

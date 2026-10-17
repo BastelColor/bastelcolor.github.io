@@ -40,8 +40,11 @@ const firstWork = await firstOf('work');
 const firstAvatar = await firstOf('avatar');
 const firstPost = await firstOf('blog', 'no-posts');
 
+// sky: true の画面（空のある、トップと 404）は、空の色が時間帯で変わる（lib/sky.ts）ので、
+// 時計を朝・昼・夕方・夜の時刻にして、それぞれ調べる（いつ実行しても、同じものを調べるように）
+const SKY_HOURS = [7, 12, 17, 22];
 const pages = [
-  { path: '/', ready: () => document.querySelectorAll('.home-menu .puni').length === 4 },
+  { path: '/', sky: true, ready: () => document.querySelectorAll('.home-menu .puni').length === 4 },
   { path: '/#profile', ready: () => !!document.querySelector('.room.is-expanded .profile') },
   { path: '/#works', ready: () => document.querySelectorAll('.works-item').length > 0 },
   { path: '/#log', ready: () => !!document.querySelector('.room.is-expanded') },
@@ -52,7 +55,7 @@ const pages = [
     timeout: 120_000,
   },
   firstPost && { path: `/blog/${firstPost}`, ready: () => !!document.querySelector('.post h1') },
-  { path: '/this-page-does-not-exist', ready: () => !!document.querySelector('.not-found-title') },
+  { path: '/this-page-does-not-exist', sky: true, ready: () => !!document.querySelector('.not-found-title') },
 ].filter(Boolean);
 
 // 公開の前（--ci）は、時間がかからないよう、スマホの大きさだけで調べる
@@ -174,7 +177,7 @@ async function measureContrast(tab, selector) {
 try {
   for (const viewport of VIEWPORTS) {
     for (const theme of THEMES) {
-      for (const page of pages) {
+      for (const page of pages) for (const hour of page.sky ? SKY_HOURS : [12]) {
         const tab = await browser.newPage();
         await tab.setViewport({
           width: viewport.width,
@@ -188,6 +191,10 @@ try {
           localStorage.setItem('yzmo-theme', themeName);
           sessionStorage.setItem('yzmo-intro', '1');
         }, theme);
+        // 空の時間帯を決める時計（lib/sky.ts の getHours）を、調べる時刻にする
+        await tab.evaluateOnNewDocument((fixedHour) => {
+          Date.prototype.getHours = () => fixedHour;
+        }, hour);
         await tab.goto(server.base + page.path, { waitUntil: 'load' });
         await tab.waitForFunction(page.ready, { timeout: page.timeout ?? 30_000, polling: 200 });
         // 部屋が広がりきり、文字の色の切りかえが終わるまで待つ
@@ -201,7 +208,7 @@ try {
             ),
           IGNORE_SELECTORS,
         );
-        const where = `${page.path}（${viewport.id}・${theme}）`;
+        const where = `${page.path}（${viewport.id}・${theme}${page.sky ? `・${hour}時` : ''}）`;
         for (const violation of results.violations) {
           for (const node of violation.nodes) {
             addProblem(
