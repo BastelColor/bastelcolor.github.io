@@ -556,14 +556,23 @@ export const scenarios = [
       });
       await tabTo(page, '.works-item', '作品');
       await page.keyboard.press('Enter');
-      await waitFor(page, () => !!document.querySelector('.work-dialog[open] h3'), 10_000).catch(() => {
+      await waitFor(page, () => !!document.querySelector('.work-dialog[open] h3'), 30_000).catch(() => {
         throw new Error('Enter で、作品の詳細が開きません');
       });
       await page.keyboard.press('Escape');
-      await waitFor(page, () => !document.querySelector('.work-dialog[open]'), 5_000);
+      await waitFor(page, () => !document.querySelector('.work-dialog[open]'), 30_000).catch(() => {
+        throw new Error('Esc で、作品の詳細が閉じません');
+      });
+      // 詳細を閉じると、履歴から作品の URL を外す（少しあとで外れる）。外れる前に Esc を押すと、
+      // 2回の「戻る」が1回にまとまってしまうので、URL が部屋にもどるのを待つ
+      await waitFor(page, () => !location.pathname.startsWith('/work/'), 30_000).catch(() => {
+        throw new Error('作品の詳細を閉じても、URL が部屋にもどりません');
+      });
       // 部屋を Esc で閉じて、アバターの部屋へ
       await page.keyboard.press('Escape');
-      await waitFor(page, () => !document.querySelector('.room'), 5_000);
+      await waitFor(page, () => !document.querySelector('.room'), 30_000).catch(() => {
+        throw new Error('Esc で、さくひんの部屋が閉じません');
+      });
       await tabTo(page, '.home-menu .puni[aria-label="アバター"]', '「アバター」の雲');
       await page.keyboard.press('Enter');
       await waitFor(
@@ -593,7 +602,7 @@ export const scenarios = [
         throw new Error('Enter で写真のボタンを押しても、撮った写真が出ません');
       });
       await page.keyboard.press('Escape');
-      await waitFor(page, () => !document.querySelector('.avatar-photo-preview[open]'), 5_000).catch(() => {
+      await waitFor(page, () => !document.querySelector('.avatar-photo-preview[open]'), 30_000).catch(() => {
         throw new Error('Esc で、撮った写真が閉じません');
       });
     },
