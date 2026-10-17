@@ -769,9 +769,9 @@
   display: grid;
   place-items: center;
   flex: none;
-  /* せまいスマホ（幅 360px）でも、ボタン 6 つが1列に入るように */
-  width: clamp(40px, 11.5vw, 46px);
-  height: clamp(40px, 11.5vw, 46px);
+  /* せまいスマホ（幅 360px）でも、ボタン 7 つが1列に入るように */
+  width: clamp(36px, 10.4vw, 46px);
+  height: clamp(36px, 10.4vw, 46px);
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -822,8 +822,8 @@
   display: grid;
   place-items: center;
   flex: none;
-  width: clamp(58px, 17vw, 68px);
-  height: clamp(58px, 17vw, 68px);
+  width: clamp(54px, 16vw, 68px);
+  height: clamp(54px, 16vw, 68px);
   margin: 0 2px;
   padding: 0;
   border: 4px solid rgba(255, 255, 255, 0.6);
@@ -833,6 +833,72 @@
   box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
   color: #3a4256;
   pointer-events: auto;
+}
+
+/* 動画のときは赤いシャッター。撮っているあいだは、残りの秒を出して、ふちが点滅する */
+.avatar-ar-shutter.is-video {
+  color: #e0475b;
+}
+
+.avatar-ar-shutter.is-recording {
+  background: #e0475b;
+  color: #fff;
+  animation: avatar-ar-recording 1s ease-in-out infinite alternate;
+}
+
+@keyframes avatar-ar-recording {
+  to {
+    border-color: rgba(224, 71, 91, 0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-ar-shutter.is-recording {
+    animation: none;
+  }
+}
+
+/* 写真と動画の切りかえ（シャッターの上の、小さな2つのボタン） */
+.avatar-ar-modes {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  width: fit-content;
+  min-inline-size: 0;
+  margin: 0 auto 8px;
+  padding: 3px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(31, 45, 70, 0.45);
+  pointer-events: auto;
+}
+
+.avatar-ar-modes button {
+  min-width: 56px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.avatar-ar-modes button[aria-pressed='true'] {
+  background: #fff;
+  color: #3a4256;
+}
+
+.avatar-ar-modes button:disabled {
+  opacity: 0.6;
+}
+
+.avatar-ar-thumb video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .avatar-ar-shutter svg {
@@ -1855,4 +1921,59 @@
   display: block;
   font-size: 12px;
   color: #6a7183;
+}
+
+/* 写真の枠を選ぶボタン（部屋の写真と AR の写真。components/rooms/photo-preview.tsx） */
+.photo-frame-picker {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.photo-frame-picker legend {
+  float: left;
+  margin-right: 4px;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+.photo-frame-picker button {
+  padding: 5px 12px 6px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ink) 12%, transparent);
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.photo-frame-picker button[aria-pressed='true'] {
+  background: #ffe08a;
+  box-shadow: none;
+  color: #3a4256;
+}
+
+.photo-frame-picker button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* AR の写真のカードの中は、いつも明るい色 */
+.avatar-ar-sheet .photo-frame-picker legend,
+.avatar-ar-sheet .photo-frame-picker button {
+  color: #3a4256;
+}
+
+.avatar-ar-sheet .photo-frame-picker button:not([aria-pressed='true']) {
+  background: #eef0f4;
 }

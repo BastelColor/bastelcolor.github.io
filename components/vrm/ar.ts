@@ -4,6 +4,7 @@ import type {
   Object3D,
   Scene,
   WebGLRenderer,
+  WebGLRenderTarget,
 } from 'three';
 import { createARGestures, type ARGrabbable } from '@/components/vrm/ar-gestures';
 import { createARHeightMark } from '@/components/vrm/ar-height-mark';
@@ -73,11 +74,26 @@ export type ARSession = {
   setMark: (mark: { label: string; meters: number } | null) => void;
   /** カメラの映像とモデルを1枚にした写真を撮る（次に描くときに撮る）。撮れなければ null */
   photo: () => Promise<HTMLCanvasElement | null>;
+  /**
+   * カメラの映像ごと、短い動画を撮れるか（写真を撮れて、ブラウザが動画を作れるときだけ）
+   */
+  canRecord: boolean;
+  /** 動画を撮り始める。maxSeconds たつか、stopRecording で止まり、動画のファイル（撮れなければ null）を返す */
+  record: (maxSeconds: number) => Promise<Blob | null>;
+  stopRecording: () => void;
   end: () => void;
 };
 
 /** AR の写真の大きさの上限（長い辺のピクセル） */
 const PHOTO_MAX_SIZE = 2048;
+/**
+ * AR の動画の大きさの上限（長い辺のピクセル）と、1 秒あたりのこま数。
+ * 動画は、こまごとに描き直して画素を読むので、スマホの負担を減らすため、写真より小さく、こまも少なめ
+ */
+const VIDEO_MAX_SIZE = 960;
+const VIDEO_FPS = 15;
+/** 動画の形式（使えるもののうち、はじめのもの。mp4 のほうが、共有したときに多くのアプリで再生できる） */
+const VIDEO_TYPES = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
 
 /** カメラの映像を、画面いっぱいの背景として描く（カメラの位置や向きに関係なく、いちばん奥に） */
 const BACKGROUND_VERTEX = `
@@ -252,7 +268,31 @@ export async function startWebXR({
    * sRGB の入れ物に直接描くと、lilToon は自分で sRGB に直し、入れ物もまた直すので、色が二重に明るく
    * （薄く）なってしまう。なので、まず光の強さのままの入れ物（linear）に描き、そこから sRGB の入れ物へ写す
    */
-  const capture = (frame: XRFrame): HTMLCanvasElement | null => {
+  /** 描くための入れ物（動画のときは、こまごとに作り直さず使い回す） */
+  type CompositeTargets = { linear: WebGLRenderTarget; target: WebGLRenderTarget };
+  const makeTargets = (width: number, height: number): CompositeTargets => ({
+    linear: new THREE.WebGLRenderTarget(width, height, {
+      type: floatColor ? THREE.HalfFloatType : THREE.UnsignedByteType,
+      samples: 4,
+    }),
+    target: new THREE.WebGLRenderTarget(width, height, {
+      colorSpace: THREE.SRGBColorSpace,
+    }),
+  });
+
+  /**
+   * いまのカメラの映像の上に、モデルを描いて、画素（上の行から順）を返す（写真と動画で使う）。
+   * AR の画面（カメラの映像はブラウザの外で重ねられる）はページから読めないので、
+   * 入れ物に、カメラの映像とモデルを描き直す。
+   *
+   * sRGB の入れ物に直接描くと、lilToon は自分で sRGB に直し、入れ物もまた直すので、色が二重に明るく
+   * （薄く）なってしまう。なので、まず光の強さのままの入れ物（linear）に描き、そこから sRGB の入れ物へ写す
+   */
+  const renderComposite = (
+    frame: XRFrame,
+    maxSize: number,
+    reuse?: (width: number, height: number) => CompositeTargets,
+  ): { width: number; height: number; pixels: Uint8ClampedArray<ArrayBuffer> } | null => {
     const space = renderer.xr.getReferenceSpace();
     const view = space ? frame.getViewerPose(space)?.views[0] : undefined;
     // XRView.camera は、カメラの映像を読めるときだけある（型の定義にはまだ無い）
@@ -264,7 +304,7 @@ export async function startWebXR({
         )
       : null;
     if (!view || !xrCamera || !texture) return null;
-    const scale = Math.min(1, PHOTO_MAX_SIZE / Math.max(xrCamera.width, xrCamera.height));
+    const scale = Math.min(1, maxSize / Math.max(xrCamera.width, xrCamera.height));
     const width = Math.round(xrCamera.width * scale);
     const height = Math.round(xrCamera.height * scale);
     // 写すカメラは、スマホのカメラと同じ位置・向き・画角
@@ -276,13 +316,7 @@ export async function startWebXR({
     background.visible = true;
     const reticleShown = reticle.visible;
     reticle.visible = false;
-    const linear = new THREE.WebGLRenderTarget(width, height, {
-      type: floatColor ? THREE.HalfFloatType : THREE.UnsignedByteType,
-      samples: 4,
-    });
-    const target = new THREE.WebGLRenderTarget(width, height, {
-      colorSpace: THREE.SRGBColorSpace,
-    });
+    const { linear, target } = reuse ? reuse(width, height) : makeTargets(width, height);
     const previous = renderer.getRenderTarget();
     // AR の描き方（スマホのカメラで描く）をいったん止めて、写真用のカメラで描く
     renderer.xr.enabled = false;
@@ -298,25 +332,98 @@ export async function startWebXR({
     renderer.render(copyScene, copyCamera);
     renderer.xr.enabled = true;
     renderer.setRenderTarget(previous);
-    linear.dispose();
     background.visible = false;
     reticle.visible = reticleShown;
-    const pixels = new Uint8Array(width * height * 4);
-    renderer.readRenderTargetPixels(target, 0, 0, width, height, pixels);
-    target.dispose();
-    // 読んだ画素は下の行から並んでいるので、上下を返して写真にする
-    const photo = document.createElement('canvas');
-    photo.width = width;
-    photo.height = height;
-    const context = photo.getContext('2d');
-    if (!context) return null;
-    const image = context.createImageData(width, height);
+    const read = new Uint8Array(width * height * 4);
+    renderer.readRenderTargetPixels(target, 0, 0, width, height, read);
+    if (!reuse) {
+      linear.dispose();
+      target.dispose();
+    }
+    // 読んだ画素は下の行から並んでいるので、上下を返す
+    const pixels = new Uint8ClampedArray(width * height * 4);
     const row = width * 4;
     for (let y = 0; y < height; y++) {
-      image.data.set(pixels.subarray((height - 1 - y) * row, (height - y) * row), y * row);
+      pixels.set(read.subarray((height - 1 - y) * row, (height - y) * row), y * row);
     }
-    context.putImageData(image, 0, 0);
+    return { width, height, pixels };
+  };
+
+  /** 写真（canvas）を撮る */
+  const capture = (frame: XRFrame): HTMLCanvasElement | null => {
+    const shot = renderComposite(frame, PHOTO_MAX_SIZE);
+    if (!shot) return null;
+    const photo = document.createElement('canvas');
+    photo.width = shot.width;
+    photo.height = shot.height;
+    const context = photo.getContext('2d');
+    if (!context) return null;
+    context.putImageData(new ImageData(shot.pixels, shot.width, shot.height), 0, 0);
     return photo;
+  };
+
+  // ---- 動画: こまごとに、カメラの映像とモデルを描いて、小さな canvas に置き、それを録画する ----
+  const videoType = VIDEO_TYPES.find(
+    (type) => typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type),
+  );
+  const canRecord =
+    canPhoto && !!videoType && typeof HTMLCanvasElement.prototype.captureStream === 'function';
+  let recording: {
+    canvas: HTMLCanvasElement | null;
+    context: CanvasRenderingContext2D | null;
+    recorder: MediaRecorder | null;
+    chunks: Blob[];
+    targets: CompositeTargets | null;
+    last: number;
+    timer: number;
+    resolve: (blob: Blob | null) => void;
+  } | null = null;
+
+  const stopRecording = () => {
+    const current = recording;
+    if (!current) return;
+    recording = null;
+    window.clearTimeout(current.timer);
+    current.targets?.linear.dispose();
+    current.targets?.target.dispose();
+    if (!current.recorder || current.recorder.state === 'inactive') {
+      current.resolve(null);
+      return;
+    }
+    current.recorder.onstop = () => {
+      current.resolve(current.chunks.length ? new Blob(current.chunks, { type: videoType }) : null);
+    };
+    current.recorder.stop();
+  };
+
+  /** 録画中なら、決まった間隔で、こまを描く */
+  const recordFrame = (frame: XRFrame) => {
+    const current = recording;
+    if (!current) return;
+    const now = performance.now();
+    if (now - current.last < 1000 / VIDEO_FPS) return;
+    current.last = now;
+    const shot = renderComposite(frame, VIDEO_MAX_SIZE, (width, height) => {
+      current.targets ??= makeTargets(width, height);
+      return current.targets;
+    });
+    if (!shot) return;
+    // はじめのこまで、録画を始める（大きさは、カメラの映像の大きさで決まる）
+    if (!current.canvas) {
+      current.canvas = document.createElement('canvas');
+      current.canvas.width = shot.width;
+      current.canvas.height = shot.height;
+      current.context = current.canvas.getContext('2d');
+      current.recorder = new MediaRecorder(current.canvas.captureStream(VIDEO_FPS), {
+        mimeType: videoType,
+        videoBitsPerSecond: 4_000_000,
+      });
+      current.recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) current.chunks.push(event.data);
+      };
+      current.recorder.start(500);
+    }
+    current.context?.putImageData(new ImageData(shot.pixels, shot.width, shot.height), 0, 0);
   };
 
   const viewerSpace = await session.requestReferenceSpace('viewer');
@@ -442,6 +549,7 @@ export async function startWebXR({
     (copyQuad.material as Material).dispose();
     photoRequest?.(null);
     photoRequest = null;
+    stopRecording();
     renderer.xr.enabled = false;
     onEnd();
   });
@@ -464,6 +572,25 @@ export async function startWebXR({
           }
           photoRequest = resolve;
         }),
+      canRecord,
+      record: (maxSeconds) =>
+        new Promise((resolve) => {
+          if (!canRecord || ended || recording) {
+            resolve(null);
+            return;
+          }
+          recording = {
+            canvas: null,
+            context: null,
+            recorder: null,
+            chunks: [],
+            targets: null,
+            last: 0,
+            timer: window.setTimeout(stopRecording, maxSeconds * 1000),
+            resolve,
+          };
+        }),
+      stopRecording,
       end: () => {
         if (!ended) void session.end();
       },
@@ -474,6 +601,7 @@ export async function startWebXR({
         ground.update();
         mark.update(anchor.scale.x);
       }
+      recordFrame(frame);
       if (photoRequest) {
         const resolve = photoRequest;
         photoRequest = null;

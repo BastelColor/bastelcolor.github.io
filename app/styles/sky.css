@@ -105,7 +105,7 @@
   z-index: 0;
   inset: 0 0 45% 0;
   overflow: hidden;
-  opacity: var(--stars);
+  opacity: var(--shooting, var(--stars));
   pointer-events: none;
   transition: opacity 1s ease;
 }
@@ -176,4 +176,219 @@
 
 :root[data-motion='reduce'] .shooting-stars {
   display: none;
+}
+
+/* ============================================================
+   暗いテーマの、時間帯の景色（lib/sky.ts が <html data-dark-scene> に書く。飾りは components/shooting-stars.tsx）
+   明るさは夜のまま（文字の色などは夜と同じ）、空と雲の色と、飾りだけを変える
+   ============================================================ */
+
+/* 朝: オーロラ。少し緑がかった夜空 */
+:root[data-sky='night'][data-dark-scene='aurora'] {
+  --sky-top: #0c1a2c;
+  --sky-bottom: #173449;
+  --cloud-back: #2b4b5f;
+  --cloud-front: #3e6679;
+  --stars: 0.55;
+  --shooting: 0;
+}
+
+/* 昼: 深い海。雲の海は、青緑の波の色 */
+:root[data-sky='night'][data-dark-scene='sea'] {
+  --sky-top: #061a33;
+  --sky-bottom: #0d3d5c;
+  --cloud-back: #115070;
+  --cloud-front: #1b6a8c;
+  --stars: 0;
+  --shooting: 0;
+}
+
+/* 夕方: 雪の夜。紫がかった夜空 */
+:root[data-sky='night'][data-dark-scene='snow'] {
+  --sky-top: #1c1a3a;
+  --sky-bottom: #393566;
+  --cloud-back: #59588a;
+  --cloud-front: #8a8bb9;
+  --stars: 0.3;
+  --shooting: 0;
+}
+
+.dark-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: none;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+:root[data-dark-scene='aurora'] .dark-scene.is-aurora,
+:root[data-dark-scene='sea'] .dark-scene.is-sea,
+:root[data-dark-scene='snow'] .dark-scene.is-snow {
+  display: block;
+}
+
+/* オーロラ: ぼかした光の帯が 3 本、ゆっくりゆれる */
+.dark-scene.is-aurora span {
+  position: absolute;
+  left: -20%;
+  width: 140%;
+  height: 26%;
+  border-radius: 50%;
+  background: linear-gradient(
+    90deg,
+    transparent 4%,
+    rgba(88, 240, 180, 0.32) 26%,
+    rgba(120, 210, 255, 0.24) 50%,
+    rgba(255, 128, 210, 0.22) 72%,
+    transparent 96%
+  );
+  filter: blur(28px);
+  mix-blend-mode: screen;
+  animation: aurora-sway 14s ease-in-out infinite alternate;
+}
+
+.dark-scene.is-aurora span:nth-child(1) {
+  top: 6%;
+  rotate: -6deg;
+}
+
+.dark-scene.is-aurora span:nth-child(2) {
+  top: 16%;
+  rotate: 4deg;
+  opacity: 0.7;
+  animation-duration: 19s;
+  animation-delay: -6s;
+}
+
+.dark-scene.is-aurora span:nth-child(3) {
+  top: 27%;
+  rotate: -2deg;
+  opacity: 0.5;
+  animation-duration: 23s;
+  animation-delay: -11s;
+}
+
+@keyframes aurora-sway {
+  from {
+    transform: translateX(-6%) skewX(-8deg) scaleY(0.85);
+  }
+  to {
+    transform: translateX(6%) skewX(8deg) scaleY(1.15);
+  }
+}
+
+/* 海: 上から差しこむ光の筋 */
+.dark-scene .sea-ray {
+  position: absolute;
+  top: -10%;
+  width: 14%;
+  height: 80%;
+  background: linear-gradient(rgba(170, 225, 255, 0.2), transparent 85%);
+  filter: blur(8px);
+  transform-origin: top center;
+  animation: sea-ray 9s ease-in-out infinite alternate;
+}
+
+.dark-scene .sea-ray:nth-child(1) {
+  left: 10%;
+  rotate: 14deg;
+}
+
+.dark-scene .sea-ray:nth-child(2) {
+  left: 34%;
+  rotate: 8deg;
+  width: 9%;
+  animation-delay: -3s;
+}
+
+.dark-scene .sea-ray:nth-child(3) {
+  left: 58%;
+  rotate: 2deg;
+  animation-delay: -5s;
+}
+
+.dark-scene .sea-ray:nth-child(4) {
+  left: 80%;
+  rotate: -6deg;
+  width: 8%;
+  animation-delay: -7s;
+}
+
+@keyframes sea-ray {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 海: のぼっていく泡。動きを減らしているときは、空のあちこちで止まって見える */
+.dark-scene .sea-bubble {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: calc(var(--size) * 14px);
+  height: calc(var(--size) * 14px);
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.55) 0 18%, transparent 30%);
+  box-shadow: inset 0 0 0 1.5px rgba(190, 232, 255, 0.5);
+  animation: sea-bubble var(--duration) linear infinite;
+  animation-delay: var(--delay);
+}
+
+@keyframes sea-bubble {
+  0% {
+    opacity: 0;
+    transform: translate(0, 60vh);
+  }
+  12% {
+    opacity: 1;
+  }
+  50% {
+    transform: translate(10px, 0);
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-6px, -60vh);
+  }
+}
+
+/* 雪: ゆらゆらふる */
+.dark-scene .snowflake {
+  position: absolute;
+  left: var(--x);
+  top: var(--y);
+  width: calc(var(--size) * 6px);
+  height: calc(var(--size) * 6px);
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.85;
+  filter: blur(0.4px);
+  animation: snowfall var(--duration) linear infinite;
+  animation-delay: var(--delay);
+}
+
+@keyframes snowfall {
+  0% {
+    opacity: 0;
+    transform: translate(0, -60vh);
+  }
+  10% {
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate(14px, 0);
+  }
+  90% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-8px, 60vh);
+  }
 }

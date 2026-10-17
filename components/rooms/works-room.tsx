@@ -62,11 +62,33 @@ function groupByYear(list: Work[]) {
     );
 }
 
+/**
+ * 検索のために、ことばをそろえる（大文字・小文字、全角・半角、カタカナ・ひらがなの違いを無くす）
+ */
+function normalize(text: string) {
+  return text
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[\u30a1-\u30f6]/g, (char) => String.fromCharCode(char.charCodeAt(0) - 0x60));
+}
+
+/** 作品の、検索で探すことば（題名・分類・説明・本文・道具。日本語と英語の両方） */
+function searchText(work: Work, original: Work | undefined) {
+  return normalize(
+    [work, original]
+      .filter((item): item is Work => !!item)
+      .flatMap((item) => [item.title, item.category, item.description, ...(item.body ?? []), ...(item.tools ?? [])])
+      .join(' '),
+  );
+}
+
 export function WorksRoom() {
   const [genre, setGenre] = useState<WorkGenre | 'all'>('all');
   // 使った道具での絞り込み（ジャンルと組み合わせられる）
   const [tool, setTool] = useState<string>('all');
   const [view, setView] = useState<WorkView>('grid');
+  // ことばで探す（空なら、すべて）
+  const [query, setQuery] = useState('');
   const lang = useLang();
   const t = useT();
   // 英語のときは、作品の文章を content/works.ts の en で置きかえる
@@ -201,10 +223,15 @@ export function WorksRoom() {
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([name]) => name);
 
+  // ことばは、空白で区切ったすべてを含む作品だけ
+  const words = normalize(query).split(/\s+/).filter(Boolean);
   const listed = works.filter(
     (work) =>
       (genre === 'all' || work.genre === genre) &&
-      (tool === 'all' || (work.tools ?? []).includes(tool)),
+      (tool === 'all' || (work.tools ?? []).includes(tool)) &&
+      words.every((word) =>
+        searchText(work, worksJa.find((item) => item.id === work.id)).includes(word),
+      ),
   );
   // 年表で見るときは、作り始めた年ごとにまとめる
   const yearGroups = view === 'timeline' ? groupByYear(listed) : [];
@@ -263,6 +290,17 @@ export function WorksRoom() {
   return (
     <>
       <div className="works-controls">
+        {/* ことばで探す */}
+        <div className="works-search">
+          <label htmlFor="works-search">{t('さがす', 'Search')}</label>
+          <input
+            id="works-search"
+            type="search"
+            value={query}
+            placeholder={t('ことばで探す（例: Unity、シェーダー）', 'Search by words (e.g. Unity, shader)')}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
         <ul
           className="works-genres"
           aria-label={t('ジャンルで絞り込む', 'Filter by genre')}
@@ -330,10 +368,15 @@ export function WorksRoom() {
 
       {listed.length === 0 ? (
         <p className="works-empty">
-          {t(
-            'この組み合わせの作品はまだありません。',
-            'No works match this combination yet.',
-          )}
+          {words.length > 0
+            ? t(
+                `「${query.trim()}」に合う作品は見つかりませんでした。`,
+                `No works match “${query.trim()}”.`,
+              )
+            : t(
+                'この組み合わせの作品はまだありません。',
+                'No works match this combination yet.',
+              )}
         </p>
       ) : view === 'grid' ? (
         <ul className="works">{listed.map(renderItem)}</ul>

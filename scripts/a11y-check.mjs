@@ -1,6 +1,7 @@
 /**
  * 見えにくい人・キーボードやスクリーンリーダーを使う人にとって、困るところがないかを確かめる。
  *   npm run build のあとに: npm run a11y
+ * 公開の前（.github/workflows/deploy.yml）にも npm run a11y -- --ci で実行する（スマホの大きさだけ。問題があれば公開しない）。
  *
  * 書き出したサイト（dist/client）のおもな画面を本物のブラウザで開き、点検の道具（axe-core）で調べる。
  * ボタンの名前もれ・文字と背景のコントラスト・画像の説明もれ・見出しの順番などを見る。
@@ -54,10 +55,12 @@ const pages = [
   { path: '/this-page-does-not-exist', ready: () => !!document.querySelector('.not-found-title') },
 ].filter(Boolean);
 
+// 公開の前（--ci）は、時間がかからないよう、スマホの大きさだけで調べる
+const ci = process.argv.includes('--ci');
 const VIEWPORTS = [
   { id: 'pc', width: 1280, height: 800 },
   { id: 'phone', width: 390, height: 844, mobile: true },
-];
+].filter((viewport) => !ci || viewport.id === 'phone');
 const THEMES = ['light', 'dark'];
 
 const server = await startStaticServer();
@@ -250,6 +253,11 @@ if (problems.size === 0) {
     console.log(`    場所: ${problem.target}`);
     if (problem.summary) console.log(`    内容: ${problem.summary}`);
     console.log(`    画面: ${problem.where.slice(0, 4).join('、')}${problem.where.length > 4 ? ` ほか ${problem.where.length - 4}` : ''}`);
+  }
+  if (process.env.GITHUB_ACTIONS) {
+    for (const problem of problems.values()) {
+      console.log(`::error title=見えにくい人向けの点検 ${problem.id}::${problem.target}（${problem.where[0]}）${problem.summary ?? ''}`);
+    }
   }
   console.log(`[a11y] ${problems.size} 個の問題がありました`);
   process.exitCode = 1;

@@ -23,8 +23,8 @@ type PhotoOptions = {
   backdropElement: HTMLElement | null;
   /** 展示台が横長（みんなで並ぶ） */
   wide: boolean;
-  /** 右下に入れる文字 */
-  caption: string;
+  /** 右下に入れる文字（書かないときは入れない。枠をつけるときは、枠のほうで書く） */
+  caption?: string;
 };
 
 /** 画面の要素に CSS の色を当てて、実際の色（rgb）を読む */
@@ -212,7 +212,7 @@ export function composePhoto({
   }
 
   ctx.drawImage(image, 0, 0);
-  drawCaption(photo, caption, backdrop === 'night');
+  if (caption) drawCaption(photo, caption, backdrop === 'night');
   return photo;
 }
 

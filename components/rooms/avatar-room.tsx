@@ -12,10 +12,9 @@ import { useLang, useT } from '@/components/lang';
 import { countEvent } from '@/components/page-counter';
 import {
   composePhoto,
-  drawCaption,
-  photoFile,
   saveFile,
 } from '@/components/rooms/avatar-photo';
+import { PhotoFramePicker, usePhotoPreview } from '@/components/rooms/photo-preview';
 import { ShareButtons } from '@/components/share-buttons';
 import { LIGHTINGS, type Lighting } from '@/components/vrm/lighting';
 import {
@@ -41,8 +40,11 @@ import {
   HeightIcon,
   HelpIcon,
   MoodIcon,
+  PauseIcon,
   PersonIcon,
+  PlayIcon as ArPlayIcon,
   StopwatchIcon,
+  VideoIcon,
 } from '@/components/rooms/ar-icons';
 import { site } from '@/content/site';
 import { readLayers, replaceLayers } from '@/lib/history-layers';
@@ -63,6 +65,8 @@ const ORBIT_STEP = Math.PI / 4;
 const USDZ_PREPARE_DELAY = 3000;
 /** AR の写真のタイマーの秒数 */
 const AR_TIMER_SECONDS = 3;
+/** AR の動画の長さの上限（秒） */
+const AR_VIDEO_SECONDS = 10;
 
 /**
  * 「すぐ AR で見る」リンク（/avatar/<id>?ar、みんなで並ぶときは ?ar=everyone）で開いたか。
@@ -277,9 +281,21 @@ export function AvatarRoom() {
   const showArNote = (text: string) =>
     setArNote((current) => ({ text, key: (current?.key ?? 0) + 1 }));
   // AR で最後に撮った写真（右上に小さく出し、押すと大きく見て、共有もできる）
-  const [arPhoto, setArPhoto] = useState<{ file: File; url: string } | null>(null);
+  // AR で撮った写真（枠を選んで、保存するか共有するかを選ぶ。右上にも小さく出す）
+  const arShot = usePhotoPreview();
+  const arPhoto = arShot.result;
   const [arPhotoOpen, setArPhotoOpen] = useState(false);
-  const arPhotoUrl = useRef<string | null>(null);
+  // AR で動画を撮れるか（Android の Chrome など）と、シャッターで写真と動画のどちらを撮るか
+  const [arCanRecord, setArCanRecord] = useState(false);
+  const [arShotMode, setArShotMode] = useState<'photo' | 'video'>('photo');
+  // 動画を撮っているあいだの、残りの秒（撮っていないときは null）
+  const [arRecordLeft, setArRecordLeft] = useState<number | null>(null);
+  // AR で撮った動画（保存する前に、大きく見せる）
+  const [arVideo, setArVideo] = useState<{ url: string; file: File } | null>(null);
+  const [arVideoOpen, setArVideoOpen] = useState(false);
+  useEffect(() => () => {
+    if (arVideo) URL.revokeObjectURL(arVideo.url);
+  }, [arVideo]);
   // はじめて置いたときの、ボタンの説明
   const [arGuide, setArGuide] = useState(false);
   const [arBusy, setArBusy] = useState(false);
@@ -288,8 +304,8 @@ export function AvatarRoom() {
   // パソコンなどで見ているときの「スマホで AR」（QR コードのダイアログ）
   const qrDialog = useRef<HTMLDialogElement>(null);
   // 撮った写真（保存する前に、大きく見せる）
-  const [roomPhoto, setRoomPhoto] = useState<{ file: File; url: string } | null>(null);
-  const roomPhotoUrl = useRef<string | null>(null);
+  const roomShot = usePhotoPreview();
+  const roomPhoto = roomShot.result;
   const photoDialog = useRef<HTMLDialogElement>(null);
   // QR コードと写真のダイアログは、まわりの暗いところを押しても閉じる
   useEffect(() => {
@@ -448,10 +464,14 @@ export function AvatarRoom() {
           onEnd: () => {
             arSession.current = null;
             stopArCountdown();
+            stopArRecordTick();
             setArState('off');
           },
         });
         setArCanPhoto(arSession.current.canPhoto);
+        setArCanRecord(arSession.current.canRecord);
+        setArShotMode('photo');
+        setArVideoOpen(false);
         setArMark(true);
         setArExpressionsOpen(false);
         setArNote(null);
@@ -532,16 +552,43 @@ export function AvatarRoom() {
     if (!photo) return;
     const id = mode === 'lineup' ? 'everyone' : selected.id;
     countEvent(`ar-photo/${id}`);
-    drawCaption(photo, `${mode === 'lineup' ? shownNames : selected.nameEn} · Yzmo`, true);
-    const file = await photoFile(photo, `yzmo-${id}-ar.png`);
-    if (!file) return;
-    // AR のあいだは、共有の画面を出すと AR が止まるので、まずダウンロードに保存する
-    void saveFile(file, { share: false });
-    // 撮れたのが分かるよう、右上に小さく出す（前の写真の分は片付ける）
-    if (arPhotoUrl.current) URL.revokeObjectURL(arPhotoUrl.current);
-    arPhotoUrl.current = URL.createObjectURL(file);
-    setArPhoto({ file, url: arPhotoUrl.current });
-    showArNote(t('写真を保存しました', 'Photo saved'));
+    // すぐには保存せず、撮った写真を大きく見せて、枠と、保存するか共有するかを選んでもらう
+    arShot.show({
+      canvas: photo,
+      caption: `${mode === 'lineup' ? shownNames : selected.nameEn} · Yzmo`,
+      light: true,
+      fileName: `yzmo-${id}-ar.png`,
+    });
+    setArPhotoOpen(true);
+  };
+
+  // AR の動画。シャッターをもう一度押すか、AR_VIDEO_SECONDS 秒たつと止まり、撮った動画を大きく見せる
+  const arRecordTick = useRef<number | null>(null);
+  const stopArRecordTick = () => {
+    if (arRecordTick.current !== null) window.clearInterval(arRecordTick.current);
+    arRecordTick.current = null;
+    setArRecordLeft(null);
+  };
+  const takeArVideo = async () => {
+    const session = arSession.current;
+    if (!session) return;
+    playSound('shutter');
+    setArRecordLeft(AR_VIDEO_SECONDS);
+    let left = AR_VIDEO_SECONDS;
+    arRecordTick.current = window.setInterval(() => {
+      left = Math.max(0, left - 1);
+      setArRecordLeft(left);
+    }, 1000);
+    const blob = await session.record(AR_VIDEO_SECONDS);
+    stopArRecordTick();
+    if (!blob) return;
+    playSound('pop');
+    const id = mode === 'lineup' ? 'everyone' : selected.id;
+    countEvent(`ar-video/${id}`);
+    const extension = blob.type.includes('mp4') ? 'mp4' : 'webm';
+    const file = new File([blob], `yzmo-${id}-ar.${extension}`, { type: blob.type.split(';')[0] });
+    setArVideo({ url: URL.createObjectURL(file), file });
+    setArVideoOpen(true);
   };
 
   const closeArGuide = () => {
@@ -558,20 +605,26 @@ export function AvatarRoom() {
     setArCountdown(null);
   };
   // 写真のボタン。タイマーのときは 3・2・1 と数えてから撮る（数えているあいだに押すと、やめる）
+  // 動画のときは、撮っているあいだにもう一度押すと止める
   const pressArPhoto = () => {
+    if (arRecordLeft !== null) {
+      arSession.current?.stopRecording();
+      return;
+    }
     if (arCountdown !== null) {
       stopArCountdown();
       return;
     }
+    const take = arShotMode === 'video' && arCanRecord ? takeArVideo : takeArPhoto;
     if (!arTimer) {
-      void takeArPhoto();
+      void take();
       return;
     }
     const tick = (left: number) => {
       if (left === 0) {
         arCountdownTimer.current = null;
         setArCountdown(null);
-        void takeArPhoto();
+        void take();
         return;
       }
       playSound('pop');
@@ -594,16 +647,13 @@ export function AvatarRoom() {
       podium: podiumElement.current,
       backdropElement: backdropElement.current,
       wide: mode === 'lineup',
-      caption: `${name} · Yzmo`,
     });
-    const file = await photoFile(
-      photo,
-      `yzmo-${mode === 'lineup' ? 'everyone' : selected.id}.png`,
-    );
-    if (!file) return;
-    if (roomPhotoUrl.current) URL.revokeObjectURL(roomPhotoUrl.current);
-    roomPhotoUrl.current = URL.createObjectURL(file);
-    setRoomPhoto({ file, url: roomPhotoUrl.current });
+    roomShot.show({
+      canvas: photo,
+      caption: `${name} · Yzmo`,
+      light: backdrop === 'night',
+      fileName: `yzmo-${mode === 'lineup' ? 'everyone' : selected.id}.png`,
+    });
     photoDialog.current?.showModal();
   };
   const canShareRoomPhoto =
@@ -617,6 +667,21 @@ export function AvatarRoom() {
     ...(arCanPhoto
       ? [
           { key: 'photo', icon: <CameraIcon />, label: t('写真を撮る', 'Take a photo') },
+          ...(arCanRecord
+            ? [
+                {
+                  key: 'video',
+                  icon: <VideoIcon />,
+                  label: t(
+                    `下の「動画」にすると、${AR_VIDEO_SECONDS}秒までの動画を撮れる`,
+                    `Switch to “Video” to record up to ${AR_VIDEO_SECONDS}s`,
+                  ),
+                },
+              ]
+            : []),
+          ...(reduceMotion
+            ? []
+            : [{ key: 'pause', icon: <PauseIcon />, label: t('踊りを止める・また動かす', 'Pause or play the dance') }]),
           {
             key: 'timer',
             icon: <StopwatchIcon />,
@@ -639,6 +704,8 @@ export function AvatarRoom() {
     { key: 'back', icon: <BackIcon />, label: t('AR をおわる', 'Exit AR') },
     { key: 'help', icon: <HelpIcon />, label: t('この説明をもう一度見る', 'Show this again') },
   ];
+  const canShareArVideo =
+    !!arVideo && typeof navigator !== 'undefined' && !!navigator.canShare?.({ files: [arVideo.file] });
   const canShareArPhoto =
     !!arPhoto && typeof navigator !== 'undefined' && !!navigator.canShare?.({ files: [arPhoto.file] });
 
@@ -834,6 +901,20 @@ export function AvatarRoom() {
                 </span>
               )}
             </p>
+            {arVideo && arState === 'placed' && (
+              <button
+                key={arVideo.url}
+                type="button"
+                className="avatar-ar-thumb"
+                aria-label={t('撮った動画を見る', 'View the video')}
+                onClick={() => {
+                  playSound('pop');
+                  setArVideoOpen(true);
+                }}
+              >
+                <video src={arVideo.url} muted playsInline preload="metadata" />
+              </button>
+            )}
             {arPhoto && arState === 'placed' && (
               <button
                 key={arPhoto.url}
@@ -879,6 +960,49 @@ export function AvatarRoom() {
               {arNote.text}
             </output>
           )}
+          {/* 撮った動画を見る（保存するか、共有するか、とじるかを選ぶ） */}
+          {arVideo && arVideoOpen && arState === 'placed' && (
+            <div className="avatar-ar-sheet" data-ar-block>
+              <div className="avatar-ar-sheet-card">
+                <video
+                  className="avatar-ar-preview"
+                  src={arVideo.url}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  controls
+                  aria-label={t('AR で撮った動画', 'Video taken in AR')}
+                />
+                <div className="avatar-ar-sheet-buttons">
+                  {canShareArVideo && (
+                    <button type="button" onClick={() => void saveFile(arVideo.file)}>
+                      {t('共有する', 'Share')}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playSound('pop');
+                      void saveFile(arVideo.file, { share: false });
+                      setArVideoOpen(false);
+                      showArNote(t('動画を保存しました', 'Video saved'));
+                    }}
+                  >
+                    {t('保存する', 'Save')}
+                  </button>
+                  <button type="button" onClick={() => setArVideoOpen(false)}>
+                    {t('とじる', 'Close')}
+                  </button>
+                </div>
+                {canShareArVideo && (
+                  <p className="avatar-ar-sheet-small">
+                    {t('共有すると、AR はおわります', 'Sharing will end AR')}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           {/* 撮った写真を大きく見る（この上をタップしても、置き直さない） */}
           {arPhoto && arPhotoOpen && arState === 'placed' && (
             <div className="avatar-ar-sheet" data-ar-block>
@@ -888,15 +1012,24 @@ export function AvatarRoom() {
                   src={arPhoto.url}
                   alt={t('AR で撮った写真', 'Photo taken in AR')}
                 />
-                <p className="avatar-ar-sheet-small">
-                  {t('ダウンロードに保存しました', 'Saved to your downloads')}
-                </p>
+                <PhotoFramePicker frame={arShot.frame} onChoose={arShot.chooseFrame} />
                 <div className="avatar-ar-sheet-buttons">
                   {canShareArPhoto && (
                     <button type="button" onClick={() => void saveFile(arPhoto.file)}>
                       {t('共有する', 'Share')}
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playSound('pop');
+                      void saveFile(arPhoto.file, { share: false });
+                      setArPhotoOpen(false);
+                      showArNote(t('写真を保存しました', 'Photo saved'));
+                    }}
+                  >
+                    {t('保存する', 'Save')}
+                  </button>
                   <button type="button" onClick={() => setArPhotoOpen(false)}>
                     {t('とじる', 'Close')}
                   </button>
@@ -960,6 +1093,25 @@ export function AvatarRoom() {
                   ))}
               </div>
             )}
+            {/* 写真と動画の切りかえ（動画を撮れる端末だけ） */}
+            {arCanRecord && arState === 'placed' && (
+              <fieldset className="avatar-ar-modes" aria-label={t('撮るもの', 'Capture mode')}>
+                {(['photo', 'video'] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={arShotMode === value}
+                    disabled={arRecordLeft !== null}
+                    onClick={() => {
+                      playSound('pop');
+                      setArShotMode(value);
+                    }}
+                  >
+                    {value === 'photo' ? t('写真', 'Photo') : t('動画', 'Video')}
+                  </button>
+                ))}
+              </fieldset>
+            )}
             {/* カメラのアプリのように、写真を真ん中に大きく、ほかは左右にアイコンで */}
             <div className="avatar-ar-bar">
               <div className="avatar-ar-side is-start">
@@ -1021,20 +1173,50 @@ export function AvatarRoom() {
               {arCanPhoto && arState === 'placed' && (
                 <button
                   type="button"
-                  className="avatar-ar-shutter"
+                  className={cn(
+                    'avatar-ar-shutter',
+                    arShotMode === 'video' && arCanRecord && 'is-video',
+                    arRecordLeft !== null && 'is-recording',
+                  )}
                   aria-label={
-                    arCountdown !== null ? t('タイマーをやめる', 'Cancel timer') : t('写真を撮る', 'Take a photo')
+                    arRecordLeft !== null
+                      ? t('動画を止める', 'Stop recording')
+                      : arCountdown !== null
+                        ? t('タイマーをやめる', 'Cancel timer')
+                        : arShotMode === 'video' && arCanRecord
+                          ? t('動画を撮る', 'Record a video')
+                          : t('写真を撮る', 'Take a photo')
                   }
                   onClick={pressArPhoto}
                 >
-                  {arCountdown !== null ? (
+                  {arRecordLeft !== null ? (
+                    <span className="avatar-ar-shutter-count">{arRecordLeft}</span>
+                  ) : arCountdown !== null ? (
                     <span className="avatar-ar-shutter-count">{arCountdown}</span>
+                  ) : arShotMode === 'video' && arCanRecord ? (
+                    <VideoIcon />
                   ) : (
                     <CameraIcon />
                   )}
                 </button>
               )}
               <div className="avatar-ar-side is-end">
+                {/* 踊りを止める・また動かす（好きなポーズで止めて写真を撮れる。動きを減らしているときは踊らないので出さない） */}
+                {arState === 'placed' && !reduceMotion && (
+                  <button
+                    type="button"
+                    className="avatar-ar-icon"
+                    aria-label={paused ? t('踊りを再生する', 'Play the dance') : t('踊りを止める', 'Pause the dance')}
+                    aria-pressed={paused}
+                    onClick={() => {
+                      playSound('pop');
+                      setPaused(!paused);
+                      showArNote(paused ? t('踊りを再生', 'Dancing') : t('踊りを止めました', 'Paused'));
+                    }}
+                  >
+                    {paused ? <ArPlayIcon /> : <PauseIcon />}
+                  </button>
+                )}
                 {/* 押してから 3 秒後に撮る（スマホを置いて、自分もいっしょに写れる） */}
                 {arCanPhoto && arState === 'placed' && (
                   <button
@@ -1450,6 +1632,7 @@ export function AvatarRoom() {
             alt={t('撮った写真', 'The photo you took')}
           />
         )}
+        <PhotoFramePicker frame={roomShot.frame} onChoose={roomShot.chooseFrame} />
         <div className="avatar-photo-preview-buttons">
           {canShareRoomPhoto && roomPhoto && (
             <button

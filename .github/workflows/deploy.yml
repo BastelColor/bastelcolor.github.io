@@ -49,6 +49,12 @@ jobs:
         env:
           CHROME_PATH: /usr/bin/google-chrome
 
+      # 見えにくい人・キーボードの人にとって困るところ（ボタンの名前もれ・文字と背景のコントラストなど）が
+      # 増えていないかを確かめる（scripts/a11y-check.mjs。スマホの大きさで、明るいテーマと暗いテーマ）
+      - run: npm run a11y -- --ci
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
       # 見た目が大きく崩れていないかを、前に公開したときに撮った画面とくらべる（scripts/visual-test.mjs の --ci）。
       # 前の画面は GitHub のキャッシュに取っておく。わざと見た目を大きく変えたときは、
       # コミットのメッセージに [visual-accept] と書くと止めない

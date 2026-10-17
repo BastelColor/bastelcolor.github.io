@@ -23,6 +23,32 @@ const waitFor = (page, fn, timeout = 20_000, ...args) =>
  * 部屋が雲から広がっている途中は、円の外にあるものを押しても届かない。GitHub の確認の機械は遅く、
  * 広がりきるまでの時間が読めないので、決まった時間だけ待ってから1回押すのでは、たまに失敗する
  */
+/**
+ * Tab キーを押して、selector に合うものにフォーカスが来るまで進む（キーボードだけで操作できるかを確かめる）。
+ * 来たら、フォーカスの目印（outline など）が見えているかも確かめる
+ */
+const tabTo = async (page, selector, label, max = 80) => {
+  for (let i = 0; i < max; i++) {
+    await page.keyboard.press('Tab');
+    const found = await page.evaluate((query) => document.activeElement?.matches(query) ?? false, selector);
+    if (!found) continue;
+    // 目印は、そのものか、中のもの（作品のサムネイルなど）に付いていればよい
+    const visible = await page.evaluate(() => {
+      const element = document.activeElement;
+      return [element, ...element.querySelectorAll('*')].some((item) => {
+        const style = getComputedStyle(item);
+        return (
+          (style.outlineStyle !== 'none' && parseFloat(style.outlineWidth) > 0) ||
+          style.boxShadow !== 'none'
+        );
+      });
+    });
+    if (!visible) throw new Error(`${label}にフォーカスが来ても、目印（枠）が見えません`);
+    return;
+  }
+  throw new Error(`Tab キーで、${label}までたどりつけません`);
+};
+
 const clickUntil = async (page, selector, done, { tries = 6, timeout = 5_000 } = {}) => {
   for (let i = 0; i < tries; i++) {
     await page.click(selector).catch(() => {});
@@ -514,6 +540,61 @@ export const scenarios = [
       await page.keyboard.press('Escape');
       await waitFor(page, () => !document.querySelector('.keyboard-help[open]'), 5_000).catch(() => {
         throw new Error('Esc を押しても、キーの一覧が閉じません');
+      });
+    },
+  },
+  {
+    name: 'キーボード: Tab と Enter だけで、部屋を開き、作品を見て、アバターを切りかえ、写真を撮れる',
+    run: async (page, base) => {
+      await page.goto(base + '/', { waitUntil: 'load' });
+      await waitFor(page, () => document.querySelectorAll('.home-menu .puni').length === 4);
+      // さくひんの部屋を開き、作品の詳細を開いて、Esc で閉じる
+      await tabTo(page, '.home-menu .puni[aria-label="さくひん"]', '「さくひん」の雲');
+      await page.keyboard.press('Enter');
+      await waitFor(page, () => document.querySelectorAll('.room.is-expanded .works-item').length > 0).catch(() => {
+        throw new Error('Enter で、さくひんの部屋が開きません');
+      });
+      await tabTo(page, '.works-item', '作品');
+      await page.keyboard.press('Enter');
+      await waitFor(page, () => !!document.querySelector('.work-dialog[open] h3'), 10_000).catch(() => {
+        throw new Error('Enter で、作品の詳細が開きません');
+      });
+      await page.keyboard.press('Escape');
+      await waitFor(page, () => !document.querySelector('.work-dialog[open]'), 5_000);
+      // 部屋を Esc で閉じて、アバターの部屋へ
+      await page.keyboard.press('Escape');
+      await waitFor(page, () => !document.querySelector('.room'), 5_000);
+      await tabTo(page, '.home-menu .puni[aria-label="アバター"]', '「アバター」の雲');
+      await page.keyboard.press('Enter');
+      await waitFor(
+        page,
+        () => document.querySelector('.avatar-room-photo')?.disabled === false,
+        120_000,
+      ).catch(() => {
+        throw new Error('Enter で、アバターの部屋が開きません');
+      });
+      // 2人目の子に切りかえる
+      await tabTo(page, '.avatar-room-choice[aria-pressed="false"]', 'アバターを選ぶボタン');
+      const chosen = await page.evaluate(() => document.activeElement?.textContent);
+      await page.keyboard.press('Enter');
+      await waitFor(
+        page,
+        (name) => document.querySelector('.avatar-room-choice[aria-pressed="true"]')?.textContent === name,
+        10_000,
+        chosen,
+      ).catch(() => {
+        throw new Error('Enter で、アバターを切りかえられません');
+      });
+      await waitFor(page, () => document.querySelector('.avatar-room-photo')?.disabled === false, 120_000);
+      // 写真を撮って、見て、Esc で閉じる
+      await tabTo(page, '.avatar-room-photo', '写真のボタン');
+      await page.keyboard.press('Enter');
+      await waitFor(page, () => !!document.querySelector('.avatar-photo-preview[open] img'), 30_000).catch(() => {
+        throw new Error('Enter で写真のボタンを押しても、撮った写真が出ません');
+      });
+      await page.keyboard.press('Escape');
+      await waitFor(page, () => !document.querySelector('.avatar-photo-preview[open]'), 5_000).catch(() => {
+        throw new Error('Esc で、撮った写真が閉じません');
       });
     },
   },

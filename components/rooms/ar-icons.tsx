@@ -103,3 +103,31 @@ export function HelpIcon() {
     </Icon>
   );
 }
+
+/** 踊りを止める（一時停止） */
+export function PauseIcon() {
+  return (
+    <Icon>
+      <path d="M9 6v12M15 6v12" />
+    </Icon>
+  );
+}
+
+/** 踊りをまた動かす（再生） */
+export function PlayIcon() {
+  return (
+    <Icon>
+      <path d="M8 5.5v13l10-6.5z" fill="currentColor" />
+    </Icon>
+  );
+}
+
+/** 動画（ビデオカメラ） */
+export function VideoIcon() {
+  return (
+    <Icon>
+      <rect x="3" y="6" width="13" height="12" rx="2" />
+      <path d="M16 10.5l5-3v9l-5-3z" />
+    </Icon>
+  );
+}

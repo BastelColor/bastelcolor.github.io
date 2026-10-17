@@ -13,6 +13,45 @@
   margin: 0 0 clamp(24px, 4vh, 40px);
 }
 
+/* ことばで探す（いちばん上に、横いっぱい） */
+.works-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 100%;
+}
+
+.works-search label {
+  flex: none;
+  font-size: 13px;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+.works-search input {
+  flex: 1;
+  min-width: 0;
+  max-width: 420px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--edge) 25%, transparent);
+  font-family: var(--body);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.works-search input::placeholder {
+  color: var(--ink-soft);
+}
+
+.works-search input:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
 .works-genres {
   display: flex;
   flex-wrap: wrap;

@@ -2,7 +2,9 @@
  * トップと 404 の空の色を、見ている人の時間帯で変える（app/styles/sky.css）。
  *
  *   朝 5〜9時 / 昼 9〜16時 / 夕方 16〜19時 / 夜 19〜5時
- *   暗いテーマ（lib/theme.ts）のときは、時間に関係なく夜の空（星空）を出す
+ *   暗いテーマ（lib/theme.ts）のときは、明るさは時間に関係なく夜の空のまま、時間帯で景色だけを変える
+ *   （朝 オーロラ / 昼 深い海 / 夕方 雪の夜 / 夜 星空。<html data-dark-scene="aurora|sea|snow|stars">。
+ *   景色の飾りは components/shooting-stars.tsx、色は app/styles/sky.css）
  *
  * <html data-sky="morning|day|evening|night"> に書く。部屋の中（屋内）の色は変えない。
  */
@@ -24,8 +26,15 @@ export function applySky() {
     if (hour >= 5 && hour < 9) phase = 'morning';
     else if (hour >= 9 && hour < 16) phase = 'day';
     else if (hour >= 16 && hour < 19) phase = 'evening';
-    if (document.documentElement.dataset.theme === 'dark') phase = 'night';
-    document.documentElement.dataset.sky = phase;
+    const root = document.documentElement;
+    if (root.dataset.theme === 'dark') {
+      root.dataset.darkScene =
+        phase === 'morning' ? 'aurora' : phase === 'day' ? 'sea' : phase === 'evening' ? 'snow' : 'stars';
+      phase = 'night';
+    } else {
+      delete root.dataset.darkScene;
+    }
+    root.dataset.sky = phase;
   } catch {
     // 空の色が変わらないだけなので、何もしない
   }
