@@ -261,7 +261,7 @@ export const scenarios = [
     },
   },
   {
-    name: 'アバター: 背景・ライト・表示・踊りの停止を切りかえ、写真を保存できる',
+    name: 'アバター: 背景・ライト・表示・踊りの停止を切りかえ、写真を見てから保存できる',
     run: async (page, base, { avatarId }) => {
       // 写真の保存（<a download> を押す）を数える
       await page.evaluateOnNewDocument(() => {
@@ -316,8 +316,21 @@ export const scenarios = [
         throw new Error('踊りの再生・停止のボタンが切りかわりません');
       });
       await page.click('.avatar-room-photo');
+      // 撮った写真が大きく出て（保存はまだしない）、「保存する」で保存される。
       // 写真は大きな解像度で描き直すので、GitHub の確認の機械では時間がかかる
-      await waitFor(page, () => (window.__downloads ?? 0) > 0, 30_000);
+      await waitFor(
+        page,
+        () => !!document.querySelector('.avatar-photo-preview[open] img')?.complete,
+        30_000,
+      ).catch(() => {
+        throw new Error('写真のボタンを押しても、撮った写真が出ません');
+      });
+      if ((await page.evaluate(() => window.__downloads ?? 0)) > 0) {
+        throw new Error('写真を見る前に、保存されてしまいました');
+      }
+      await page.click('.avatar-photo-save');
+      await waitFor(page, () => (window.__downloads ?? 0) > 0, 10_000);
+      await waitFor(page, () => !document.querySelector('.avatar-photo-preview[open]'), 5_000);
     },
   },
   {

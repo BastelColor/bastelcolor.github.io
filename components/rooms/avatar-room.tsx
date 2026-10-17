@@ -15,7 +15,6 @@ import {
   drawCaption,
   photoFile,
   saveFile,
-  savePhoto,
 } from '@/components/rooms/avatar-photo';
 import { ShareButtons } from '@/components/share-buttons';
 import { LIGHTINGS, type Lighting } from '@/components/vrm/lighting';
@@ -286,17 +285,25 @@ export function AvatarRoom() {
   const [arBusy, setArBusy] = useState(false);
   // この画面で AR を使えるかを、調べ終えたか（調べ終えて使えなければ、パソコン向けに QR コードを出せる）
   const [arDetected, setArDetected] = useState(false);
-  // パソコンで見ているときの「スマホで AR」（QR コードのダイアログ）
+  // パソコンなどで見ているときの「スマホで AR」（QR コードのダイアログ）
   const qrDialog = useRef<HTMLDialogElement>(null);
-  // QR コードのダイアログは、まわりの暗いところを押しても閉じる
+  // 撮った写真（保存する前に、大きく見せる）
+  const [roomPhoto, setRoomPhoto] = useState<{ file: File; url: string } | null>(null);
+  const roomPhotoUrl = useRef<string | null>(null);
+  const photoDialog = useRef<HTMLDialogElement>(null);
+  // QR コードと写真のダイアログは、まわりの暗いところを押しても閉じる
   useEffect(() => {
-    const element = qrDialog.current;
-    if (!element) return;
+    const elements = [qrDialog.current, photoDialog.current].filter(
+      (element): element is HTMLDialogElement => element !== null,
+    );
     const onClick = (event: MouseEvent) => {
+      const element = event.currentTarget as HTMLDialogElement;
       if (event.target === element) element.close();
     };
-    element.addEventListener('click', onClick);
-    return () => element.removeEventListener('click', onClick);
+    for (const element of elements) element.addEventListener('click', onClick);
+    return () => {
+      for (const element of elements) element.removeEventListener('click', onClick);
+    };
   }, []);
   const arSession = useRef<ARSession | null>(null);
   const arOverlay = useRef<HTMLDivElement>(null);
@@ -574,7 +581,8 @@ export function AvatarRoom() {
     tick(AR_TIMER_SECONDS);
   };
 
-  const takePhoto = () => {
+  // 写真を撮ったら、すぐには保存せず、まず大きく見せて「保存する・共有する・とじる」を選んでもらう
+  const takePhoto = async () => {
     if (!stage) return;
     playSound('shutter');
     setFlash((count) => count + 1);
@@ -588,11 +596,21 @@ export function AvatarRoom() {
       wide: mode === 'lineup',
       caption: `${name} · Yzmo`,
     });
-    void savePhoto(
+    const file = await photoFile(
       photo,
       `yzmo-${mode === 'lineup' ? 'everyone' : selected.id}.png`,
     );
+    if (!file) return;
+    if (roomPhotoUrl.current) URL.revokeObjectURL(roomPhotoUrl.current);
+    roomPhotoUrl.current = URL.createObjectURL(file);
+    setRoomPhoto({ file, url: roomPhotoUrl.current });
+    photoDialog.current?.showModal();
   };
+  const canShareRoomPhoto =
+    !!roomPhoto &&
+    typeof navigator !== 'undefined' &&
+    window.matchMedia('(pointer: coarse)').matches &&
+    !!navigator.canShare?.({ files: [roomPhoto.file] });
 
   // AR のボタンの説明（はじめて置いたときに出す）。いまの画面に出ているボタンだけ
   const arGuideItems: { key: string; icon: ReactNode; label: string }[] = [
@@ -1131,7 +1149,7 @@ export function AvatarRoom() {
             aria-label={t('写真を撮って保存する', 'Take and save a photo')}
             title={t('写真を撮る', 'Take a photo')}
             disabled={!stage}
-            onClick={takePhoto}
+            onClick={() => void takePhoto()}
           >
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <path d="M8.5 5.5 9.8 3.8h4.4l1.3 1.7H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-10a2 2 0 0 1 2-2Z" />
@@ -1419,6 +1437,52 @@ export function AvatarRoom() {
           {t(avatarMotion.credit, avatarMotion.creditEn)}
         </p>
       </div>
+      {/* 撮った写真。保存するか、とじるかを選ぶ */}
+      <dialog
+        ref={photoDialog}
+        className="avatar-photo-preview"
+        aria-label={t('撮った写真', 'Your photo')}
+        onClose={() => playSound('pop')}
+      >
+        {roomPhoto && (
+          <img
+            src={roomPhoto.url}
+            alt={t('撮った写真', 'The photo you took')}
+          />
+        )}
+        <div className="avatar-photo-preview-buttons">
+          {canShareRoomPhoto && roomPhoto && (
+            <button
+              type="button"
+              className="avatar-photo-share"
+              onClick={() => {
+                void saveFile(roomPhoto.file);
+                photoDialog.current?.close();
+              }}
+            >
+              {t('共有する', 'Share')}
+            </button>
+          )}
+          <button
+            type="button"
+            className="avatar-photo-save"
+            onClick={() => {
+              if (!roomPhoto) return;
+              void saveFile(roomPhoto.file, { share: false });
+              photoDialog.current?.close();
+            }}
+          >
+            {t('保存する', 'Save')}
+          </button>
+          <button
+            type="button"
+            className="avatar-photo-close"
+            onClick={() => photoDialog.current?.close()}
+          >
+            {t('とじる', 'Close')}
+          </button>
+        </div>
+      </dialog>
       {/* パソコンなどで見ているときの、スマホで AR を開く QR コード（public/qr/ は scripts/write-ar-qr.mjs が作る） */}
       <dialog
         ref={qrDialog}

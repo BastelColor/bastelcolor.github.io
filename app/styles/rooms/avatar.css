@@ -573,6 +573,75 @@
   cursor: pointer;
 }
 
+/* 撮った写真（保存する前に、大きく見せる） */
+.avatar-photo-preview {
+  margin: auto;
+  width: min(92vw, 44rem);
+  max-height: 92svh;
+  padding: 16px;
+  border: 0;
+  border-radius: 24px;
+  background: var(--surface-solid);
+  color: var(--ink);
+  text-align: center;
+  box-shadow: 0 18px 40px rgba(31, 45, 70, 0.22);
+}
+
+.avatar-photo-preview::backdrop {
+  background: rgba(31, 45, 70, 0.45);
+}
+
+.avatar-photo-preview[open] {
+  animation: avatar-photo-preview-in 0.25s ease-out;
+}
+
+@keyframes avatar-photo-preview-in {
+  from {
+    opacity: 0;
+    scale: 0.94;
+  }
+}
+
+.avatar-photo-preview img {
+  display: block;
+  width: 100%;
+  max-height: calc(92svh - 120px);
+  object-fit: contain;
+  border-radius: 14px;
+}
+
+.avatar-photo-preview-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.avatar-photo-preview-buttons button {
+  min-width: 96px;
+  padding: 9px 20px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-strong);
+  font-family: var(--body);
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.avatar-photo-preview-buttons .avatar-photo-save,
+.avatar-photo-preview-buttons .avatar-photo-share {
+  background: #ffe08a;
+  color: #3a4256;
+}
+
+.avatar-photo-preview-buttons button:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
 /* スマホで AR を開く QR コード（パソコンなどで見ているとき） */
 .avatar-ar-qr {
   margin: auto;

@@ -238,20 +238,6 @@ export function drawCaption(
   ctx.shadowColor = 'transparent';
 }
 
-/**
- * 写真を保存する。スマホなどで「共有」から写真に保存できるときは共有の画面を出し、
- * それ以外はファイルとしてダウンロードする
- */
-export async function savePhoto(
-  photo: HTMLCanvasElement,
-  fileName: string,
-  /** false なら、共有の画面を出さずにダウンロードする（AR のあいだは、共有の画面で AR が止まってしまうため） */
-  { share = true }: { share?: boolean } = {},
-) {
-  const file = await photoFile(photo, fileName);
-  if (file) await saveFile(file, { share });
-}
-
 /** 写真を PNG のファイルにする */
 export async function photoFile(photo: HTMLCanvasElement, fileName: string) {
   const blob = await new Promise<Blob | null>((resolve) =>
