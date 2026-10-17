@@ -69,9 +69,9 @@
   font-weight: 400;
   line-height: 1.1;
   color: #fff;
-  -webkit-text-stroke: 0.14em var(--edge);
+  -webkit-text-stroke: 0.14em var(--edge-text, var(--edge));
   paint-order: stroke fill;
-  text-shadow: 0 0.06em 0 var(--edge);
+  text-shadow: 0 0.06em 0 var(--edge-text, var(--edge));
 }
 
 .room-head p {

@@ -91,26 +91,32 @@ a {
   text-underline-offset: 5px;
 }
 
-/* ---- 4色（雲・名前・部屋で共通） ---- */
+/* ---- 4色（雲・名前・部屋で共通） ----
+   --edge-text は、雲のボタンと部屋の見出しの、白い文字のふちどりの色。うしろの雲の色とのコントラストが
+   3 以上になるよう、--edge より少しだけ暗くしてある（見えにくい人向けの点検。scripts/a11y-check.mjs） */
 
 .pink {
   --tone: #ffb7d2;
   --edge: #e2709a;
+  --edge-text: #db4c81;
 }
 
 .mint {
   --tone: #a5e6cf;
   --edge: #3fae8c;
+  --edge-text: #359275;
 }
 
 .blue {
   --tone: #acd3fa;
   --edge: #5293d6;
+  --edge-text: #3984d0;
 }
 
 .yellow {
   --tone: #ffe08a;
   --edge: #d6a224;
+  --edge-text: #aa811d;
 }
 
 .white {

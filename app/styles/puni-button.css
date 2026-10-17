@@ -90,9 +90,9 @@
   font-size: clamp(20px, 2.3vw, 36px);
   font-family: var(--display);
   color: #fff;
-  -webkit-text-stroke: 0.2em var(--edge);
+  -webkit-text-stroke: 0.2em var(--edge-text, var(--edge));
   paint-order: stroke fill;
-  text-shadow: 0 0.08em 0 var(--edge);
+  text-shadow: 0 0.08em 0 var(--edge-text, var(--edge));
 }
 
 .puni.small .puni-label {
